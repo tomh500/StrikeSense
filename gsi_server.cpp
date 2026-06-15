@@ -12,7 +12,7 @@
 
 namespace gsi {
 
-int g_debug = 1;
+int g_debug = 0;
 
 static httplib::Server* s_server = nullptr;
 static std::thread s_serverThread;
@@ -391,8 +391,6 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         }
 
         // ===== 调试输出 =====
-        if (g_debug)
-        {
             std::cout << "[GSI] phase=" << phase
                       << " act=" << activity
                       << " kills=" << roundKills
@@ -400,7 +398,7 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                       << " hp=" << health
                       << " map=" << mapMode
                       << std::endl;
-        }
+        
     }
     catch (const std::exception& e)
     {

@@ -40,6 +40,8 @@ set(SOURCES
     config.cpp
     sound_player.cpp
     sound_ui.cpp
+    kernelcore.cpp
+    normalgen.cpp
 )
 
 set(HEADERS
@@ -50,6 +52,8 @@ set(HEADERS
     config.h
     sound_player.h
     sound_ui.h
+    kernelcore.h
+    normalgen.h
     framework.h
     targetver.h
     Resource.h
