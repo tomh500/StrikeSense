@@ -7,10 +7,12 @@
 #include "console.h"
 #include "steam_helper.h"
 #include "gsi_server.h"
+#include "config.h"
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
 #include <ShlObj.h>
+#include <sstream>
 
 #define MAX_LOADSTRING 100
 
@@ -29,6 +31,7 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    SettingsDlgProc(HWND, UINT, WPARAM, LPARAM);
 
 static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND hWnd);
@@ -386,6 +389,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
             break;
 
+        case IDM_SETTINGS:
+            DialogBoxW(hInst, MAKEINTRESOURCEW(IDD_SETTINGS), hWnd, SettingsDlgProc);
+            break;
+
         case IDM_EXIT:
             DestroyWindow(hWnd);
             break;
@@ -412,6 +419,93 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+// ============================================================
+// 设置对话框过程
+// ============================================================
+INT_PTR CALLBACK SettingsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    static config::Settings settings;
+
+    switch (msg)
+    {
+    case WM_INITDIALOG:
+    {
+        // 加载当前配置
+        settings = config::Load();
+
+        // 设置复选框状态
+        CheckDlgButton(hDlg, IDC_CK_CUSTOM_KIT, settings.custom_musickit ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hDlg, IDC_CK_FLASHBANG, settings.custom_flashbang ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hDlg, IDC_CK_LOW_MEMORY, settings.low_memory ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hDlg, IDC_CK_SHOW_MVP, settings.show_mvp ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hDlg, IDC_CK_USE_OGG, settings.ogg ? BST_CHECKED : BST_UNCHECKED);
+
+        // 设置音量编辑框
+        wchar_t volText[32];
+        swprintf_s(volText, L"%.2f", settings.volume);
+        SetDlgItemTextW(hDlg, IDC_EDIT_VOL, volText);
+
+        // 居中
+        RECT rc;
+        GetWindowRect(GetParent(hDlg), &rc);
+        int x = rc.left + (rc.right - rc.left) / 2 - 175;
+        int y = rc.top + (rc.bottom - rc.top) / 2 - 140;
+        SetWindowPos(hDlg, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+
+        std::cout << "[设置] 对话框打开，加载配置成功。" << std::endl;
+        return TRUE;
+    }
+
+    case WM_COMMAND:
+    {
+        WORD id = LOWORD(wParam);
+        if (id == IDOK)
+        {
+            // 读取复选框状态
+            settings.custom_musickit = (IsDlgButtonChecked(hDlg, IDC_CK_CUSTOM_KIT) == BST_CHECKED);
+            settings.custom_flashbang = (IsDlgButtonChecked(hDlg, IDC_CK_FLASHBANG) == BST_CHECKED);
+            settings.low_memory = (IsDlgButtonChecked(hDlg, IDC_CK_LOW_MEMORY) == BST_CHECKED);
+            settings.show_mvp = (IsDlgButtonChecked(hDlg, IDC_CK_SHOW_MVP) == BST_CHECKED);
+            settings.ogg = (IsDlgButtonChecked(hDlg, IDC_CK_USE_OGG) == BST_CHECKED);
+
+            // 读取音量
+            wchar_t volText[32];
+            GetDlgItemTextW(hDlg, IDC_EDIT_VOL, volText, 32);
+            try {
+                float v = std::stof(volText);
+                if (v >= 0.0f && v <= 1.0f)
+                    settings.volume = v;
+                else
+                    MessageBoxW(hDlg, L"音量必须在 0.0 到 1.0 之间！", L"输入错误", MB_OK | MB_ICONWARNING);
+            }
+            catch (...) {
+                MessageBoxW(hDlg, L"音量格式错误，请输入有效的数字！", L"输入错误", MB_OK | MB_ICONWARNING);
+            }
+
+            // 保存配置
+            if (config::Save(settings))
+            {
+                std::cout << "[设置] 配置已保存。" << std::endl;
+                EndDialog(hDlg, IDOK);
+            }
+            else
+            {
+                MessageBoxW(hDlg, L"保存配置失败！", L"错误", MB_OK | MB_ICONERROR);
+            }
+            return TRUE;
+        }
+        else if (id == IDCANCEL)
+        {
+            std::cout << "[设置] 用户取消，配置未修改。" << std::endl;
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+        }
+        break;
+    }
+    }
+    return FALSE;
 }
 
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)

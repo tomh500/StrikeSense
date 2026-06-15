@@ -60,6 +60,7 @@ set(SOURCES
     console.cpp
     steam_helper.cpp
     gsi_server.cpp
+    config.cpp
 )
 
 set(HEADERS
@@ -67,6 +68,7 @@ set(HEADERS
     console.h
     steam_helper.h
     gsi_server.h
+    config.h
     framework.h
     targetver.h
     Resource.h
