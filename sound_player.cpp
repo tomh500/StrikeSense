@@ -1,7 +1,10 @@
 #include "sound_player.h"
 #include "config.h"
 #include <iostream>
+#include <thread>
+#include <vector>
 #include <filesystem>
+#include <unordered_map>
 #include <SDL.h>
 #include <SDL_mixer.h>
 
@@ -10,6 +13,10 @@ namespace fs = std::filesystem;
 namespace sound {
 
 static bool s_sdlInitialized = false;
+
+// 预加载的音效缓存（非低内存模式使用）
+static std::unordered_map<int, Mix_Chunk*> s_soundMap;
+static std::unordered_map<int, std::string> s_soundFileMap;
 
 // ----------------------------------------------------------
 bool Init()
@@ -25,10 +32,7 @@ bool Init()
     int mixFlags = MIX_INIT_OGG | MIX_INIT_MP3;
     int init = Mix_Init(mixFlags);
     if ((init & mixFlags) != mixFlags)
-    {
-        std::cerr << "[音效] Mix_Init 失败: " << Mix_GetError() << std::endl;
-        // 继续，可能部分格式不支持
-    }
+        std::cerr << "[音效] Mix_Init 部分格式不支持: " << Mix_GetError() << std::endl;
 
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) == -1)
     {
@@ -45,13 +49,17 @@ bool Init()
 // ----------------------------------------------------------
 void Quit()
 {
-    if (s_sdlInitialized)
-    {
-        Mix_CloseAudio();
-        Mix_Quit();
-        SDL_Quit();
-        s_sdlInitialized = false;
-    }
+    if (!s_sdlInitialized) return;
+    // 释放预加载的音效
+    for (auto& [id, chunk] : s_soundMap)
+        if (chunk) Mix_FreeChunk(chunk);
+    s_soundMap.clear();
+    s_soundFileMap.clear();
+
+    Mix_CloseAudio();
+    Mix_Quit();
+    SDL_Quit();
+    s_sdlInitialized = false;
 }
 
 // ----------------------------------------------------------
@@ -59,11 +67,11 @@ static int SndIdToChannel(int id)
 {
     switch (id) {
     case 1: case 2: case 3: case 4: case 5:
-    case -1: return 0; // kill channel
+    case -1: return 0; // kill
     case -2: return 1; // MVP
     case -3: case -4: return 2; // win/lose
     case -12: return 3; // bomb
-    default: return -1; // auto
+    default: return -1;
     }
 }
 
@@ -71,8 +79,6 @@ static int SndIdToChannel(int id)
 static std::wstring ResolveSndPath(int id)
 {
     config::Settings cfg = config::Load();
-
-    // 优先使用自定义路径
     const std::wstring* paths[] = {
         &cfg.snd_1, &cfg.snd_2, &cfg.snd_3, &cfg.snd_4, &cfg.snd_5,
         &cfg.snd_extra, &cfg.snd_mvp, &cfg.snd_win, &cfg.snd_lose,
@@ -81,20 +87,15 @@ static std::wstring ResolveSndPath(int id)
     };
     int idx = -1;
     switch (id) {
-    case 1: idx = 0; break; case 2: idx = 1; break;
-    case 3: idx = 2; break; case 4: idx = 3; break;
-    case 5: idx = 4; break; case -1: idx = 5; break;
-    case -2: idx = 6; break; case -3: idx = 7; break;
-    case -4: idx = 8; break; case -12: idx = 9; break;
-    case -13: idx = 10; break; case -14: idx = 11; break;
-    case -18: idx = 12; break; case -19: idx = 13; break;
-    case -21: idx = 14; break;
+    case 1: idx=0; break; case 2: idx=1; break; case 3: idx=2; break;
+    case 4: idx=3; break; case 5: idx=4; break; case -1: idx=5; break;
+    case -2: idx=6; break; case -3: idx=7; break; case -4: idx=8; break;
+    case -12: idx=9; break; case -13: idx=10; break; case -14: idx=11; break;
+    case -18: idx=12; break; case -19: idx=13; break; case -21: idx=14; break;
     default: return L"";
     }
     if (idx >= 0 && idx < 15 && !paths[idx]->empty())
         return *paths[idx];
-
-    // 使用默认路径
     const wchar_t* names[] = {
         L"1", L"2", L"3", L"4", L"5", L"deathmatch",
         L"mvp", L"win", L"lose", L"bomb", L"round",
@@ -106,31 +107,115 @@ static std::wstring ResolveSndPath(int id)
 }
 
 // ----------------------------------------------------------
+// 预加载所有音效（非低内存模式用）
+// ----------------------------------------------------------
+void PreloadSounds()
+{
+    config::Settings cfg = config::Load();
+    if (cfg.low_memory)
+    {
+        std::cout << "[音效] 低内存模式，跳过预加载。" << std::endl;
+        return;
+    }
+
+    // 构建音效列表
+    std::vector<int> ids = {1,2,3,4,5,-1};
+    if (cfg.custom_musickit)
+    {
+        ids.push_back(-2); ids.push_back(-3); ids.push_back(-4);
+        ids.push_back(-12); ids.push_back(-13); ids.push_back(-14);
+        ids.push_back(-18); ids.push_back(-19); ids.push_back(-21);
+    }
+
+    for (int id : ids)
+    {
+        std::wstring path = ResolveSndPath(id);
+        std::string pathA = fs::path(path).string();
+
+        s_soundFileMap[id] = pathA; // 记录路径
+
+        Mix_Chunk* chunk = Mix_LoadWAV(pathA.c_str());
+        if (!chunk)
+        {
+            std::wcout << L"[音效] 预加载失败(id=" << id << L"): " << path << std::endl;
+            continue;
+        }
+        s_soundMap[id] = chunk;
+        std::wcout << L"[音效] 预加载成功(id=" << id << L"): " << path << std::endl;
+    }
+    std::cout << "[音效] 预加载完成，共 " << s_soundMap.size() << " 个音效。" << std::endl;
+}
+
+// ----------------------------------------------------------
 void Play(int id, float volume)
 {
     config::Settings cfg = config::Load();
-    if (!cfg.enable_kill_sound) return;
 
-    std::wstring path = ResolveSndPath(id);
-    if (path.empty() || !fs::exists(path))
+    // 死亡音效不受 enable_kill_sound 限制
+    if (id == -18)
     {
-        std::wcout << L"[音效] 文件不存在(id=" << id << L"): " << path << std::endl;
+        // 始终播放死亡音效
+    }
+    // 击杀音效：受 enable_kill_sound 控制
+    else if (id >= 1 && id <= 5 || id == -1)
+    {
+        if (!cfg.enable_kill_sound) return;
+    }
+    // 音乐包音效：受 custom_musickit 控制，且不会受到 enable_kill_sound 影响
+    else if (!cfg.custom_musickit)
+    {
+        // 不在 custom_musickit 模式下，不播放音乐包音效
+        if (id == -2 || id == -3 || id == -4 || id == -12 || id == -13 || id == -14)
+            return;
+    }
+
+    // ===== 低内存模式：从磁盘加载后播放，播放完释放 =====
+    if (cfg.low_memory)
+    {
+        std::wstring path = ResolveSndPath(id);
+        if (path.empty() || !fs::exists(path)) return;
+
+        std::string pathA = fs::path(path).string();
+        Mix_Chunk* chunk = Mix_LoadWAV(pathA.c_str());
+        if (!chunk) return;
+
+        int sdlVol = static_cast<int>(volume * MIX_MAX_VOLUME);
+        if (sdlVol > MIX_MAX_VOLUME) sdlVol = MIX_MAX_VOLUME;
+        Mix_VolumeChunk(chunk, sdlVol);
+
+        int channel = SndIdToChannel(id);
+        if (channel >= 0) Mix_HaltChannel(channel);
+
+        int played = Mix_PlayChannel(channel, chunk, 0);
+        if (played == -1)
+        {
+            Mix_FreeChunk(chunk);
+        }
+        else
+        {
+            std::wcout << L"[音效] 播放 id=" << id << L" (低内存模式)" << std::endl;
+            // 播放完毕后自动释放
+            std::thread([chunk, played]() {
+                while (Mix_Playing(played))
+                    SDL_Delay(6);
+                Mix_FreeChunk(chunk);
+            }).detach();
+        }
         return;
     }
 
-    // 转换到 UTF-8 用于 SDL_mixer
-    std::string pathA = std::filesystem::path(path).string();
-
-    Mix_Chunk* chunk = Mix_LoadWAV(pathA.c_str());
-    if (!chunk)
+    // ===== 正常模式：使用预加载缓存 =====
+    auto it = s_soundMap.find(id);
+    if (it == s_soundMap.end() || !it->second)
     {
-        std::cerr << "[音效] 加载失败 " << pathA << ": " << Mix_GetError() << std::endl;
+        std::wcout << L"[音效] 未预加载(id=" << id << L")" << std::endl;
         return;
     }
 
-    int vol = static_cast<int>(volume * MIX_MAX_VOLUME);
-    if (vol > MIX_MAX_VOLUME) vol = MIX_MAX_VOLUME;
-    Mix_VolumeChunk(chunk, vol);
+    Mix_Chunk* chunk = it->second;
+    int sdlVol = static_cast<int>(volume * MIX_MAX_VOLUME);
+    if (sdlVol > MIX_MAX_VOLUME) sdlVol = MIX_MAX_VOLUME;
+    Mix_VolumeChunk(chunk, sdlVol);
 
     int channel = SndIdToChannel(id);
     if (channel >= 0) Mix_HaltChannel(channel);
@@ -139,16 +224,10 @@ void Play(int id, float volume)
     if (played == -1)
     {
         std::cerr << "[音效] 播放失败: " << Mix_GetError() << std::endl;
-        Mix_FreeChunk(chunk);
     }
     else
     {
-        std::wcout << L"[音效] 播放 id=" << id << L" (" << path << L") 通道=" << played << std::endl;
-        // 音效播放完后自动释放（SDL_mixer 会在播放完毕后自动释放？需要回调）
-        // 这里让 chunk 在音效结束后自动回收
-        Mix_ChannelFinished([](int ch) {
-            // 不做事，chunk 由调用者管理
-        });
+        std::wcout << L"[音效] 播放 id=" << id << L" 通道=" << played << std::endl;
     }
 }
 

@@ -30,6 +30,7 @@ find_package(httplib CONFIG REQUIRED)
 find_package(yaml-cpp CONFIG REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_mixer CONFIG REQUIRED)
+find_package(SDL2_ttf CONFIG REQUIRED)
 
 set(SOURCES
     StrikeSense.cpp
@@ -38,6 +39,7 @@ set(SOURCES
     gsi_server.cpp
     config.cpp
     sound_player.cpp
+    sound_ui.cpp
 )
 
 set(HEADERS
@@ -47,6 +49,7 @@ set(HEADERS
     gsi_server.h
     config.h
     sound_player.h
+    sound_ui.h
     framework.h
     targetver.h
     Resource.h
@@ -64,6 +67,7 @@ target_link_libraries(StrikeSense PRIVATE
     yaml-cpp::yaml-cpp
     SDL2::SDL2
     SDL2_mixer::SDL2_mixer-static
+    SDL2_ttf::SDL2_ttf-static
     kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib
     advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib
 )
