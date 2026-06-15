@@ -15,7 +15,6 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <sstream>
-#include "everything_ipc.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -67,7 +66,7 @@ static SoundRow s_sounds[] = {
     {-21,L"菜单",L"menu.wav",&config::Settings::snd_menu},{-99,L"闪光(可能)",L"flash.bmp",nullptr},
 };
 static constexpr int SND_COUNT=sizeof(s_sounds)/sizeof(s_sounds[0]);
-enum Page{PAGE_SOUNDS=0,PAGE_SETTINGS=1,PAGE_EVOLUTION=2};
+enum Page{PAGE_SOUNDS=0,PAGE_SETTINGS=1,PAGE_EVOLUTION=2,PAGE_SEMIRAGE=3};
 
 ATOM MyRegisterClass(HINSTANCE);BOOL InitInstance(HINSTANCE,int);
 LRESULT CALLBACK WndProc(HWND,UINT,WPARAM,LPARAM);
@@ -75,6 +74,7 @@ INT_PTR CALLBACK About(HWND,UINT,WPARAM,LPARAM);INT_PTR CALLBACK ConfirmPathDlgP
 static std::wstring GetCS2CfgPath();static void OnCreateGSIConfig(HWND);static void OnBrowse(HWND,int);
 static void PaintSidebar(Gdiplus::Graphics&,int,int);static void PaintSoundsPage(Gdiplus::Graphics&,int,int,int,HWND);
 static void PaintSettingsPage(Gdiplus::Graphics&,int,int,int,HWND);static void PaintEvolutionPage(Gdiplus::Graphics&,int,int,int,HWND);
+static void PaintSemiRagePage(Gdiplus::Graphics&,int,int,int,HWND);
 static void CrosshairThreadFunc(HINSTANCE);static void DestroyCrosshairInternal();
 
 static std::wstring GetEvolutionConfigPath(){
@@ -173,97 +173,6 @@ static void CrosshairThreadFunc(HINSTANCE hI){
     MSG m;while(GetMessage(&m,nullptr,0,0)){TranslateMessage(&m);DispatchMessage(&m);}g_crossHWnd=nullptr;g_crossThreadRunning=false;}
 static void DestroyCrosshairInternal(){if(g_crossHWnd){PostMessage(g_crossHWnd,WM_CLOSE,0,0);int wc=0;while(g_crossHWnd&&wc<50){Sleep(50);wc++;}g_crossHWnd=nullptr;g_crossThreadRunning=false;}}
 
-// ======================== Everything SDK 搜索 ========================
-std::string EverythingSearch(const std::string& query, bool showFiles) {
-    HWND everythingHwnd = FindWindowW(EVERYTHING_IPC_WNDCLASSW, nullptr);
-    if (!everythingHwnd) return "Everything 未运行！请先启动 Everything。";
-    
-    // 创建隐藏窗口接收结果
-    WNDCLASSEXW rwc={};rwc.cbSize=sizeof(rwc);rwc.lpfnWndProc=DefWindowProcW;
-    rwc.hInstance=hInst;rwc.lpszClassName=L"EverythingResultWindow";RegisterClassExW(&rwc);
-    HWND resultHwnd=CreateWindowExW(0,L"EverythingResultWindow",L"",0,0,0,0,0,nullptr,nullptr,hInst,nullptr);
-    
-    // 准备查询
-    int qlen=(int)query.length();
-    EVERYTHING_IPC_QUERYA* q=(EVERYTHING_IPC_QUERYA*)malloc(sizeof(EVERYTHING_IPC_QUERYA)+qlen);
-    q->reply_hwnd=(DWORD)(ULONG_PTR)resultHwnd;
-    q->reply_copydata_message=100;
-    q->search_flags=0;
-    q->offset=0;
-    q->max_results=100;
-    memcpy(q->search_string,query.c_str(),qlen+1);
-    
-    COPYDATASTRUCT cds;cds.dwData=EVERYTHING_IPC_COPYDATAQUERYA;
-    cds.cbData=sizeof(EVERYTHING_IPC_QUERYA)-sizeof(CHAR)+qlen+1;
-    cds.lpData=q;
-    
-    LRESULT sent=SendMessageA(everythingHwnd,WM_COPYDATA,(WPARAM)resultHwnd,(LPARAM)&cds);
-    free(q);
-    
-    if(!sent){DestroyWindow(resultHwnd);return "Everything 查询失败！";}
-    
-    // 等待结果
-    EVERYTHING_IPC_LISTA* list=nullptr;
-    MSG msg;
-    DWORD start=GetTickCount();
-    while(GetTickCount()-start<3000){
-        if(PeekMessageA(&msg,resultHwnd,0,0,PM_REMOVE)){
-            if(msg.message==WM_COPYDATA){
-                COPYDATASTRUCT* cds2=(COPYDATASTRUCT*)msg.lParam;
-                if(cds2->dwData==100){
-                    list=(EVERYTHING_IPC_LISTA*)malloc(cds2->cbData);
-                    memcpy(list,cds2->lpData,cds2->cbData);
-                }}
-            TranslateMessage(&msg);DispatchMessage(&msg);if(list)break;}
-        else Sleep(10);}
-    
-    std::ostringstream result;
-    if(!list){result<<"查询超时或未收到结果。";DestroyWindow(resultHwnd);return result.str();}
-    
-    result<<"共找到 "<<list->totitems<<" 个文件/文件夹。";
-    if(showFiles){
-        for(DWORD i=0;i<list->numitems&&i<50;++i){
-            auto& item=list->items[i];
-            char* name=EVERYTHING_IPC_ITEMFILENAMEA(list,&item);
-            char* path=EVERYTHING_IPC_ITEMPATHA(list,&item);
-            result<<"\n  "<<(item.flags&EVERYTHING_IPC_FOLDER?"[文件夹] ":"[文件] ")<<name<<" ("<<path<<")";}}
-    free(list);DestroyWindow(resultHwnd);
-    return result.str();}
-
-// ======================== Debugger 命令处理 ========================
-// 被 console.cpp 调用来处理 Debugger 输入框的命令
-void ProcessDebuggerCommand(const std::wstring& input)
-{
-    std::wcout << L"[CMD] > " << input << std::endl;
-
-    if (input.find(L"localfile") == 0)
-    {
-        bool showFiles = (input.find(L"-show") != std::string::npos);
-        size_t findPos = input.find(L"-find");
-        if (findPos == std::string::npos) {
-            std::wcout << L"[CMD] 用法: localfile -find <关键词> [-show]" << std::endl; return; }
-        size_t start = input.find(L'"', findPos);
-        if (start == std::string::npos) { std::wcout << L"[CMD] 请用引号括起关键词" << std::endl; return; }
-        size_t end = input.find(L'"', start + 1);
-        if (end == std::string::npos) { std::wcout << L"[CMD] 缺少结束引号" << std::endl; return; }
-        std::wstring keyword = input.substr(start + 1, end - start - 1);
-        std::string kw8;
-        for (wchar_t wc : keyword) {
-            char buf8[8]={}; int len=WideCharToMultiByte(CP_UTF8,0,&wc,1,buf8,8,nullptr,nullptr);
-            for(int i=0;i<len;++i) kw8+=buf8[i]; }
-        std::wcout << L"[CMD] 搜索关键词: " << keyword.c_str() << std::endl;
-        std::string result = EverythingSearch(kw8, showFiles);
-        std::cout << result << std::endl;
-        return;
-    }
-    std::wcout << L"[CMD] 未知命令。支持: localfile -find <关键词> [-show]" << std::endl;
-}
-
-// ======================== Everything 结果接收窗口 ========================
-static LRESULT CALLBACK EverythingResultProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
-    if(m==WM_COPYDATA)return TRUE;
-    return DefWindowProc(hw,m,wp,lp);}
-
 // ======================== 所有绘制函数 ========================
 static void PaintAll(HWND hw,HDC hdc){
     using namespace Gdiplus;RECT rc;GetClientRect(hw,&rc);int W=rc.right-rc.left,H=rc.bottom-rc.top;
@@ -273,14 +182,15 @@ static void PaintAll(HWND hw,HDC hdc){
     PaintSidebar(g,W,H);int cx=SIDEBAR_W+12,cw=W-cx-12;
     switch(g_currentPage){case PAGE_SOUNDS:PaintSoundsPage(g,cx,cw,H,hw);break;
     case PAGE_SETTINGS:PaintSettingsPage(g,cx,cw,H,hw);break;
-    case PAGE_EVOLUTION:PaintEvolutionPage(g,cx,cw,H,hw);break;}
+    case PAGE_EVOLUTION:PaintEvolutionPage(g,cx,cw,H,hw);break;
+    case PAGE_SEMIRAGE:PaintSemiRagePage(g,cx,cw,H,hw);break;}
     BitBlt(hdc,0,0,W,H,md,0,0,SRCCOPY);SelectObject(md,ob);DeleteObject(mb);DeleteDC(md);}
 static void PaintSidebar(Gdiplus::Graphics& g,int W,int H){
     using namespace Gdiplus;SolidBrush bg(Color(255,200,230,250));Pen ln(Color(255,160,210,240),2.0f);
     Font tF(L"Microsoft YaHei",16,FontStyleBold),nF(L"Microsoft YaHei",12),nAF(L"Microsoft YaHei",12,FontStyleBold);
     SolidBrush tb(Color(255,20,80,140)),td(Color(255,30,60,100)),naB(Color(255,160,210,245));
     g.FillRectangle(&bg,0,0,SIDEBAR_W,H);g.DrawLine(&ln,SIDEBAR_W,0,SIDEBAR_W,H);g.DrawString(L"StrikeSense",-1,&tF,PointF(10,12),&tb);
-    struct{const wchar_t*t;int p;int y;}items[]={{L"文件位置",0,52},{L"遗产核心",1,82},{L"进化分支",2,112}};
+    struct{const wchar_t*t;int p;int y;}items[]={{L"文件位置",0,52},{L"遗产核心",1,82},{L"进化分支",2,112},{L"Semi Rage",3,142}};
     for(auto&it:items){if(g_currentPage==it.p)g.FillRectangle(&naB,8,it.y,SIDEBAR_W-16,24);Font&f=(g_currentPage==it.p)?nAF:nF;g.DrawString(it.t,-1,&f,PointF(14,it.y+3),g_currentPage==it.p?&tb:&td);}}
 static void PaintSoundsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND hw){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
@@ -314,6 +224,7 @@ static void PaintSettingsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     g.FillRectangle(&sBg,cx+80,y,sw,8);int fw=(int)(sw*c.volume);g.FillRectangle(&sFill,cx+80,y,fw,8);
     wchar_t vt[32];swprintf_s(vt,L"%.0f%%",c.volume*100.f);g.DrawString(vt,-1,&tF,PointF(cx+80+sw+8,y-4),&tdCol);}
 
+// ======================== 进化分支页面 ========================
 static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
     Font pF(L"Microsoft YaHei",13,FontStyleBold),rF(L"Microsoft YaHei",11),sF(L"Microsoft YaHei",9);
@@ -321,12 +232,15 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     SolidBrush sBg(Color(255,200,220,240)),sFill(Color(255,80,180,240)),knB(Color(255,60,160,230));
     SolidBrush ddBg(Color(255,220,240,255)),ddHoverBg(Color(255,180,220,245));
     g.FillRectangle(&hdrBg,cx,8,cw,34);g.DrawString(L"进化分支",-1,&pF,PointF(cx+10,14),&tbCol);
-    int yVolSlider=80,yRgb=230,yRow1=255,yRow2=280,yEnable=310;
+
+    // ---- 即时音量调整器 ----
     g.DrawString(L"即时音量调整器",-1,&rF,PointF(cx+10,50),&tdCol);
-    int slW=cw-100;g.FillRectangle(&sBg,cx+10,yVolSlider,slW,10);int fw=(int)(slW*g_death_vol);g.FillRectangle(&sFill,cx+10,yVolSlider,fw,10);
+    int yVolSlider=80; int slW=cw-100;
+    g.FillRectangle(&sBg,cx+10,yVolSlider,slW,10);int fw=(int)(slW*g_death_vol);g.FillRectangle(&sFill,cx+10,yVolSlider,fw,10);
     float kx=cx+10+fw-8.f;g.FillEllipse(&knB,kx,yVolSlider-6.f,16.f,16.f);
     wchar_t vt[32];swprintf_s(vt,L"%.0f%%",g_death_vol*100.f);g.DrawString(vt,-1,&rF,PointF(cx+20+slW,yVolSlider-8),&tdCol);
-    // 动态生成快捷键名称
+
+    // ---- 快捷键 ----
     std::wstring keyName;
     if(g_hotkeyMod&MOD_CONTROL)keyName+=L"Ctrl+";
     if(g_hotkeyMod&MOD_ALT)keyName+=L"Alt+";
@@ -338,39 +252,69 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     g.DrawString(hs,-1,&rF,PointF(cx+10,130),&tdCol);
     Gdiplus::RectF keyRect(cx+10,152,200,20);
     {Gdiplus::Pen kp(Gdiplus::Color(100,100,150,200));g.DrawRectangle(&kp,keyRect);g.DrawString(g_hotkeyWaiting?L"按下任何字母键或数字键..." : L"点击修改快捷键",-1,&sF,PointF(cx+14,154),g_hotkeyWaiting?(const Gdiplus::Brush*)&tbCol:(const Gdiplus::Brush*)&tmDim);}
+
+    // ---- 狙击准星设置 ----
+    int yRgb=230, yRow1=255, yEnable=310;
     g.DrawString(L"狙击准星设置",-1,&rF,PointF(cx+10,195),&tdCol);
+
+    // R G B 滑块（同一行）
+    int rgbLabelX=cx+10;
     const wchar_t*rgbL[]={L"R",L"G",L"B"};int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
+    int rgbBarW=80; int rgbSpacing=150;
     for(int i=0;i<3;++i){
-        g.DrawString(rgbL[i],-1,&sF,PointF(cx+10+i*160,yRgb),&tdCol);
-        g.FillRectangle(&sBg,cx+30+i*160,yRgb,100,10);int fw2=(int)(100.f*(*rgbV[i])/255.f);g.FillRectangle(&sFill,cx+30+i*160,yRgb,fw2,10);
-        wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(cx+140+i*160,yRgb-2),&tdCol);
+        int bx=rgbLabelX+i*rgbSpacing;
+        g.DrawString(rgbL[i],-1,&sF,PointF(bx,yRgb),&tdCol);
+        g.FillRectangle(&sBg,bx+20,yRgb,rgbBarW,10);int fw2=(int)(rgbBarW*(*rgbV[i])/255.f);g.FillRectangle(&sFill,bx+20,yRgb,fw2,10);
+        wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(bx+105,yRgb-2),&tdCol);
     }
-    // Row 2: 粗细(左) 缩放(右)
-    int yRow2Row = yRow1 + 30;
-    g.DrawString(L"粗细:",-1,&sF,PointF(cx+10,yRow2Row),&tdCol);
-    int thW=50;g.FillRectangle(&sBg,cx+60,yRow2Row,thW,10);int fw3=(int)(thW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,cx+60,yRow2Row,fw3,10);
-    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(cx+115,yRow2Row-2),&tdCol);
-    g.DrawString(L"缩放:",-1,&sF,PointF(cx+200,yRow2Row),&tdCol);
-    int scW=80;g.FillRectangle(&sBg,cx+245,yRow2Row,scW,10);int fw4=(int)(scW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,cx+245,yRow2Row,fw4,10);
-    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(cx+330,yRow2Row-2),&tdCol);
-    // 样式（在原粗细位置下方）
-    g.DrawString(L"样式:",-1,&sF,PointF(cx+400,yRow2Row),&tdCol);const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
+
+    // 第二行: 粗细、缩放、样式 靠左紧凑排列
+    int yRow2 = yRow1 + 30;
+
+    // 粗细
+    int thX=cx+10; g.DrawString(L"粗细:",-1,&sF,PointF(thX,yRow2),&tdCol);
+    int thBarX=thX+40; int thBarW=80;
+    g.FillRectangle(&sBg,thBarX,yRow2,thBarW,10);int fw3=(int)(thBarW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,thBarX,yRow2,fw3,10);
+    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(thBarX+thBarW+4,yRow2-2),&tdCol);
+
+    // 缩放
+    int scX=thBarX+thBarW+40; g.DrawString(L"缩放:",-1,&sF,PointF(scX,yRow2),&tdCol);
+    int scBarX=scX+40; int scBarW=100;
+    g.FillRectangle(&sBg,scBarX,yRow2,scBarW,10);int fw4=(int)(scBarW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,scBarX,yRow2,fw4,10);
+    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(scBarX+scBarW+4,yRow2-2),&tdCol);
+
+    // 样式
+    int styX=scBarX+scBarW+40; g.DrawString(L"样式:",-1,&sF,PointF(styX,yRow2),&tdCol);
+    int ddX=styX+40; int ddW=100, ddH=20;
+    const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
     {SolidBrush ddBtn(Color(255,180,220,250));Pen ddPen(Color(255,100,150,200));
-    Gdiplus::RectF ddRect(cx+245,yRow1-2,100.f,20.f);
-    g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF(cx+249,yRow1),&tdCol);
-    SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF(cx+333,yRow1+4),PointF(cx+341,yRow1+4),PointF(cx+337,yRow1+12)};
+    Gdiplus::RectF ddRect((REAL)ddX,(REAL)(yRow1-2),(REAL)ddW,(REAL)ddH);
+    g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF((REAL)ddX+4,(REAL)yRow1),&tdCol);
+    SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF((REAL)ddX+ddW-8,(REAL)(yRow1+4)),PointF((REAL)(ddX+ddW),(REAL)(yRow1+4)),PointF((REAL)(ddX+ddW-4),(REAL)(yRow1+12))};
     g.FillPolygon(&arr,arrPts,3);
-    if(g_styleDropdownOpen){for(int j=0;j<3;++j){Gdiplus::RectF optRect(cx+245,yRow1+16+j*18,100,18);g_dropdownRects[j]=optRect;
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){Gdiplus::RectF optRect((REAL)ddX,(REAL)(yRow1+16+j*18),(REAL)ddW,18.f);g_dropdownRects[j]=optRect;
         SolidBrush*optBg=(j==g_dropdownSelection)?&ddHoverBg:&ddBg;g.FillRectangle(optBg,optRect);g.DrawRectangle(&ddPen,optRect);
-        g.DrawString(sty[j],-1,&sF,PointF(cx+249,yRow1+18+j*18),&tdCol);}}}
-    // 启用准星（在样式右边）
+        g.DrawString(sty[j],-1,&sF,PointF((REAL)ddX+4,(REAL)(yRow1+18+j*18)),&tdCol);}}}
+
+    // 启用准星
     g.DrawString(L"启用准星",-1,&rF,PointF(cx+10,yEnable),&tdCol);
     {int tx=cx+120,ty=yEnable-4;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);GraphicsPath tp;tp.AddArc(tx,ty,24,24,90,180);tp.AddArc(tx+50-24,ty,24,24,270,180);tp.CloseFigure();
         SolidBrush onBr(Color(255,100,200,140)),offBr(Color(255,180,180,190)),kBr(Color(255,255,255,255));
         g.FillPath(g_crosshairEnabled?&onBr:&offBr,&tp);float kkx=g_crosshairEnabled?tx+50-22.f:tx+2.f;g.FillEllipse(&kBr,kkx,ty+2.f,20.f,20.f);}
 }
 
-static void CheckSidebarClick(int mx,int my){struct{int y;int p;}items[]={{52,0},{82,1},{112,2}};for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}}
+// ======================== Semi Rage 页面（空） ========================
+static void PaintSemiRagePage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
+    using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
+    Font pF(L"Microsoft YaHei",13,FontStyleBold), rF(L"Microsoft YaHei",11);
+    SolidBrush tbCol(Color(255,20,80,140)), tdCol(Color(255,30,60,100));
+    g.FillRectangle(&hdrBg,cx,8,cw,34);g.DrawString(L"Semi Rage",-1,&pF,PointF(cx+10,14),&tbCol);
+    g.DrawString(L"功能开发中...",-1,&rF,PointF(cx+10,60),&tdCol);
+}
+
+static void CheckSidebarClick(int mx,int my){
+    struct{int y;int p;}items[]={{52,0},{82,1},{112,2},{142,3}};
+    for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}}
 static void CheckSettingsClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
     for(int i=0;i<6;++i){int tx=cx+cw-60,ty=50+i*36;if(mx>=tx&&mx<=tx+50&&my>=ty&&my<=ty+24){s_toggleStates[i]=!s_toggleStates[i];config::Settings c=config::Load();
@@ -378,20 +322,29 @@ static void CheckSettingsClick(HWND hw,int mx,int my){
     int sw=cw-80;int slY=50+6*36+10;if(mx>=cx+80&&mx<=cx+80+sw&&my>=slY-4&&my<=slY+12){float t=(float)(mx-cx-80)/(float)sw;if(t<0)t=0;if(t>1)t=1;config::Settings c=config::Load();c.volume=t;config::Save(c);InvalidateRect(hw,nullptr,FALSE);}}
 static void CheckEvolutionClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
-    int yVolSlider=80,yRgb=230,yRow1=255,yRow2=280,yEnable=310;
-    int slW=cw-100;if(mx>=cx+10&&mx<=cx+10+slW&&my>=yVolSlider-8&&my<=yVolSlider+12){float t=(float)(mx-cx-10)/(float)slW;if(t<0)t=0;if(t>1)t=1;g_death_vol=t;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
-    // 快捷键点击监听
+
+    int yVolSlider=80, yRgb=230, yRow1=255, yEnable=310;
+    int slW=cw-100;
+
+    // 即时音量
+    if(mx>=cx+10&&mx<=cx+10+slW&&my>=yVolSlider-8&&my<=yVolSlider+12){float t=(float)(mx-cx-10)/(float)slW;if(t<0)t=0;if(t>1)t=1;g_death_vol=t;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 快捷键
     if(mx>=cx+10&&mx<=cx+210&&my>=152&&my<=172){g_hotkeyWaiting=!g_hotkeyWaiting;InvalidateRect(hw,nullptr,FALSE);return;}
-    // RGB
-    for(int i=0;i<3;++i){int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
-        if(mx>=cx+30+i*160&&mx<=cx+130+i*160&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-cx-30-i*160)/100.f;if(t<0)t=0;if(t>1)t=1;*rgbV[i]=(int)(t*255.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}
-    // 粗细 (B右边)
-    int thW=50;if(mx>=cx+400&&mx<=cx+400+thW&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-cx-400)/(float)thW;if(t<0)t=0;if(t>1)t=1;g_crosshairThickness=1+(int)(t*9.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
-    // 缩放(原样式位置)
-    int scW=80;if(mx>=cx+60&&mx<=cx+60+scW&&my>=yRow1-8&&my<=yRow1+12){float t=(float)(mx-cx-60)/(float)scW;if(t<0)t=0;if(t>1)t=1;g_crosshairScale=0.1f+t*0.5f;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
-    // 样式下拉 (原粗细位置)
-    if(my>=yRow1-2&&my<=yRow1+18&&mx>=cx+245&&mx<=cx+345){if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}}
-    if(g_styleDropdownOpen){for(int j=0;j<3;++j){if(mx>=cx+245&&mx<=cx+345&&my>=yRow1+16+j*18&&my<=yRow1+34+j*18){g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;}
+
+    int rgbLabelX=cx+10; int rgbBarW=80; int rgbSpacing=150;
+    // R G B
+    for(int i=0;i<3;++i){int bx=rgbLabelX+i*rgbSpacing;int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
+        if(mx>=bx+20&&mx<=bx+20+rgbBarW&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-bx-20)/(float)rgbBarW;if(t<0)t=0;if(t>1)t=1;*rgbV[i]=(int)(t*255.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}
+    // 粗细
+    int thBarX=cx+10+40; int thBarW=80; int yRow2=yRow1+30;
+    if(mx>=thBarX&&mx<=thBarX+thBarW&&my>=yRow2-8&&my<=yRow2+12){float t=(float)(mx-thBarX)/(float)thBarW;if(t<0)t=0;if(t>1)t=1;g_crosshairThickness=1+(int)(t*9.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 缩放
+    int scBarX=thBarX+thBarW+40+40; int scBarW=100;
+    if(mx>=scBarX&&mx<=scBarX+scBarW&&my>=yRow2-8&&my<=yRow2+12){float t=(float)(mx-scBarX)/(float)scBarW;if(t<0)t=0;if(t>1)t=1;g_crosshairScale=0.1f+t*0.5f;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 样式
+    int ddX=scBarX+scBarW+40+40; int ddW=100;
+    if(my>=yRow1-2&&my<=yRow1+18&&mx>=ddX&&mx<=ddX+ddW){if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}}
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){if(mx>=ddX&&mx<=ddX+ddW&&my>=yRow1+16+j*18&&my<=yRow1+34+j*18){g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;}
     // 启用
     int tx=cx+120,tye=yEnable-4;if(mx>=tx&&mx<=tx+50&&my>=tye&&my<=tye+24){g_crosshairEnabled=!g_crosshairEnabled;SaveEvolutionParams();
         if(g_crosshairEnabled&&!g_crossThreadRunning){g_crossThreadRunning=true;g_crossThread=std::thread(CrosshairThreadFunc,hInst);g_crossThread.detach();}

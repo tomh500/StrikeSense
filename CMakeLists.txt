@@ -38,7 +38,7 @@ set(HEADERS
 set(RESOURCES StrikeSense.rc)
 
 add_executable(StrikeSense WIN32 ${SOURCES} ${HEADERS} ${RESOURCES})
-target_include_directories(StrikeSense PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/Everything-SDK/ipc)
+target_include_directories(StrikeSense PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(StrikeSense PRIVATE
     nlohmann_json::nlohmann_json httplib::httplib yaml-cpp::yaml-cpp
     SDL2::SDL2 SDL2_mixer::SDL2_mixer-static SDL2_ttf::SDL2_ttf-static

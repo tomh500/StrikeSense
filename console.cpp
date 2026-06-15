@@ -1,8 +1,6 @@
 #include "console.h"
 #include "resource.h"
 #include <iostream>
-#include <cstring>
-#include <sstream>
 
 Console* Console::s_pThis = nullptr;
 
@@ -53,9 +51,6 @@ bool Console::InitRedirection()
     return true;
 }
 
-// 处理 Debugger 输入命令（实现在 StrikeSense.cpp）
-void ProcessDebuggerCommand(const std::wstring& input);
-
 // ======================== Debugger 对话框过程 ========================
 bool Console::ShowDebugger(HINSTANCE hInstance, HWND hParentWnd)
 {
@@ -97,35 +92,6 @@ INT_PTR CALLBACK Console::DebuggerDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
     case WM_COMMAND:
     {
         WORD id = LOWORD(wParam);
-        if (id == IDC_EDIT_INPUT && HIWORD(wParam) == EN_UPDATE)
-        {
-            // 回车被捕获，读取输入并处理
-            HWND hInput = GetDlgItem(hDlg, IDC_EDIT_INPUT);
-            if (hInput) {
-                int len = GetWindowTextLengthW(hInput);
-                if (len > 0) {
-                    std::wstring input(len, L'\0');
-                    GetWindowTextW(hInput, &input[0], len + 1);
-                    ProcessDebuggerCommand(input);
-                    SetWindowTextW(hInput, L"");  // 清空输入框
-                }
-            }
-            return TRUE;
-        }
-        if (id == IDC_CLEAR) // 发送按钮
-        {
-            HWND hInput = GetDlgItem(hDlg, IDC_EDIT_INPUT);
-            if (hInput) {
-                int len = GetWindowTextLengthW(hInput);
-                if (len > 0) {
-                    std::wstring input(len, L'\0');
-                    GetWindowTextW(hInput, &input[0], len + 1);
-                    ProcessDebuggerCommand(input);
-                    SetWindowTextW(hInput, L"");
-                }
-            }
-            return TRUE;
-        }
         if (id == IDC_COPYALL) // 清除输出
         {
             HWND hEdit = GetDlgItem(hDlg, IDC_DEBUG_EDIT);
