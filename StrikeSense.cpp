@@ -1,4 +1,4 @@
-﻿// StrikeSense.cpp — GDI+ 亚克力控件版
+﻿// StrikeSense.cpp — GDI+ 水色系亚克力版
 //
 
 #include "framework.h"
@@ -20,6 +20,7 @@
 
 namespace fs = std::filesystem;
 #define MAX_LOADSTRING 100
+#define SIDEBAR_W 140
 
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
@@ -88,7 +89,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC)
 ATOM MyRegisterClass(HINSTANCE hI){
     WNDCLASSEXW wc={};wc.cbSize=sizeof(wc);wc.style=CS_HREDRAW|CS_VREDRAW;
     wc.lpfnWndProc=WndProc;wc.hInstance=hI;wc.hIcon=LoadIcon(hI,MAKEINTRESOURCE(IDI_STRIKESENSE));
-    wc.hCursor=LoadCursor(nullptr,IDC_ARROW);wc.hbrBackground=(HBRUSH)GetStockObject(BLACK_BRUSH);
+    wc.hCursor=LoadCursor(nullptr,IDC_ARROW);wc.hbrBackground=(HBRUSH)GetStockObject(WHITE_BRUSH);
     wc.lpszMenuName=MAKEINTRESOURCEW(IDC_STRIKESENSE);wc.lpszClassName=szWindowClass;
     wc.hIconSm=LoadIcon(wc.hInstance,MAKEINTRESOURCE(IDI_SMALL));return RegisterClassExW(&wc);
 }
@@ -96,10 +97,8 @@ ATOM MyRegisterClass(HINSTANCE hI){
 BOOL InitInstance(HINSTANCE hI,int nSC){
     hInst=hI;
     HWND w=CreateWindowW(szWindowClass,szTitle,WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,0,660,700,nullptr,nullptr,hI,nullptr);
+        CW_USEDEFAULT,0,780,700,nullptr,nullptr,hI,nullptr);
     if(!w)return FALSE;
-    MARGINS mg={-1,-1,-1,-1};DwmExtendFrameIntoClientArea(w,&mg);
-    BOOL dk=TRUE;DwmSetWindowAttribute(w,DWMWA_USE_IMMERSIVE_DARK_MODE,&dk,sizeof(dk));
     ShowWindow(w,nSC);UpdateWindow(w);return TRUE;
 }
 
@@ -128,50 +127,80 @@ static void PaintAll(HWND hw,HDC hdc){
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAlias);
 
-    // 背景
-    SolidBrush bgBr(Color(200,18,18,26));g.FillRectangle(&bgBr,0,0,W,H);
-    // 顶栏
-    LinearGradientBrush gBar(Point(0,0),Point(W,0),Color(40,60,160,240),Color(40,160,60,240));
-    g.FillRectangle(&gBar,0,0,W,44);
-    Font tF(L"Microsoft YaHei",17,FontStyleBold);SolidBrush tB(Color::White);
-    g.DrawString(L"StrikeSense 音效配置",-1,&tF,PointF(14,8),&tB);
+    // ---- 水色系配色 ----
+    SolidBrush bgMain(Color(255,235,248,255));     // 主背景：浅水蓝
+    SolidBrush sidebarBg(Color(255,200,230,250));  // 侧边栏：水蓝
+    Pen sidebarLine(Color(255,160,210,240),2.0f);  // 分隔线
+    SolidBrush headerBg(Color(255,180,220,245));   // 顶栏：中水蓝
+    SolidBrush rowBg0(Color(255,220,240,255));     // 奇数行：浅白水蓝
+    SolidBrush rowBg1(Color(255,240,248,255));     // 偶数行：微白
+    SolidBrush textDark(Color(255,30,60,100));     // 深色文字：深蓝
+    SolidBrush textDim(Color(255,100,130,160));    // 暗色文字
+    SolidBrush textBright(Color(255,20,80,140));   // 亮色文字：蓝
+    SolidBrush btnBg(Color(255,140,200,240));      // 按钮：水蓝
+    SolidBrush btnHoverBg(Color(255,60,160,230));  // hover：亮水蓝
+    SolidBrush btnText(Color(255,255,255,255));    // 按钮文字：白
+    Pen btnPen(Color(255,100,170,220));            // 按钮边框
+
+    Font titleFont(L"Microsoft YaHei", 16, FontStyleBold);
+    Font pageFont(L"Microsoft YaHei", 13, FontStyleBold);
+    Font rowFont(L"Microsoft YaHei", 11);
+    Font btnFont(L"Microsoft YaHei", 9);
+
+    // ---- 绘制 ----
+
+    // 1. 主背景
+    g.FillRectangle(&bgMain, 0, 0, W, H);
+
+    // 2. 侧边栏
+    g.FillRectangle(&sidebarBg, 0, 0, SIDEBAR_W, H);
+    g.DrawLine(&sidebarLine, SIDEBAR_W, 0, SIDEBAR_W, H);
+
+    // 3. 侧边栏标题
+    g.DrawString(L"StrikeSense", -1, &titleFont, PointF(10,12), &textBright);
+    Font navFont(L"Microsoft YaHei", 12);
+    g.DrawString(L"文件位置", -1, &navFont, PointF(14,52), &textDark);
+
+    // 4. 主内容区顶栏
+    int contentX = SIDEBAR_W + 12;
+    int contentW = W - contentX - 12;
+    g.FillRectangle(&headerBg, contentX, 8, contentW, 34);
+    g.DrawString(L"文件位置", -1, &pageFont, PointF(contentX+10,14), &textBright);
+
+    // GSI 状态行
     config::Settings c=config::Load();
-    wchar_t st[256];swprintf_s(st,L"GSI:%s | 音效:%s | 音乐包:%s | 低内存:%s | 音量:%.0f%%",
+    wchar_t st[256];swprintf_s(st,L"GSI: %s  |  音效: %s  |  音乐包: %s  |  低内存: %s  |  音量: %.0f%%",
         gsi::IsRunning()?L"运行中":L"未启动",
         c.enable_kill_sound?L"已启用":L"已禁用",
         c.custom_musickit?L"已启用":L"已禁用",
         c.low_memory?L"已启用":L"已禁用",c.volume*100.f);
-    Font sF(L"Microsoft YaHei",9);SolidBrush sB(Color(255,170,170,190));
-    g.DrawString(st,-1,&sF,PointF(14,34),&sB);
+    Font sF(L"Microsoft YaHei", 9);
+    g.DrawString(st,-1,&sF,PointF(contentX+10,48),&textDim);
 
-    Font rF(L"Microsoft YaHei",11);Font bF(L"Microsoft YaHei",9);
-    SolidBrush rowBg0(Color(160,38,38,50)),rowBg1(Color(120,28,28,38));
-    SolidBrush tBright(Color::White),tDim(Color(255,150,150,165));
-    SolidBrush btnB(Color(200,60,60,80)),btnHB(Color(200,80,140,240)),btnTB(Color::White);
-    Pen btnP(Color(128,100,100,130));
-    int y=60;const int rh=32;
+    int y=70;const int rh=30;
     for(int i=0;i<SND_COUNT;++i){
         auto&r=s_sounds[i];
         SolidBrush* bg = (i%2==0) ? &rowBg0 : &rowBg1;
-        g.FillRectangle(bg,8,y,W-16,rh);
-        g.DrawString(r.label,-1,&rF,PointF(14,y+6),&tBright);
+        g.FillRectangle(bg,contentX,y,contentW,rh);
+        g.DrawString(r.label,-1,&rowFont,PointF(contentX+8,y+5),&textDark);
         std::wstring nm=r.defName;bool isDef=true;
         std::wstring pp=c.*(r.cfgPtr);
         if(!pp.empty()){fs::path p(pp);nm=p.filename().wstring();isDef=false;}
-        SolidBrush* nmB = isDef ? &tDim : &tBright;
-        g.DrawString(nm.c_str(),-1,&rF,PointF(220,y+6),nmB);
-        int bx=W-100,by=y+3,bw=80,bh=26;
+        SolidBrush* nmB = isDef ? &textDim : &textDark;
+        g.DrawString(nm.c_str(),-1,&rowFont,PointF(contentX+200,y+5),nmB);
+        int bx=W-100,by=y+2,bw=80,bh=26;
         r.btnRect=RectF((REAL)bx,(REAL)by,(REAL)bw,(REAL)bh);
         GraphicsPath bp;
-        bp.AddArc((REAL)bx,(REAL)by,(REAL)8,(REAL)8,(REAL)180,(REAL)90);
-        bp.AddArc((REAL)(bx+bw-8),(REAL)by,(REAL)8,(REAL)8,(REAL)270,(REAL)90);
-        bp.AddArc((REAL)(bx+bw-8),(REAL)(by+bh-8),(REAL)8,(REAL)8,(REAL)0,(REAL)90);
-        bp.AddArc((REAL)bx,(REAL)(by+bh-8),(REAL)8,(REAL)8,(REAL)90,(REAL)90);
+        float rx=8.f,ry=8.f;
+        bp.AddArc((REAL)bx,(REAL)by,2*rx,2*ry,180,90);
+        bp.AddArc((REAL)(bx+bw-2*rx),(REAL)by,2*rx,2*ry,270,90);
+        bp.AddArc((REAL)(bx+bw-2*rx),(REAL)(by+bh-2*ry),2*rx,2*ry,0,90);
+        bp.AddArc((REAL)bx,(REAL)(by+bh-2*ry),2*rx,2*ry,90,90);
         bp.CloseFigure();
         POINT pt;GetCursorPos(&pt);ScreenToClient(hw,&pt);
         bool hv=(pt.x>=bx&&pt.x<=bx+bw&&pt.y>=by&&pt.y<=by+bh);
-        g.FillPath(hv?&btnHB:&btnB,&bp);g.DrawPath(&btnP,&bp);
-        g.DrawString(L"选择...",-1,&bF,PointF(bx+10,by+6),&btnTB);
+        g.FillPath(hv?&btnHoverBg:&btnBg,&bp);g.DrawPath(&btnPen,&bp);
+        g.DrawString(L"选择...",-1,&btnFont,PointF(bx+12,by+6),&btnText);
         y+=rh+2;
     }
     BitBlt(hdc,0,0,W,H,md,0,0,SRCCOPY);SelectObject(md,ob);DeleteObject(mb);DeleteDC(md);
@@ -179,7 +208,7 @@ static void PaintAll(HWND hw,HDC hdc){
 
 LRESULT CALLBACK WndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
     switch(m){
-    case WM_CREATE:std::cout<<"StrikeSense 窗口已创建。"<<std::endl;break;
+    case WM_CREATE:std::cout<<"StrikeSense "<<std::endl;break;
     case WM_PAINT:{PAINTSTRUCT ps;HDC hdc=BeginPaint(hw,&ps);PaintAll(hw,hdc);EndPaint(hw,&ps);break;}
     case WM_LBUTTONDOWN:{
         int mx=LOWORD(lp),my=HIWORD(lp);
@@ -197,7 +226,6 @@ LRESULT CALLBACK WndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
         case IDM_SETTINGS:DialogBoxW(hInst,MAKEINTRESOURCEW(IDD_SETTINGS),hw,SettingsDlgProc);InvalidateRect(hw,nullptr,FALSE);break;
         case IDM_EXIT:DestroyWindow(hw);break;
         default:return DefWindowProc(hw,m,wp,lp);}break;}
-    case WM_NCCALCSIZE:if(wp==TRUE)return 0;break;
     case WM_DESTROY:PostQuitMessage(0);break;
     default:return DefWindowProc(hw,m,wp,lp);}
     return 0;
