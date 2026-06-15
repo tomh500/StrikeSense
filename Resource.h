@@ -26,6 +26,7 @@
 #define IDC_DEBUG_EDIT			1001
 #define IDC_CLEAR				1002
 #define IDC_COPYALL				1003
+#define IDC_EDIT_INPUT			1004
 
 // 路径确认对话框控件
 #define IDC_PATH_LABEL			1010

@@ -1,6 +1,4 @@
-﻿// StrikeSense.cpp — GDI+ 水色系多页面版 + 快捷键 + 十字准星 (all fixed)
-//
-
+﻿// StrikeSense.cpp — 完整版
 #include "framework.h"
 #include "StrikeSense.h"
 #include "console.h"
@@ -8,6 +6,7 @@
 #include "gsi_server.h"
 #include "config.h"
 #include "sound_player.h"
+#include "antistupid.h"
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
@@ -15,6 +14,8 @@
 #include <commdlg.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <sstream>
+#include "everything_ipc.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -32,8 +33,8 @@ float g_death_vol = 0.8f;
 bool  g_deathMute = false;
 int   g_hotkeyMod = MOD_CONTROL;
 int   g_hotkeyVk = 'M';
+bool  g_hotkeyWaiting = false;
 
-// 准星参数 (保存到 %USERPROFILE%\StrikeSense\setting\evolution.json)
 bool  g_crosshairEnabled = false;
 int   g_crosshairR = 255, g_crosshairG = 0, g_crosshairB = 0;
 int   g_crosshairStyle = 0;
@@ -46,10 +47,7 @@ int   g_dropdownSelection = -1;
 static HWND g_crossHWnd = nullptr;
 static std::thread g_crossThread;
 static bool g_crossThreadRunning = false;
-
 static int g_currentPage = 0;
-
-// 样式下拉选项矩形
 static Gdiplus::RectF g_dropdownRects[3];
 
 struct SoundRow {
@@ -58,61 +56,34 @@ struct SoundRow {
     std::wstring config::Settings::*cfgPtr;
     Gdiplus::RectF btnRect;
 };
-
 static SoundRow s_sounds[] = {
-    { 1, L"一杀", L"1.wav", &config::Settings::snd_1 },
-    { 2, L"二杀",L"2.wav",&config::Settings::snd_2},
-    { 3, L"三杀",L"3.wav",&config::Settings::snd_3},
-    { 4, L"四杀",L"4.wav",&config::Settings::snd_4},
-    { 5, L"五杀",L"5.wav",&config::Settings::snd_5},
-    { -1,L"多杀/死斗",L"deathmatch.wav",&config::Settings::snd_extra},
-    { -2,L"MVP",L"mvp.wav",&config::Settings::snd_mvp},
-    { -3,L"回合胜利",L"win.wav",&config::Settings::snd_win},
-    { -4,L"回合失败",L"lose.wav",&config::Settings::snd_lose},
-    { -13,L"回合开始",L"round.wav",&config::Settings::snd_round},
-    { -14,L"购买阶段",L"buy.wav",&config::Settings::snd_buy},
-    { -12,L"炸弹",L"bomb.wav",&config::Settings::snd_bomb},
-    { -18,L"死亡",L"death.wav",&config::Settings::snd_death},
-    { -19,L"游戏结束",L"gameover.wav",&config::Settings::snd_gameover},
-    { -21,L"菜单",L"menu.wav",&config::Settings::snd_menu},
-    { -99,L"闪光(可能)",L"flash.bmp",nullptr},
+    {1,L"一杀",L"1.wav",&config::Settings::snd_1},{2,L"二杀",L"2.wav",&config::Settings::snd_2},
+    {3,L"三杀",L"3.wav",&config::Settings::snd_3},{4,L"四杀",L"4.wav",&config::Settings::snd_4},
+    {5,L"五杀",L"5.wav",&config::Settings::snd_5},{-1,L"多杀/死斗",L"deathmatch.wav",&config::Settings::snd_extra},
+    {-2,L"MVP",L"mvp.wav",&config::Settings::snd_mvp},{-3,L"回合胜利",L"win.wav",&config::Settings::snd_win},
+    {-4,L"回合失败",L"lose.wav",&config::Settings::snd_lose},{-13,L"回合开始",L"round.wav",&config::Settings::snd_round},
+    {-14,L"购买阶段",L"buy.wav",&config::Settings::snd_buy},{-12,L"炸弹",L"bomb.wav",&config::Settings::snd_bomb},
+    {-18,L"死亡",L"death.wav",&config::Settings::snd_death},{-19,L"游戏结束",L"gameover.wav",&config::Settings::snd_gameover},
+    {-21,L"菜单",L"menu.wav",&config::Settings::snd_menu},{-99,L"闪光(可能)",L"flash.bmp",nullptr},
 };
-static constexpr int SND_COUNT = sizeof(s_sounds)/sizeof(s_sounds[0]);
+static constexpr int SND_COUNT=sizeof(s_sounds)/sizeof(s_sounds[0]);
+enum Page{PAGE_SOUNDS=0,PAGE_SETTINGS=1,PAGE_EVOLUTION=2};
 
-enum Page { PAGE_SOUNDS = 0, PAGE_SETTINGS = 1, PAGE_EVOLUTION = 2 };
-
-// 前向声明
-ATOM MyRegisterClass(HINSTANCE);
-BOOL InitInstance(HINSTANCE,int);
+ATOM MyRegisterClass(HINSTANCE);BOOL InitInstance(HINSTANCE,int);
 LRESULT CALLBACK WndProc(HWND,UINT,WPARAM,LPARAM);
-INT_PTR CALLBACK About(HWND,UINT,WPARAM,LPARAM);
-INT_PTR CALLBACK ConfirmPathDlgProc(HWND,UINT,WPARAM,LPARAM);
-INT_PTR CALLBACK SettingsDlgProc(HWND,UINT,WPARAM,LPARAM);
-static std::wstring GetCS2CfgPath();
-static void OnCreateGSIConfig(HWND);
-static void OnBrowse(HWND,int);
+INT_PTR CALLBACK About(HWND,UINT,WPARAM,LPARAM);INT_PTR CALLBACK ConfirmPathDlgProc(HWND,UINT,WPARAM,LPARAM);
+static std::wstring GetCS2CfgPath();static void OnCreateGSIConfig(HWND);static void OnBrowse(HWND,int);
+static void PaintSidebar(Gdiplus::Graphics&,int,int);static void PaintSoundsPage(Gdiplus::Graphics&,int,int,int,HWND);
+static void PaintSettingsPage(Gdiplus::Graphics&,int,int,int,HWND);static void PaintEvolutionPage(Gdiplus::Graphics&,int,int,int,HWND);
+static void CrosshairThreadFunc(HINSTANCE);static void DestroyCrosshairInternal();
 
-static void PaintSidebar(Gdiplus::Graphics& g, int W, int H);
-static void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
-static void PaintSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
-static void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
-
-static void CrosshairThreadFunc(HINSTANCE hI);
-static void DestroyCrosshairInternal();
-
-// ============ 进化参数保存 ============
 static std::wstring GetEvolutionConfigPath(){
-    wchar_t pf[MAX_PATH]={};GetEnvironmentVariableW(L"USERPROFILE",pf,MAX_PATH);
-    return fs::path(pf)/L"StrikeSense"/L"setting"/L"evolution.json";
-}
+    wchar_t p[MAX_PATH]={};GetEnvironmentVariableW(L"USERPROFILE",p,MAX_PATH);return fs::path(p)/L"StrikeSense"/L"setting"/L"evolution.json";}
 static void SaveEvolutionParams(){
-    nlohmann::json j;
-    j["death_vol"]=g_death_vol;j["death_mute"]=g_deathMute;
-    j["hotkey_mod"]=g_hotkeyMod;j["hotkey_vk"]=g_hotkeyVk;
+    nlohmann::json j;j["death_vol"]=g_death_vol;j["death_mute"]=g_deathMute;j["hotkey_mod"]=g_hotkeyMod;j["hotkey_vk"]=g_hotkeyVk;
     j["crosshair_enabled"]=g_crosshairEnabled;j["crosshair_r"]=g_crosshairR;j["crosshair_g"]=g_crosshairG;j["crosshair_b"]=g_crosshairB;
     j["crosshair_style"]=g_crosshairStyle;j["crosshair_thickness"]=g_crosshairThickness;j["crosshair_scale"]=g_crosshairScale;
-    std::ofstream out(GetEvolutionConfigPath());if(out.is_open()){out<<j.dump(2);out.close();}
-}
+    std::ofstream out(GetEvolutionConfigPath());if(out.is_open()){out<<j.dump(2);out.close();}}
 static void LoadEvolutionParams(){
     fs::path p(GetEvolutionConfigPath());if(!fs::exists(p))return;
     try{std::ifstream in(p);if(!in.is_open())return;nlohmann::json j;in>>j;in.close();
@@ -126,71 +97,65 @@ static void LoadEvolutionParams(){
     if(j.contains("crosshair_b")&&j["crosshair_b"].is_number())g_crosshairB=j["crosshair_b"];
     if(j.contains("crosshair_style")&&j["crosshair_style"].is_number())g_crosshairStyle=j["crosshair_style"];
     if(j.contains("crosshair_thickness")&&j["crosshair_thickness"].is_number())g_crosshairThickness=j["crosshair_thickness"];
-    if(j.contains("crosshair_scale")&&j["crosshair_scale"].is_number())g_crosshairScale=j["crosshair_scale"];
-    }catch(...){}
-}
+    if(j.contains("crosshair_scale")&&j["crosshair_scale"].is_number())g_crosshairScale=j["crosshair_scale"];}catch(...){}}
 
-int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC)
-{
+int APIENTRY wWinMain(HINSTANCE hI,HINSTANCE,LPWSTR,int nSC){
+    if(antistupid::CheckAndBlock())return 1;
     Gdiplus::GdiplusStartupInput in;Gdiplus::GdiplusStartup(&g_gdiToken,&in,nullptr);
     g_Console.InitRedirection();config::EnsureDirectoriesExist();config::Load();LoadEvolutionParams();
-    sound::Init();sound::PreloadSounds();
-    if(gsi::Initialize())gsi::StartServer();
+    sound::Init();sound::PreloadSounds();if(gsi::Initialize())gsi::StartServer();
     LoadStringW(hI,IDS_APP_TITLE,szTitle,MAX_LOADSTRING);LoadStringW(hI,IDC_STRIKESENSE,szWindowClass,MAX_LOADSTRING);
     MyRegisterClass(hI);if(!InitInstance(hI,nSC))return FALSE;
-
     UnregisterHotKey(nullptr,1);RegisterHotKey(nullptr,1,(UINT)g_hotkeyMod,(UINT)g_hotkeyVk);
-
-    // 启动准星
     if(g_crosshairEnabled){g_crossThreadRunning=true;g_crossThread=std::thread(CrosshairThreadFunc,hI);g_crossThread.detach();}
-
-    HACCEL hAcc=LoadAccelerators(hI,MAKEINTRESOURCE(IDC_STRIKESENSE));
-    MSG m;
+    HACCEL hAcc=LoadAccelerators(hI,MAKEINTRESOURCE(IDC_STRIKESENSE));MSG m;
     while(GetMessage(&m,nullptr,0,0)){
-        if(m.message==WM_HOTKEY&&m.wParam==1){
-            g_deathMute=!g_deathMute;std::cout<<"即时音量降低: "<<(g_deathMute?"开启":"关闭")<<std::endl;SaveEvolutionParams();InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);
-            continue;
+        if(m.message==WM_INPUT&&g_hotkeyWaiting){
+            UINT sz=40;BYTE buf[40];
+            GetRawInputData((HRAWINPUT)m.lParam,RID_INPUT,buf,&sz,sizeof(RAWINPUTHEADER));
+            RAWINPUT*ri=(RAWINPUT*)buf;
+            if(ri->header.dwType==RIM_TYPEKEYBOARD){
+                USHORT vk=ri->data.keyboard.VKey;
+                if(vk>=0x30&&vk<=0x5A){
+                    g_hotkeyVk=vk;g_hotkeyMod=0;
+                    if(GetAsyncKeyState(VK_CONTROL)&0x8000)g_hotkeyMod|=MOD_CONTROL;
+                    if(GetAsyncKeyState(VK_MENU)&0x8000)g_hotkeyMod|=MOD_ALT;
+                    if(GetAsyncKeyState(VK_SHIFT)&0x8000)g_hotkeyMod|=MOD_SHIFT;
+                    UnregisterHotKey(nullptr,1);RegisterHotKey(nullptr,1,(UINT)g_hotkeyMod,(UINT)g_hotkeyVk);
+                    SaveEvolutionParams();
+                    wchar_t buf2[128];swprintf_s(buf2,L"快捷键已更新 (Mod=%d,Vk=%d)",g_hotkeyMod,g_hotkeyVk);
+                    std::wcout<<buf2<<std::endl;g_hotkeyWaiting=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);
+                }}
         }
-        if(!TranslateAccelerator(m.hwnd,hAcc,&m)){TranslateMessage(&m);DispatchMessage(&m);}
-    }
-    g_crossThreadRunning=false;DestroyCrosshairInternal();UnregisterHotKey(nullptr,1);
-    gsi::StopServer();gsi::Cleanup();sound::Quit();Gdiplus::GdiplusShutdown(g_gdiToken);
-    return(int)m.wParam;
-}
-
+        if(m.message==WM_HOTKEY&&m.wParam==1){
+            g_deathMute=!g_deathMute;std::cout<<"即时音量降低: "<<(g_deathMute?"开启":"关闭")<<std::endl;
+            SaveEvolutionParams();InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);continue;}
+        if(!TranslateAccelerator(m.hwnd,hAcc,&m)){TranslateMessage(&m);DispatchMessage(&m);}}
+    UnregisterHotKey(nullptr,1);gsi::StopServer();gsi::Cleanup();sound::Quit();
+    DestroyCrosshairInternal();Gdiplus::GdiplusShutdown(g_gdiToken);return(int)m.wParam;}
 ATOM MyRegisterClass(HINSTANCE hI){
     WNDCLASSEXW wc={};wc.cbSize=sizeof(wc);wc.style=CS_HREDRAW|CS_VREDRAW;
     wc.lpfnWndProc=WndProc;wc.hInstance=hI;wc.hIcon=LoadIcon(hI,MAKEINTRESOURCE(IDI_STRIKESENSE));
     wc.hCursor=LoadCursor(nullptr,IDC_ARROW);wc.hbrBackground=(HBRUSH)GetStockObject(WHITE_BRUSH);
     wc.lpszMenuName=MAKEINTRESOURCEW(IDC_STRIKESENSE);wc.lpszClassName=szWindowClass;
-    wc.hIconSm=LoadIcon(wc.hInstance,MAKEINTRESOURCE(IDI_SMALL));return RegisterClassExW(&wc);
-}
+    wc.hIconSm=LoadIcon(wc.hInstance,MAKEINTRESOURCE(IDI_SMALL));return RegisterClassExW(&wc);}
 BOOL InitInstance(HINSTANCE hI,int nSC){
-    hInst=hI;HWND w=CreateWindowW(szWindowClass,szTitle,WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT,0,820,740,nullptr,nullptr,hI,nullptr);if(!w)return FALSE;ShowWindow(w,nSC);UpdateWindow(w);return TRUE;
-}
-
+    hInst=hI;HWND w=CreateWindowW(szWindowClass,szTitle,WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,0,820,740,nullptr,nullptr,hI,nullptr);
+    if(!w)return FALSE;ShowWindow(w,nSC);UpdateWindow(w);return TRUE;}
 static void OnBrowse(HWND hWnd,int id){
     wchar_t p[MAX_PATH]={};OPENFILENAMEW o={};o.lStructSize=sizeof(o);o.hwndOwner=hWnd;
     o.lpstrFilter=(id==-99)?L"图片\0*.bmp;*.png;*.jpg\0All\0*.*\0":L"音频\0*.wav;*.ogg\0All\0*.*\0";
     o.lpstrFile=p;o.nMaxFile=MAX_PATH;o.Flags=OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
-    if(!GetOpenFileNameW(&o))return;
-    if(id==-99){InvalidateRect(hWnd,nullptr,FALSE);return;}
+    if(!GetOpenFileNameW(&o))return;if(id==-99){InvalidateRect(hWnd,nullptr,FALSE);return;}
     config::Settings c=config::Load();
-    switch(id){case 1:c.snd_1=p;break;case 2:c.snd_2=p;break;case 3:c.snd_3=p;break;
-    case 4:c.snd_4=p;break;case 5:c.snd_5=p;break;case -1:c.snd_extra=p;break;
-    case -2:c.snd_mvp=p;break;case -3:c.snd_win=p;break;case -4:c.snd_lose=p;break;
-    case -12:c.snd_bomb=p;break;case -13:c.snd_round=p;break;case -14:c.snd_buy=p;break;
-    case -18:c.snd_death=p;break;case -19:c.snd_gameover=p;break;case -21:c.snd_menu=p;break;}
-    config::Save(c);InvalidateRect(hWnd,nullptr,FALSE);
-}
+    switch(id){case 1:c.snd_1=p;break;case 2:c.snd_2=p;break;case 3:c.snd_3=p;break;case 4:c.snd_4=p;break;case 5:c.snd_5=p;break;case -1:c.snd_extra=p;break;
+    case -2:c.snd_mvp=p;break;case -3:c.snd_win=p;break;case -4:c.snd_lose=p;break;case -12:c.snd_bomb=p;break;case -13:c.snd_round=p;break;
+    case -14:c.snd_buy=p;break;case -18:c.snd_death=p;break;case -19:c.snd_gameover=p;break;case -21:c.snd_menu=p;break;}
+    config::Save(c);InvalidateRect(hWnd,nullptr,FALSE);}
 
-// ======================== 准星 ========================
 static LRESULT CALLBACK CrosshairWndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
-    switch(m){
-    case WM_CLOSE:DestroyWindow(hw);return 0;
-    case WM_PAINT:{
-        PAINTSTRUCT ps;HDC hdc=BeginPaint(hw,&ps);RECT rc;GetClientRect(hw,&rc);int W=rc.right-rc.left,H=rc.bottom-rc.top;
+    switch(m){case WM_CLOSE:DestroyWindow(hw);return 0;
+    case WM_PAINT:{PAINTSTRUCT ps;HDC hdc=BeginPaint(hw,&ps);RECT rc;GetClientRect(hw,&rc);int W=rc.right-rc.left,H=rc.bottom-rc.top;
         HDC md=CreateCompatibleDC(hdc);HBITMAP mb=CreateCompatibleBitmap(hdc,W,H);HBITMAP ob=(HBITMAP)SelectObject(md,mb);
         using namespace Gdiplus;Graphics gx(md);gx.SetSmoothingMode(SmoothingModeAntiAlias);int cx=W/2,cy=H/2;
         Color crCol(255,(BYTE)g_crosshairR,(BYTE)g_crosshairG,(BYTE)g_crosshairB);Pen crPen(crCol,(REAL)g_crosshairThickness);float sz=20.f*g_crosshairScale;
@@ -198,65 +163,141 @@ static LRESULT CALLBACK CrosshairWndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
         else if(g_crosshairStyle==1){SolidBrush crBr(crCol);gx.FillEllipse(&crBr,cx-sz,cy-sz,sz*2,sz*2);}
         else{gx.DrawLine(&crPen,cx-6,cy,cx+6,cy);gx.DrawLine(&crPen,cx,cy-6,cx,cy+6);gx.DrawEllipse(&crPen,cx-1.5f,cy-1.5f,3.f,3.f);}
         BitBlt(hdc,0,0,W,H,md,0,0,SRCCOPY);SelectObject(md,ob);DeleteObject(mb);DeleteDC(md);EndPaint(hw,&ps);return 0;}
-    case WM_ERASEBKGND:return 1;
-    case WM_DESTROY:PostQuitMessage(0);return 0;}
-    return DefWindowProc(hw,m,wp,lp);
-}
+    case WM_ERASEBKGND:return 1;case WM_DESTROY:PostQuitMessage(0);return 0;}return DefWindowProc(hw,m,wp,lp);}
 static void CrosshairThreadFunc(HINSTANCE hI){
     WNDCLASSEXW wc={};wc.cbSize=sizeof(wc);wc.lpfnWndProc=CrosshairWndProc;wc.hInstance=hI;
     wc.hbrBackground=(HBRUSH)GetStockObject(NULL_BRUSH);wc.lpszClassName=L"StrikeSense_Crosshair";RegisterClassExW(&wc);
     int sw=GetSystemMetrics(SM_CXSCREEN),sh=GetSystemMetrics(SM_CYSCREEN);
-    HWND cw=CreateWindowExW(WS_EX_TOPMOST|WS_EX_TRANSPARENT|WS_EX_LAYERED|WS_EX_TOOLWINDOW,
-        L"StrikeSense_Crosshair",L"",WS_POPUP,0,0,sw,sh,nullptr,nullptr,hI,nullptr);
+    HWND cw=CreateWindowExW(WS_EX_TOPMOST|WS_EX_TRANSPARENT|WS_EX_LAYERED|WS_EX_TOOLWINDOW,L"StrikeSense_Crosshair",L"",WS_POPUP,0,0,sw,sh,nullptr,nullptr,hI,nullptr);
     if(!cw)return;SetLayeredWindowAttributes(cw,RGB(0,0,0),0,LWA_COLORKEY);ShowWindow(cw,SW_SHOW);UpdateWindow(cw);g_crossHWnd=cw;
-    MSG m;while(GetMessage(&m,nullptr,0,0)){TranslateMessage(&m);DispatchMessage(&m);}
-    g_crossHWnd=nullptr;g_crossThreadRunning=false;
-}
+    MSG m;while(GetMessage(&m,nullptr,0,0)){TranslateMessage(&m);DispatchMessage(&m);}g_crossHWnd=nullptr;g_crossThreadRunning=false;}
 static void DestroyCrosshairInternal(){if(g_crossHWnd){PostMessage(g_crossHWnd,WM_CLOSE,0,0);int wc=0;while(g_crossHWnd&&wc<50){Sleep(50);wc++;}g_crossHWnd=nullptr;g_crossThreadRunning=false;}}
 
-// ======================== PaintAll ========================
+// ======================== Everything SDK 搜索 ========================
+std::string EverythingSearch(const std::string& query, bool showFiles) {
+    HWND everythingHwnd = FindWindowW(EVERYTHING_IPC_WNDCLASSW, nullptr);
+    if (!everythingHwnd) return "Everything 未运行！请先启动 Everything。";
+    
+    // 创建隐藏窗口接收结果
+    WNDCLASSEXW rwc={};rwc.cbSize=sizeof(rwc);rwc.lpfnWndProc=DefWindowProcW;
+    rwc.hInstance=hInst;rwc.lpszClassName=L"EverythingResultWindow";RegisterClassExW(&rwc);
+    HWND resultHwnd=CreateWindowExW(0,L"EverythingResultWindow",L"",0,0,0,0,0,nullptr,nullptr,hInst,nullptr);
+    
+    // 准备查询
+    int qlen=(int)query.length();
+    EVERYTHING_IPC_QUERYA* q=(EVERYTHING_IPC_QUERYA*)malloc(sizeof(EVERYTHING_IPC_QUERYA)+qlen);
+    q->reply_hwnd=(DWORD)(ULONG_PTR)resultHwnd;
+    q->reply_copydata_message=100;
+    q->search_flags=0;
+    q->offset=0;
+    q->max_results=100;
+    memcpy(q->search_string,query.c_str(),qlen+1);
+    
+    COPYDATASTRUCT cds;cds.dwData=EVERYTHING_IPC_COPYDATAQUERYA;
+    cds.cbData=sizeof(EVERYTHING_IPC_QUERYA)-sizeof(CHAR)+qlen+1;
+    cds.lpData=q;
+    
+    LRESULT sent=SendMessageA(everythingHwnd,WM_COPYDATA,(WPARAM)resultHwnd,(LPARAM)&cds);
+    free(q);
+    
+    if(!sent){DestroyWindow(resultHwnd);return "Everything 查询失败！";}
+    
+    // 等待结果
+    EVERYTHING_IPC_LISTA* list=nullptr;
+    MSG msg;
+    DWORD start=GetTickCount();
+    while(GetTickCount()-start<3000){
+        if(PeekMessageA(&msg,resultHwnd,0,0,PM_REMOVE)){
+            if(msg.message==WM_COPYDATA){
+                COPYDATASTRUCT* cds2=(COPYDATASTRUCT*)msg.lParam;
+                if(cds2->dwData==100){
+                    list=(EVERYTHING_IPC_LISTA*)malloc(cds2->cbData);
+                    memcpy(list,cds2->lpData,cds2->cbData);
+                }}
+            TranslateMessage(&msg);DispatchMessage(&msg);if(list)break;}
+        else Sleep(10);}
+    
+    std::ostringstream result;
+    if(!list){result<<"查询超时或未收到结果。";DestroyWindow(resultHwnd);return result.str();}
+    
+    result<<"共找到 "<<list->totitems<<" 个文件/文件夹。";
+    if(showFiles){
+        for(DWORD i=0;i<list->numitems&&i<50;++i){
+            auto& item=list->items[i];
+            char* name=EVERYTHING_IPC_ITEMFILENAMEA(list,&item);
+            char* path=EVERYTHING_IPC_ITEMPATHA(list,&item);
+            result<<"\n  "<<(item.flags&EVERYTHING_IPC_FOLDER?"[文件夹] ":"[文件] ")<<name<<" ("<<path<<")";}}
+    free(list);DestroyWindow(resultHwnd);
+    return result.str();}
+
+// ======================== Debugger 命令处理 ========================
+// 被 console.cpp 调用来处理 Debugger 输入框的命令
+void ProcessDebuggerCommand(const std::wstring& input)
+{
+    std::wcout << L"[CMD] > " << input << std::endl;
+
+    if (input.find(L"localfile") == 0)
+    {
+        bool showFiles = (input.find(L"-show") != std::string::npos);
+        size_t findPos = input.find(L"-find");
+        if (findPos == std::string::npos) {
+            std::wcout << L"[CMD] 用法: localfile -find <关键词> [-show]" << std::endl; return; }
+        size_t start = input.find(L'"', findPos);
+        if (start == std::string::npos) { std::wcout << L"[CMD] 请用引号括起关键词" << std::endl; return; }
+        size_t end = input.find(L'"', start + 1);
+        if (end == std::string::npos) { std::wcout << L"[CMD] 缺少结束引号" << std::endl; return; }
+        std::wstring keyword = input.substr(start + 1, end - start - 1);
+        std::string kw8;
+        for (wchar_t wc : keyword) {
+            char buf8[8]={}; int len=WideCharToMultiByte(CP_UTF8,0,&wc,1,buf8,8,nullptr,nullptr);
+            for(int i=0;i<len;++i) kw8+=buf8[i]; }
+        std::wcout << L"[CMD] 搜索关键词: " << keyword.c_str() << std::endl;
+        std::string result = EverythingSearch(kw8, showFiles);
+        std::cout << result << std::endl;
+        return;
+    }
+    std::wcout << L"[CMD] 未知命令。支持: localfile -find <关键词> [-show]" << std::endl;
+}
+
+// ======================== Everything 结果接收窗口 ========================
+static LRESULT CALLBACK EverythingResultProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
+    if(m==WM_COPYDATA)return TRUE;
+    return DefWindowProc(hw,m,wp,lp);}
+
+// ======================== 所有绘制函数 ========================
 static void PaintAll(HWND hw,HDC hdc){
     using namespace Gdiplus;RECT rc;GetClientRect(hw,&rc);int W=rc.right-rc.left,H=rc.bottom-rc.top;
     HDC md=CreateCompatibleDC(hdc);HBITMAP mb=CreateCompatibleBitmap(hdc,W,H);HBITMAP ob=(HBITMAP)SelectObject(md,mb);
     Graphics g(md);g.SetSmoothingMode(SmoothingModeAntiAlias);g.SetTextRenderingHint(TextRenderingHintAntiAlias);
     SolidBrush globalBg(Color(255,240,248,255));g.FillRectangle(&globalBg,0,0,W,H);
     PaintSidebar(g,W,H);int cx=SIDEBAR_W+12,cw=W-cx-12;
-    switch(g_currentPage){
-    case PAGE_SOUNDS:PaintSoundsPage(g,cx,cw,H,hw);break;
+    switch(g_currentPage){case PAGE_SOUNDS:PaintSoundsPage(g,cx,cw,H,hw);break;
     case PAGE_SETTINGS:PaintSettingsPage(g,cx,cw,H,hw);break;
-    case PAGE_EVOLUTION:PaintEvolutionPage(g,cx,cw,H,hw);break;
-    }BitBlt(hdc,0,0,W,H,md,0,0,SRCCOPY);SelectObject(md,ob);DeleteObject(mb);DeleteDC(md);
-}
+    case PAGE_EVOLUTION:PaintEvolutionPage(g,cx,cw,H,hw);break;}
+    BitBlt(hdc,0,0,W,H,md,0,0,SRCCOPY);SelectObject(md,ob);DeleteObject(mb);DeleteDC(md);}
 static void PaintSidebar(Gdiplus::Graphics& g,int W,int H){
     using namespace Gdiplus;SolidBrush bg(Color(255,200,230,250));Pen ln(Color(255,160,210,240),2.0f);
     Font tF(L"Microsoft YaHei",16,FontStyleBold),nF(L"Microsoft YaHei",12),nAF(L"Microsoft YaHei",12,FontStyleBold);
     SolidBrush tb(Color(255,20,80,140)),td(Color(255,30,60,100)),naB(Color(255,160,210,245));
     g.FillRectangle(&bg,0,0,SIDEBAR_W,H);g.DrawLine(&ln,SIDEBAR_W,0,SIDEBAR_W,H);g.DrawString(L"StrikeSense",-1,&tF,PointF(10,12),&tb);
     struct{const wchar_t*t;int p;int y;}items[]={{L"文件位置",0,52},{L"遗产核心",1,82},{L"进化分支",2,112}};
-    for(auto&it:items){if(g_currentPage==it.p)g.FillRectangle(&naB,8,it.y,SIDEBAR_W-16,24);Font&f=(g_currentPage==it.p)?nAF:nF;g.DrawString(it.t,-1,&f,PointF(14,it.y+3),g_currentPage==it.p?&tb:&td);}
-}
+    for(auto&it:items){if(g_currentPage==it.p)g.FillRectangle(&naB,8,it.y,SIDEBAR_W-16,24);Font&f=(g_currentPage==it.p)?nAF:nF;g.DrawString(it.t,-1,&f,PointF(14,it.y+3),g_currentPage==it.p?&tb:&td);}}
 static void PaintSoundsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND hw){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
     Font pF(L"Microsoft YaHei",13,FontStyleBold),rF(L"Microsoft YaHei",11),bF(L"Microsoft YaHei",9),sF(L"Microsoft YaHei",9);
     SolidBrush tdCol(Color(255,30,60,100)),tmDim(Color(255,100,130,160)),tbCol(Color(255,20,80,140));
     SolidBrush r0(Color(255,220,240,255)),r1(Color(255,240,248,255)),btnB(Color(255,140,200,240)),btnHB(Color(255,60,160,230)),btnT(Color(255,255,255,255));
     Pen btnP(Color(255,100,170,220));
-    g.FillRectangle(&hdrBg,cx,8,cw,34);g.DrawString(L"文件位置",-1,&pF,PointF(cx+10,14),&tbCol);
-    config::Settings c=config::Load();
+    g.FillRectangle(&hdrBg,cx,8,cw,34);g.DrawString(L"文件位置",-1,&pF,PointF(cx+10,14),&tbCol);config::Settings c=config::Load();
     wchar_t st[256];swprintf_s(st,L"GSI:%s | 音效:%s | 音乐包:%s | 低内存:%s | 音量:%.0f%%",gsi::IsRunning()?L"运行中":L"未启动",c.enable_kill_sound?L"已启用":L"已禁用",c.custom_musickit?L"已启用":L"已禁用",c.low_memory?L"已启用":L"已禁用",c.volume*100.f);
     g.DrawString(st,-1,&sF,PointF(cx+10,48),&tmDim);int y=70;const int rh=30;
-    for(int i=0;i<SND_COUNT;++i){
-        auto&rw=s_sounds[i];SolidBrush*bg=(i%2==0)?&r0:&r1;g.FillRectangle(bg,cx,y,cw,rh);g.DrawString(rw.label,-1,&rF,PointF(cx+8,y+5),&tdCol);
-        std::wstring nm=rw.defName;bool df=true;if(rw.id==-99)nm=L"img/flash.bmp";
-        else if(rw.cfgPtr){std::wstring pp=c.*(rw.cfgPtr);if(!pp.empty()){fs::path p(pp);nm=p.filename().wstring();df=false;}}
+    for(int i=0;i<SND_COUNT;++i){auto&rw=s_sounds[i];SolidBrush*bg=(i%2==0)?&r0:&r1;g.FillRectangle(bg,cx,y,cw,rh);g.DrawString(rw.label,-1,&rF,PointF(cx+8,y+5),&tdCol);
+        std::wstring nm=rw.defName;bool df=true;if(rw.id==-99)nm=L"img/flash.bmp";else if(rw.cfgPtr){std::wstring pp=c.*(rw.cfgPtr);if(!pp.empty()){fs::path p(pp);nm=p.filename().wstring();df=false;}}
         SolidBrush*nmB=df?&tmDim:&tdCol;g.DrawString(nm.c_str(),-1,&rF,PointF(cx+160,y+5),nmB);
         int bx=cx+cw-100,by=y+2,bw=80,bh=26;rw.btnRect=RectF((REAL)bx,(REAL)by,(REAL)bw,(REAL)bh);
         GraphicsPath bp;bp.AddArc(bx,by,16,16,180,90);bp.AddArc(bx+bw-16,by,16,16,270,90);bp.AddArc(bx+bw-16,by+bh-16,16,16,0,90);bp.AddArc(bx,by+bh-16,16,16,90,90);bp.CloseFigure();
         POINT pt;GetCursorPos(&pt);ScreenToClient(hw,&pt);bool hv=(pt.x>=bx&&pt.x<=bx+bw&&pt.y>=by&&pt.y<=by+bh);
-        g.FillPath(hv?&btnHB:&btnB,&bp);g.DrawPath(&btnP,&bp);g.DrawString(L"选择...",-1,&bF,PointF(bx+12,by+6),&btnT);y+=rh+2;
-    }
-}
-
+        g.FillPath(hv?&btnHB:&btnB,&bp);g.DrawPath(&btnP,&bp);g.DrawString(L"选择...",-1,&bF,PointF(bx+12,by+6),&btnT);y+=rh+2;}}
 static bool s_toggleStates[6]={false,true,false,false,false,false};
 static void PaintSettingsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));Font pF(L"Microsoft YaHei",13,FontStyleBold),tF(L"Microsoft YaHei",12);
@@ -266,17 +307,12 @@ static void PaintSettingsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     config::Settings c=config::Load();s_toggleStates[0]=c.custom_musickit;s_toggleStates[1]=c.enable_kill_sound;
     s_toggleStates[2]=c.custom_flashbang;s_toggleStates[3]=c.low_memory;s_toggleStates[4]=c.show_mvp;s_toggleStates[5]=c.ogg;
     const wchar_t*lbs[]={L"自定义音乐包",L"击杀音效替换",L"闪光叠加",L"低内存模式",L"MVP信息板",L"OGG格式"};int y=50;
-    for(int i=0;i<6;++i){
-        g.DrawString(lbs[i],-1,&tF,PointF(cx+10,y),&tdCol);int tx=cx+cw-60,ty=y;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);
+    for(int i=0;i<6;++i){g.DrawString(lbs[i],-1,&tF,PointF(cx+10,y),&tdCol);int tx=cx+cw-60,ty=y;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);
         GraphicsPath tp;tp.AddArc(tx,ty,24,24,90,180);tp.AddArc(tx+50-24,ty,24,24,270,180);tp.CloseFigure();
-        g.FillPath(s_toggleStates[i]?&onBr:&offBr,&tp);float kx=s_toggleStates[i]?tx+50-22.f:tx+2.f;g.FillEllipse(&kBr,kx,ty+2.f,20.f,20.f);y+=36;
-    }
-    // 音量滑块 (精确点击区域)
-    y+=10;int sw=cw-80;int volSliderY=y;int volSliderH=16;
-    g.DrawString(L"音量",-1,&tF,PointF(cx+10,y),&tdCol);
-    g.FillRectangle(&sBg,cx+80,volSliderY,sw,8);int fw=(int)(sw*c.volume);g.FillRectangle(&sFill,cx+80,volSliderY,fw,8);
-    wchar_t vt[32];swprintf_s(vt,L"%.0f%%",c.volume*100.f);g.DrawString(vt,-1,&tF,PointF(cx+80+sw+8,volSliderY-4),&tdCol);
-}
+        g.FillPath(s_toggleStates[i]?&onBr:&offBr,&tp);float kx=s_toggleStates[i]?tx+50-22.f:tx+2.f;g.FillEllipse(&kBr,kx,ty+2.f,20.f,20.f);y+=36;}
+    y+=10;int sw=cw-80;g.DrawString(L"音量",-1,&tF,PointF(cx+10,y),&tdCol);
+    g.FillRectangle(&sBg,cx+80,y,sw,8);int fw=(int)(sw*c.volume);g.FillRectangle(&sFill,cx+80,y,fw,8);
+    wchar_t vt[32];swprintf_s(vt,L"%.0f%%",c.volume*100.f);g.DrawString(vt,-1,&tF,PointF(cx+80+sw+8,y-4),&tdCol);}
 
 static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
@@ -285,109 +321,73 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     SolidBrush sBg(Color(255,200,220,240)),sFill(Color(255,80,180,240)),knB(Color(255,60,160,230));
     SolidBrush ddBg(Color(255,220,240,255)),ddHoverBg(Color(255,180,220,245));
     g.FillRectangle(&hdrBg,cx,8,cw,34);g.DrawString(L"进化分支",-1,&pF,PointF(cx+10,14),&tbCol);
-    int yVolSlider=80,yStyle=230,yThick=255,yScale=280,yEnable=310;
+    int yVolSlider=80,yRgb=230,yRow1=255,yRow2=280,yEnable=310;
     g.DrawString(L"即时音量调整器",-1,&rF,PointF(cx+10,50),&tdCol);
     int slW=cw-100;g.FillRectangle(&sBg,cx+10,yVolSlider,slW,10);int fw=(int)(slW*g_death_vol);g.FillRectangle(&sFill,cx+10,yVolSlider,fw,10);
     float kx=cx+10+fw-8.f;g.FillEllipse(&knB,kx,yVolSlider-6.f,16.f,16.f);
     wchar_t vt[32];swprintf_s(vt,L"%.0f%%",g_death_vol*100.f);g.DrawString(vt,-1,&rF,PointF(cx+20+slW,yVolSlider-8),&tdCol);
-    g.DrawString(L"快捷键 Ctrl+M",-1,&rF,PointF(cx+10,130),&tdCol);
-    wchar_t hs[64];swprintf_s(hs,L"状态: %s",g_deathMute?L"降低开启":L"正常");g.DrawString(hs,-1,&sF,PointF(cx+10,152),&tmDim);
-    // 点击此处修改快捷键
-    Gdiplus::RectF keyRect(cx+10,172,200,20);
-    {Gdiplus::Pen kp(Gdiplus::Color(100,100,150,200));g.DrawRectangle(&kp,keyRect);g.DrawString(L"点击修改快捷键",-1,&sF,PointF(cx+14,174),&tmDim);}
-    g.DrawString(L"狙击准星设置",-1,&rF,PointF(cx+10,200),&tdCol);
+    wchar_t hs[64];swprintf_s(hs,L"快捷键: %s (点击下方修改) 状态: %s",g_hotkeyWaiting?L"等待按键...":L"Ctrl+M",g_deathMute?L"降低开启":L"正常");
+    g.DrawString(hs,-1,&rF,PointF(cx+10,130),&tdCol);
+    Gdiplus::RectF keyRect(cx+10,152,200,20);
+    {Gdiplus::Pen kp(Gdiplus::Color(100,100,150,200));g.DrawRectangle(&kp,keyRect);g.DrawString(g_hotkeyWaiting?L"按下任何字母键或数字键..." : L"点击修改快捷键",-1,&sF,PointF(cx+14,154),g_hotkeyWaiting?(const Gdiplus::Brush*)&tbCol:(const Gdiplus::Brush*)&tmDim);}
+    g.DrawString(L"狙击准星设置",-1,&rF,PointF(cx+10,195),&tdCol);
     const wchar_t*rgbL[]={L"R",L"G",L"B"};int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
     for(int i=0;i<3;++i){
-        g.DrawString(rgbL[i],-1,&sF,PointF(cx+10+i*160,yStyle),&tdCol);
-        g.FillRectangle(&sBg,cx+30+i*160,yStyle,100,10);int fw2=(int)(100.f*(*rgbV[i])/255.f);g.FillRectangle(&sFill,cx+30+i*160,yStyle,fw2,10);
-        wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(cx+140+i*160,yStyle-2),&tdCol);
+        g.DrawString(rgbL[i],-1,&sF,PointF(cx+10+i*160,yRgb),&tdCol);
+        g.FillRectangle(&sBg,cx+30+i*160,yRgb,100,10);int fw2=(int)(100.f*(*rgbV[i])/255.f);g.FillRectangle(&sFill,cx+30+i*160,yRgb,fw2,10);
+        wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(cx+140+i*160,yRgb-2),&tdCol);
     }
-    // 样式下拉
-    g.DrawString(L"样式:",-1,&sF,PointF(cx+10,yThick),&tdCol);const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
-    {
-        SolidBrush ddBtn(Color(255,180,220,250));Pen ddPen(Color(255,100,150,200));
-        Gdiplus::RectF ddRect(cx+60,yThick-2,120.f,20.f);
-        g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF(cx+64,yThick),&tdCol);
-        SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF(cx+168,yThick+4),PointF(cx+176,yThick+4),PointF(cx+172,yThick+12)};
-        g.FillPolygon(&arr,arrPts,3);
-        if(g_styleDropdownOpen){
-            // 覆盖在最上层绘制
-            for(int j=0;j<3;++j){
-                Gdiplus::RectF optRect(cx+60,yThick+18+j*20,120,20);g_dropdownRects[j]=optRect;
-                SolidBrush*optBg=(j==g_dropdownSelection)?&ddHoverBg:&ddBg;
-                g.FillRectangle(optBg,optRect);g.DrawRectangle(&ddPen,optRect);
-                g.DrawString(sty[j],-1,&sF,PointF(cx+64,yThick+20+j*20),&tdCol);
-            }
-        }
-    }
-    g.DrawString(L"粗细:",-1,&sF,PointF(cx+200,yThick),&tdCol);int thW=70;g.FillRectangle(&sBg,cx+245,yThick,thW,10);int fw3=(int)(thW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,cx+245,yThick,fw3,10);
-    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(cx+320,yThick-2),&tdCol);
-    g.DrawString(L"缩放:",-1,&sF,PointF(cx+10,yScale),&tdCol);int scW=100;g.FillRectangle(&sBg,cx+60,yScale,scW,10);int fw4=(int)(scW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,cx+60,yScale,fw4,10);
-    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(cx+170,yScale-2),&tdCol);
+    // B右边放粗细 (滑块区域R是cx+10+2*160=cx+330, 粗细放 cx+370)
+    g.DrawString(L"粗细:",-1,&sF,PointF(cx+360,yRgb),&tdCol);
+    int thW=50;g.FillRectangle(&sBg,cx+400,yRgb,thW,10);int fw3=(int)(thW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,cx+400,yRgb,fw3,10);
+    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(cx+455,yRgb-2),&tdCol);
+    // Row 1: 缩放(左) 样式(中) 启用准星(右)
+    g.DrawString(L"缩放:",-1,&sF,PointF(cx+10,yRow1),&tdCol);
+    int scW=80;g.FillRectangle(&sBg,cx+60,yRow1,scW,10);int fw4=(int)(scW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,cx+60,yRow1,fw4,10);
+    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(cx+145,yRow1-2),&tdCol);
+    // 样式（在中间）
+    g.DrawString(L"样式:",-1,&sF,PointF(cx+200,yRow1),&tdCol);const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
+    {SolidBrush ddBtn(Color(255,180,220,250));Pen ddPen(Color(255,100,150,200));
+    Gdiplus::RectF ddRect(cx+245,yRow1-2,100.f,20.f);
+    g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF(cx+249,yRow1),&tdCol);
+    SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF(cx+333,yRow1+4),PointF(cx+341,yRow1+4),PointF(cx+337,yRow1+12)};
+    g.FillPolygon(&arr,arrPts,3);
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){Gdiplus::RectF optRect(cx+245,yRow1+16+j*18,100,18);g_dropdownRects[j]=optRect;
+        SolidBrush*optBg=(j==g_dropdownSelection)?&ddHoverBg:&ddBg;g.FillRectangle(optBg,optRect);g.DrawRectangle(&ddPen,optRect);
+        g.DrawString(sty[j],-1,&sF,PointF(cx+249,yRow1+18+j*18),&tdCol);}}}
+    // 启用准星（在样式右边）
     g.DrawString(L"启用准星",-1,&rF,PointF(cx+10,yEnable),&tdCol);
     {int tx=cx+120,ty=yEnable-4;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);GraphicsPath tp;tp.AddArc(tx,ty,24,24,90,180);tp.AddArc(tx+50-24,ty,24,24,270,180);tp.CloseFigure();
         SolidBrush onBr(Color(255,100,200,140)),offBr(Color(255,180,180,190)),kBr(Color(255,255,255,255));
         g.FillPath(g_crosshairEnabled?&onBr:&offBr,&tp);float kkx=g_crosshairEnabled?tx+50-22.f:tx+2.f;g.FillEllipse(&kBr,kkx,ty+2.f,20.f,20.f);}
 }
 
-// ======================== 点击检测 ========================
-static void CheckSidebarClick(int mx,int my){struct{int y;int p;}items[]={{52,0},{82,1},{112,2}};
-    for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}}
+static void CheckSidebarClick(int mx,int my){struct{int y;int p;}items[]={{52,0},{82,1},{112,2}};for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}}
 static void CheckSettingsClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
-    // 6个开关
-    for(int i=0;i<6;++i){int tx=cx+cw-60,ty=50+i*36;if(mx>=tx&&mx<=tx+50&&my>=ty&&my<=ty+24){
-        s_toggleStates[i]=!s_toggleStates[i];config::Settings c=config::Load();
-        c.custom_musickit=s_toggleStates[0];c.enable_kill_sound=s_toggleStates[1];
-        c.custom_flashbang=s_toggleStates[2];c.low_memory=s_toggleStates[3];c.show_mvp=s_toggleStates[4];c.ogg=s_toggleStates[5];config::Save(c);InvalidateRect(hw,nullptr,FALSE);return;}}
-    // 音量滑块
-    int sw=cw-80;int slY=50+6*36+10;
-    if(mx>=cx+80&&mx<=cx+80+sw&&my>=slY-4&&my<=slY+12){
-        float t=(float)(mx-cx-80)/(float)sw;if(t<0)t=0;if(t>1)t=1;
-        config::Settings c=config::Load();c.volume=t;config::Save(c);InvalidateRect(hw,nullptr,FALSE);return;
-    }
-}
+    for(int i=0;i<6;++i){int tx=cx+cw-60,ty=50+i*36;if(mx>=tx&&mx<=tx+50&&my>=ty&&my<=ty+24){s_toggleStates[i]=!s_toggleStates[i];config::Settings c=config::Load();
+        c.custom_musickit=s_toggleStates[0];c.enable_kill_sound=s_toggleStates[1];c.custom_flashbang=s_toggleStates[2];c.low_memory=s_toggleStates[3];c.show_mvp=s_toggleStates[4];c.ogg=s_toggleStates[5];config::Save(c);InvalidateRect(hw,nullptr,FALSE);return;}}
+    int sw=cw-80;int slY=50+6*36+10;if(mx>=cx+80&&mx<=cx+80+sw&&my>=slY-4&&my<=slY+12){float t=(float)(mx-cx-80)/(float)sw;if(t<0)t=0;if(t>1)t=1;config::Settings c=config::Load();c.volume=t;config::Save(c);InvalidateRect(hw,nullptr,FALSE);}}
 static void CheckEvolutionClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
-    int yVolSlider=80,yRgb=230,yThick=255,yScale=280,yEnable=310;
-    // 音量滑块
-    int slW=cw-100;if(mx>=cx+10&&mx<=cx+10+slW&&my>=yVolSlider-8&&my<=yVolSlider+12){
-        float t=(float)(mx-cx-10)/(float)slW;if(t<0)t=0;if(t>1)t=1;g_death_vol=t;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    int yVolSlider=80,yRgb=230,yRow1=255,yRow2=280,yEnable=310;
+    int slW=cw-100;if(mx>=cx+10&&mx<=cx+10+slW&&my>=yVolSlider-8&&my<=yVolSlider+12){float t=(float)(mx-cx-10)/(float)slW;if(t<0)t=0;if(t>1)t=1;g_death_vol=t;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 快捷键点击监听
+    if(mx>=cx+10&&mx<=cx+210&&my>=152&&my<=172){g_hotkeyWaiting=!g_hotkeyWaiting;InvalidateRect(hw,nullptr,FALSE);return;}
     // RGB
     for(int i=0;i<3;++i){int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
         if(mx>=cx+30+i*160&&mx<=cx+130+i*160&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-cx-30-i*160)/100.f;if(t<0)t=0;if(t>1)t=1;*rgbV[i]=(int)(t*255.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}
-    // 样式下拉
-    if(my>=yThick-2&&my<=yThick+18&&mx>=cx+60&&mx<=cx+180){
-        if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}
-    }
-    if(g_styleDropdownOpen){
-        for(int j=0;j<3;++j){
-            if(mx>=cx+60&&mx<=cx+180&&my>=yThick+18+j*20&&my<=yThick+38+j*20){
-                g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;
-            }
-        }
-        g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;
-    }
-    // 粗细
-    int thW=70;if(mx>=cx+245&&mx<=cx+245+thW&&my>=yThick-6&&my<=yThick+12){float t=(float)(mx-cx-245)/(float)thW;if(t<0)t=0;if(t>1)t=1;g_crosshairThickness=1+(int)(t*9.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
-    // 缩放
-    int scW=100;if(mx>=cx+60&&mx<=cx+60+scW&&my>=yScale-8&&my<=yScale+12){float t=(float)(mx-cx-60)/(float)scW;if(t<0)t=0;if(t>1)t=1;g_crosshairScale=0.1f+t*0.5f;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
-    // 快捷键点击 (监听输入)
-    if(mx>=cx+10&&mx<=cx+210&&my>=172&&my<=192){
-        std::cout<<"等待键盘输入..."<<std::endl;
-        UnregisterHotKey(nullptr,1);
-        // 简单做法：设置一个捕捉状态，在消息循环中监听
-        // 这里简化处理，提示用户按下一个键
-        g_hotkeyVk='M';g_hotkeyMod=MOD_CONTROL;RegisterHotKey(nullptr,1,MOD_CONTROL,'M');SaveEvolutionParams();
-        std::cout<<"快捷键已重置为 Ctrl+M"<<std::endl;InvalidateRect(hw,nullptr,FALSE);return;
-    }
-    // 启用开关
-    int tx=cx+120,tye=yEnable-4;if(mx>=tx&&mx<=tx+50&&my>=tye&&my<=tye+24){
-        g_crosshairEnabled=!g_crosshairEnabled;SaveEvolutionParams();
+    // 粗细 (B右边)
+    int thW=50;if(mx>=cx+400&&mx<=cx+400+thW&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-cx-400)/(float)thW;if(t<0)t=0;if(t>1)t=1;g_crosshairThickness=1+(int)(t*9.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 缩放(原样式位置)
+    int scW=80;if(mx>=cx+60&&mx<=cx+60+scW&&my>=yRow1-8&&my<=yRow1+12){float t=(float)(mx-cx-60)/(float)scW;if(t<0)t=0;if(t>1)t=1;g_crosshairScale=0.1f+t*0.5f;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
+    // 样式下拉 (原粗细位置)
+    if(my>=yRow1-2&&my<=yRow1+18&&mx>=cx+245&&mx<=cx+345){if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}}
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){if(mx>=cx+245&&mx<=cx+345&&my>=yRow1+16+j*18&&my<=yRow1+34+j*18){g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;}
+    // 启用
+    int tx=cx+120,tye=yEnable-4;if(mx>=tx&&mx<=tx+50&&my>=tye&&my<=tye+24){g_crosshairEnabled=!g_crosshairEnabled;SaveEvolutionParams();
         if(g_crosshairEnabled&&!g_crossThreadRunning){g_crossThreadRunning=true;g_crossThread=std::thread(CrosshairThreadFunc,hInst);g_crossThread.detach();}
-        else if(!g_crosshairEnabled)DestroyCrosshairInternal();
-        InvalidateRect(hw,nullptr,FALSE);return;
-    }
+        else if(!g_crosshairEnabled)DestroyCrosshairInternal();InvalidateRect(hw,nullptr,FALSE);return;}
 }
 
 LRESULT CALLBACK WndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
@@ -395,27 +395,34 @@ LRESULT CALLBACK WndProc(HWND hw,UINT m,WPARAM wp,LPARAM lp){
     case WM_ERASEBKGND:return DefWindowProc(hw,m,wp,lp);
     case WM_CREATE:std::cout<<"StrikeSense "<<std::endl;break;
     case WM_PAINT:{PAINTSTRUCT ps;HDC hdc=BeginPaint(hw,&ps);PaintAll(hw,hdc);EndPaint(hw,&ps);break;}
-    case WM_LBUTTONDOWN:{int mx=LOWORD(lp),my=HIWORD(lp);
-        if(mx<SIDEBAR_W){CheckSidebarClick(mx,my);break;}
+    case WM_LBUTTONDOWN:{int mx=LOWORD(lp),my=HIWORD(lp);if(mx<SIDEBAR_W){CheckSidebarClick(mx,my);break;}
         switch(g_currentPage){case PAGE_SOUNDS:for(int i=0;i<SND_COUNT;++i){auto&r=s_sounds[i];if(mx>=r.btnRect.X&&mx<=r.btnRect.X+r.btnRect.Width&&my>=r.btnRect.Y&&my<=r.btnRect.Y+r.btnRect.Height){OnBrowse(hw,r.id);break;}}break;
-        case PAGE_SETTINGS:CheckSettingsClick(hw,mx,my);break;
-        case PAGE_EVOLUTION:CheckEvolutionClick(hw,mx,my);break;}break;}
+        case PAGE_SETTINGS:CheckSettingsClick(hw,mx,my);break;case PAGE_EVOLUTION:CheckEvolutionClick(hw,mx,my);break;}break;}
+    case WM_KEYDOWN:{
+        if(g_hotkeyWaiting){
+            UINT vk=(UINT)wp;
+            if((vk>='A'&&vk<='Z')||(vk>='0'&&vk<='9')){
+                g_hotkeyVk=vk;g_hotkeyMod=0;POINT p;GetCursorPos(&p);
+                if(GetAsyncKeyState(VK_CONTROL)&0x8000)g_hotkeyMod|=MOD_CONTROL;
+                if(GetAsyncKeyState(VK_MENU)&0x8000)g_hotkeyMod|=MOD_ALT;
+                if(GetAsyncKeyState(VK_SHIFT)&0x8000)g_hotkeyMod|=MOD_SHIFT;
+                UnregisterHotKey(nullptr,1);RegisterHotKey(nullptr,1,(UINT)g_hotkeyMod,(UINT)g_hotkeyVk);
+                SaveEvolutionParams();g_hotkeyWaiting=false;
+                std::cout<<"快捷键已更新 (Mod="<<g_hotkeyMod<<",Vk="<<g_hotkeyVk<<")"<<std::endl;
+                InvalidateRect(hw,nullptr,FALSE);break;
+            }}return DefWindowProc(hw,m,wp,lp);}
     case WM_COMMAND:{int id=LOWORD(wp);switch(id){case IDM_CREATE_GSI_CFG:OnCreateGSIConfig(hw);break;
         case IDM_DEBUGGER:g_Console.ShowDebugger(hInst,hw);break;
         case IDM_ABOUT:DialogBox(hInst,MAKEINTRESOURCE(IDD_ABOUTBOX),hw,About);break;
         case IDM_SETTINGS:g_currentPage=PAGE_SETTINGS;InvalidateRect(hw,nullptr,FALSE);break;
         case IDM_EXIT:DestroyWindow(hw);break;
         default:return DefWindowProc(hw,m,wp,lp);}break;}
-    case WM_CLOSE:DestroyWindow(hw);break;
-    case WM_DESTROY:PostQuitMessage(0);break;
+    case WM_CLOSE:DestroyWindow(hw);break;case WM_DESTROY:PostQuitMessage(0);break;
     default:return DefWindowProc(hw,m,wp,lp);}return 0;}
 
-static std::wstring GetCS2CfgPath(){
-    std::wstring sv=strikesense::LoadSavedCfgPath();if(!sv.empty()&&fs::exists(sv))return sv;
-    std::wstring sp=strikesense::GetSteamPathFromRegistry();if(sp.empty())return L"";
-    std::wstring cd=strikesense::FindCS2InstallDir(sp);if(cd.empty())return L"";return strikesense::GetCS2CfgPath(cd);}
-static void OnCreateGSIConfig(HWND hw){
-    g_gsiCfgPath=GetCS2CfgPath();if(g_gsiCfgPath.empty()){wchar_t p[MAX_PATH]={};BROWSEINFOW b={};b.hwndOwner=hw;b.lpszTitle=L"选择CS2cfg目录";b.ulFlags=BIF_RETURNONLYFSDIRS;LPITEMIDLIST pid=SHBrowseForFolderW(&b);if(!pid)return;SHGetPathFromIDListW(pid,p);g_gsiCfgPath=p;IMalloc*m=nullptr;if(SUCCEEDED(SHGetMalloc(&m))){m->Free(pid);m->Release();}}
+static std::wstring GetCS2CfgPath(){std::wstring sv=strikesense::LoadSavedCfgPath();if(!sv.empty()&&fs::exists(sv))return sv;
+    std::wstring sp=strikesense::GetSteamPathFromRegistry();if(sp.empty())return L"";std::wstring cd=strikesense::FindCS2InstallDir(sp);if(cd.empty())return L"";return strikesense::GetCS2CfgPath(cd);}
+static void OnCreateGSIConfig(HWND hw){g_gsiCfgPath=GetCS2CfgPath();if(g_gsiCfgPath.empty()){wchar_t p[MAX_PATH]={};BROWSEINFOW b={};b.hwndOwner=hw;b.lpszTitle=L"选择CS2cfg目录";b.ulFlags=BIF_RETURNONLYFSDIRS;LPITEMIDLIST pid=SHBrowseForFolderW(&b);if(!pid)return;SHGetPathFromIDListW(pid,p);g_gsiCfgPath=p;IMalloc*m=nullptr;if(SUCCEEDED(SHGetMalloc(&m))){m->Free(pid);m->Release();}}
     DialogBoxW(hInst,MAKEINTRESOURCEW(IDD_CONFIRM_PATH),hw,ConfirmPathDlgProc);}
 INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD,UINT m,WPARAM wp,LPARAM lp){
     switch(m){case WM_INITDIALOG:SetDlgItemTextW(hD,IDC_PATH_LABEL,g_gsiCfgPath.c_str());
@@ -424,7 +431,5 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD,UINT m,WPARAM wp,LPARAM lp){
     case IDC_DELETE_CFG:{fs::path f=fs::path(g_gsiCfgPath)/L"gamestate_integration_square.cfg";std::error_code ec;fs::remove(f,ec);MessageBoxW(hD,ec?L"失败":L"已删除",L"提示",MB_OK);return TRUE;}
     case IDC_BROWSE_BTN:{wchar_t p[MAX_PATH]={};BROWSEINFOW b={};b.hwndOwner=hD;b.lpszTitle=L"选择cfg目录";b.ulFlags=BIF_RETURNONLYFSDIRS;LPITEMIDLIST pid=SHBrowseForFolderW(&b);if(pid){SHGetPathFromIDListW(pid,p);g_gsiCfgPath=p;SetDlgItemTextW(hD,IDC_PATH_LABEL,p);IMalloc*mm=nullptr;if(SUCCEEDED(SHGetMalloc(&mm))){mm->Free(pid);mm->Release();}}return TRUE;}
     case IDCANCEL:EndDialog(hD,IDCANCEL);return TRUE;}}return FALSE;}
-INT_PTR CALLBACK SettingsDlgProc(HWND hD,UINT m,WPARAM wp,LPARAM lp){(void)hD;(void)m;(void)wp;(void)lp;return TRUE;}
 INT_PTR CALLBACK About(HWND hD,UINT m,WPARAM wp,LPARAM lp){
-    UNREFERENCED_PARAMETER(lp);switch(m){case WM_INITDIALOG:return(INT_PTR)TRUE;
-    case WM_COMMAND:if(LOWORD(wp)==IDOK||LOWORD(wp)==IDCANCEL)EndDialog(hD,LOWORD(wp));return(INT_PTR)TRUE;}return(INT_PTR)FALSE;}
+    UNREFERENCED_PARAMETER(lp);switch(m){case WM_INITDIALOG:return(INT_PTR)TRUE;case WM_COMMAND:if(LOWORD(wp)==IDOK||LOWORD(wp)==IDCANCEL)EndDialog(hD,LOWORD(wp));return(INT_PTR)TRUE;}return(INT_PTR)FALSE;}
