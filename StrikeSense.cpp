@@ -326,7 +326,15 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     int slW=cw-100;g.FillRectangle(&sBg,cx+10,yVolSlider,slW,10);int fw=(int)(slW*g_death_vol);g.FillRectangle(&sFill,cx+10,yVolSlider,fw,10);
     float kx=cx+10+fw-8.f;g.FillEllipse(&knB,kx,yVolSlider-6.f,16.f,16.f);
     wchar_t vt[32];swprintf_s(vt,L"%.0f%%",g_death_vol*100.f);g.DrawString(vt,-1,&rF,PointF(cx+20+slW,yVolSlider-8),&tdCol);
-    wchar_t hs[64];swprintf_s(hs,L"快捷键: %s (点击下方修改) 状态: %s",g_hotkeyWaiting?L"等待按键...":L"Ctrl+M",g_deathMute?L"降低开启":L"正常");
+    // 动态生成快捷键名称
+    std::wstring keyName;
+    if(g_hotkeyMod&MOD_CONTROL)keyName+=L"Ctrl+";
+    if(g_hotkeyMod&MOD_ALT)keyName+=L"Alt+";
+    if(g_hotkeyMod&MOD_SHIFT)keyName+=L"Shift+";
+    if(g_hotkeyVk>='A'&&g_hotkeyVk<='Z')keyName+=(wchar_t)g_hotkeyVk;
+    else if(g_hotkeyVk>='0'&&g_hotkeyVk<='9')keyName+=(wchar_t)g_hotkeyVk;
+    else {wchar_t b[16];swprintf_s(b,L"Vk=%d",g_hotkeyVk);keyName+=b;}
+    wchar_t hs[128];swprintf_s(hs,L"快捷键: %s (点击下方修改) 状态: %s",g_hotkeyWaiting?L"等待按键...":keyName.c_str(),g_deathMute?L"降低开启":L"正常");
     g.DrawString(hs,-1,&rF,PointF(cx+10,130),&tdCol);
     Gdiplus::RectF keyRect(cx+10,152,200,20);
     {Gdiplus::Pen kp(Gdiplus::Color(100,100,150,200));g.DrawRectangle(&kp,keyRect);g.DrawString(g_hotkeyWaiting?L"按下任何字母键或数字键..." : L"点击修改快捷键",-1,&sF,PointF(cx+14,154),g_hotkeyWaiting?(const Gdiplus::Brush*)&tbCol:(const Gdiplus::Brush*)&tmDim);}
@@ -337,16 +345,16 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
         g.FillRectangle(&sBg,cx+30+i*160,yRgb,100,10);int fw2=(int)(100.f*(*rgbV[i])/255.f);g.FillRectangle(&sFill,cx+30+i*160,yRgb,fw2,10);
         wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(cx+140+i*160,yRgb-2),&tdCol);
     }
-    // B右边放粗细 (滑块区域R是cx+10+2*160=cx+330, 粗细放 cx+370)
-    g.DrawString(L"粗细:",-1,&sF,PointF(cx+360,yRgb),&tdCol);
-    int thW=50;g.FillRectangle(&sBg,cx+400,yRgb,thW,10);int fw3=(int)(thW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,cx+400,yRgb,fw3,10);
-    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(cx+455,yRgb-2),&tdCol);
-    // Row 1: 缩放(左) 样式(中) 启用准星(右)
-    g.DrawString(L"缩放:",-1,&sF,PointF(cx+10,yRow1),&tdCol);
-    int scW=80;g.FillRectangle(&sBg,cx+60,yRow1,scW,10);int fw4=(int)(scW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,cx+60,yRow1,fw4,10);
-    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(cx+145,yRow1-2),&tdCol);
-    // 样式（在中间）
-    g.DrawString(L"样式:",-1,&sF,PointF(cx+200,yRow1),&tdCol);const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
+    // Row 2: 粗细(左) 缩放(右)
+    int yRow2Row = yRow1 + 30;
+    g.DrawString(L"粗细:",-1,&sF,PointF(cx+10,yRow2Row),&tdCol);
+    int thW=50;g.FillRectangle(&sBg,cx+60,yRow2Row,thW,10);int fw3=(int)(thW*g_crosshairThickness/10.f);g.FillRectangle(&sFill,cx+60,yRow2Row,fw3,10);
+    wchar_t thT[8];swprintf_s(thT,L"%d",g_crosshairThickness);g.DrawString(thT,-1,&sF,PointF(cx+115,yRow2Row-2),&tdCol);
+    g.DrawString(L"缩放:",-1,&sF,PointF(cx+200,yRow2Row),&tdCol);
+    int scW=80;g.FillRectangle(&sBg,cx+245,yRow2Row,scW,10);int fw4=(int)(scW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,cx+245,yRow2Row,fw4,10);
+    wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(cx+330,yRow2Row-2),&tdCol);
+    // 样式（在原粗细位置下方）
+    g.DrawString(L"样式:",-1,&sF,PointF(cx+400,yRow2Row),&tdCol);const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
     {SolidBrush ddBtn(Color(255,180,220,250));Pen ddPen(Color(255,100,150,200));
     Gdiplus::RectF ddRect(cx+245,yRow1-2,100.f,20.f);
     g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF(cx+249,yRow1),&tdCol);
