@@ -405,6 +405,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
         CheckDlgButton(hDlg, IDC_CK_LOW_MEMORY, settings.low_memory ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hDlg, IDC_CK_SHOW_MVP, settings.show_mvp ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hDlg, IDC_CK_USE_OGG, settings.ogg ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hDlg, IDC_CK_ENABLE_KILL_SOUND, settings.enable_kill_sound ? BST_CHECKED : BST_UNCHECKED);
 
         // 设置音量编辑框
         wchar_t volText[32];
@@ -433,6 +434,7 @@ INT_PTR CALLBACK SettingsDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPar
             settings.low_memory = (IsDlgButtonChecked(hDlg, IDC_CK_LOW_MEMORY) == BST_CHECKED);
             settings.show_mvp = (IsDlgButtonChecked(hDlg, IDC_CK_SHOW_MVP) == BST_CHECKED);
             settings.ogg = (IsDlgButtonChecked(hDlg, IDC_CK_USE_OGG) == BST_CHECKED);
+            settings.enable_kill_sound = (IsDlgButtonChecked(hDlg, IDC_CK_ENABLE_KILL_SOUND) == BST_CHECKED);
 
             // 读取音量
             wchar_t volText[32];
