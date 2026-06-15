@@ -166,7 +166,11 @@ bool WriteGSIConfig(const std::wstring& cfgDir)
 // ----------------------------------------------------------
 std::wstring LoadSavedCfgPath()
 {
-    fs::path configFile = fs::path(L"setting") / L"gsi.json";
+    // 配置存储目录: %USERPROFILE%/StrikeSense
+    wchar_t profile[MAX_PATH] = {};
+    GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
+    fs::path configDir = fs::path(profile) / L"StrikeSense";
+    fs::path configFile = configDir / L"setting" / L"gsi.json";
     if (!fs::exists(configFile))
         return L"";
 
@@ -202,7 +206,10 @@ std::wstring LoadSavedCfgPath()
 // ----------------------------------------------------------
 void SaveCfgPath(const std::wstring& path)
 {
-    fs::path configDir = fs::path(L"setting");
+    // 配置存储目录: %USERPROFILE%/StrikeSense
+    wchar_t profile[MAX_PATH] = {};
+    GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
+    fs::path configDir = fs::path(profile) / L"StrikeSense" / L"setting";
     if (!fs::exists(configDir))
     {
         std::error_code ec;
