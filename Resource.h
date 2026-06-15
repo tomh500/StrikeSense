@@ -39,6 +39,25 @@
 #define IDC_CK_SHOW_MVP			1023	// 显示MVP
 #define IDC_CK_USE_OGG			1024	// 使用OGG
 #define IDC_EDIT_VOL			1025	// 音量编辑框
+#define IDC_CK_ENABLE_KILL_SOUND 1026	// 启用击杀音效替换
+
+// 音效浏览按钮（设置对话框）
+#define IDC_BROWSE_SND_1		1030	// 一杀
+#define IDC_BROWSE_SND_2		1031	// 二杀
+#define IDC_BROWSE_SND_3		1032	// 三杀
+#define IDC_BROWSE_SND_4		1033	// 四杀
+#define IDC_BROWSE_SND_5		1034	// 五杀
+#define IDC_BROWSE_SND_EXTRA	1035	// 多杀/死斗
+#define IDC_BROWSE_SND_MVP		1036	// MVP
+#define IDC_BROWSE_SND_WIN		1037	// 胜利
+#define IDC_BROWSE_SND_LOSE		1038	// 失败
+#define IDC_BROWSE_SND_BOMB		1039	// 炸弹
+#define IDC_BROWSE_SND_ROUND	1040	// 回合开始
+#define IDC_BROWSE_SND_BUY		1041	// 购买
+#define IDC_BROWSE_SND_DEATH	1042	// 死亡
+#define IDC_BROWSE_SND_GAMEOVER	1043	// 游戏结束
+#define IDC_BROWSE_SND_MENU		1044	// 菜单
+#define IDC_BROWSE_SND_DIR		1045	// 音效目录整体浏览
 
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1

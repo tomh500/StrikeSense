@@ -61,6 +61,7 @@ set(SOURCES
     steam_helper.cpp
     gsi_server.cpp
     config.cpp
+    sound_player.cpp
 )
 
 set(HEADERS
@@ -69,6 +70,7 @@ set(HEADERS
     steam_helper.h
     gsi_server.h
     config.h
+    sound_player.h
     framework.h
     targetver.h
     Resource.h
@@ -119,6 +121,7 @@ target_link_libraries(StrikeSense PRIVATE
     uuid.lib
     odbc32.lib
     odbccp32.lib
+    winmm.lib
 )
 
 # ============================================================

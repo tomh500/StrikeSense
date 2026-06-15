@@ -9,43 +9,57 @@ namespace fs = std::filesystem;
 // 配置管理 — namespace config
 //
 // 配置文件路径: %UserProfile%/StrikeSense/setting/gsi.json
-// 使用纯函数管理配置的读写
 // ============================================================
 
 namespace config {
 
-// ----------------------------------------------------------
-// 配置数据结构
+struct SoundFile {
+    std::wstring path;  // 用户自定义路径（空=默认位置）
+};
+
 // ----------------------------------------------------------
 struct Settings {
     bool match = true;
-    bool vol = true;
     float volume = 0.88f;
     bool ogg = false;
     bool custom_musickit = false;
     bool custom_flashbang = false;
     bool low_memory = false;
     bool show_mvp = false;
+    bool enable_kill_sound = false;  // 是否开启击杀音效替换
+
+    // 音效文件路径（空=使用默认位置 %UserProfile%/StrikeSense/Snd/）
+    std::wstring snd_1;    // 一杀
+    std::wstring snd_2;    // 二杀
+    std::wstring snd_3;    // 三杀
+    std::wstring snd_4;    // 四杀
+    std::wstring snd_5;    // 五杀
+    std::wstring snd_extra;    // 多杀/死斗
+    std::wstring snd_mvp;      // MVP（自定义音乐包）
+    std::wstring snd_win;      // 胜利
+    std::wstring snd_lose;     // 失败
+    std::wstring snd_bomb;     // 炸弹
+    std::wstring snd_round;    // 回合开始
+    std::wstring snd_buy;      // 购买
+    std::wstring snd_death;    // 死亡
+    std::wstring snd_gameover; // 游戏结束
+    std::wstring snd_menu;     // 菜单
 };
 
 // ----------------------------------------------------------
-// 获取配置文件的完整路径
-// ----------------------------------------------------------
+std::wstring GetConfigDir();
 std::wstring GetConfigPath();
-
-// ----------------------------------------------------------
-// 从 JSON 文件加载配置，返回当前设置
-// ----------------------------------------------------------
 Settings Load();
-
-// ----------------------------------------------------------
-// 保存配置到 JSON 文件
-// ----------------------------------------------------------
 bool Save(const Settings& s);
 
 // ----------------------------------------------------------
-// 获取配置所在的目录路径
+// 获取默认音效目录 %UserProfile%/StrikeSense/Snd/
 // ----------------------------------------------------------
-std::wstring GetConfigDir();
+std::wstring GetDefaultSndDir();
+
+// ----------------------------------------------------------
+// 根据 id 和 ogg 设置获取默认音效文件路径
+// ----------------------------------------------------------
+std::wstring GetDefaultSndPath(const std::wstring& name, bool useOgg);
 
 } // namespace config
