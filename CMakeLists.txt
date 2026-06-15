@@ -58,11 +58,13 @@ find_package(yaml-cpp CONFIG REQUIRED)
 set(SOURCES
     StrikeSense.cpp
     console.cpp
+    steam_helper.cpp
 )
 
 set(HEADERS
     StrikeSense.h
     console.h
+    steam_helper.h
     framework.h
     targetver.h
     Resource.h

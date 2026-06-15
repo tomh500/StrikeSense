@@ -219,6 +219,36 @@ INT_PTR CALLBACK Console::DebuggerDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LP
         WORD id = LOWORD(wParam);
         switch (id)
         {
+        case IDC_COPYALL:
+        {
+            HWND hEdit = GetDlgItem(hDlg, IDC_DEBUG_EDIT);
+            if (hEdit)
+            {
+                int len = GetWindowTextLengthW(hEdit);
+                if (len > 0)
+                {
+                    std::wstring text(len + 1, L'\0');
+                    GetWindowTextW(hEdit, &text[0], len + 1);
+                    text.resize(len);
+
+                    // 复制到剪贴板
+                    if (OpenClipboard(hDlg))
+                    {
+                        EmptyClipboard();
+                        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, (len + 1) * sizeof(wchar_t));
+                        if (hMem)
+                        {
+                            memcpy(GlobalLock(hMem), text.c_str(), (len + 1) * sizeof(wchar_t));
+                            GlobalUnlock(hMem);
+                            SetClipboardData(CF_UNICODETEXT, hMem);
+                        }
+                        CloseClipboard();
+                    }
+                }
+            }
+            return TRUE;
+        }
+
         case IDC_CLEAR:
         {
             if (s_pThis)

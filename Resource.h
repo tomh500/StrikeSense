@@ -8,6 +8,7 @@
 #define IDD_STRIKESENSE_DIALOG	102
 #define IDD_ABOUTBOX			103
 #define IDD_DEBUGGER			106
+#define IDD_CONFIRM_PATH		107
 #define IDM_ABOUT				104
 #define IDM_EXIT				105
 #define IDI_STRIKESENSE			107
@@ -15,9 +16,18 @@
 #define IDC_STRIKESENSE			109
 #define IDC_MYICON				2
 
-#define IDM_DEBUGGER			110		// Debugger 调试输出窗口
-#define IDC_DEBUG_EDIT			1001	// Debugger 窗口中的编辑框控件 ID
+// 菜单项
+#define IDM_DEBUGGER			110		// 帮助 → Debugger
+#define IDM_CREATE_GSI_CFG		111		// 文件 → 创建 GSI 配置文件
+
+// Debugger 窗口控件
+#define IDC_DEBUG_EDIT			1001	// 多行编辑框
 #define IDC_CLEAR				1002	// 清除按钮
+#define IDC_COPYALL				1003	// 复制全部按钮
+
+// 路径确认对话框控件
+#define IDC_PATH_LABEL			1010	// 路径显示静态文本
+#define IDC_BROWSE_BTN			1011	// 浏览按钮
 
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1

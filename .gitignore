@@ -23,6 +23,9 @@ Release/
 # vcpkg
 vcpkg_installed/
 
+# Legacy project
+legacy/
+
 # IDE
 .vscode/
 *.swp
