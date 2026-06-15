@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <queue>
+#include <mutex>
 #include <winsock2.h>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
@@ -17,10 +19,99 @@ static std::thread s_serverThread;
 static std::atomic<bool> s_running{ false };
 static bool s_wsaInitialized = false;
 
-// GSI 事件状态
+// GSI 状态
 static std::string s_lastPhase;
 static int s_lastKills = 0;
+static int s_lastMvps = 0;
+static int s_mvpCandidateKills = 0;
+static bool s_mvpPushedThisRound = false;
+static int s_mvpsAtRoundStart = 0;
 
+// ===== 事件队列 =====
+static std::queue<int> s_eventQueue;
+static std::mutex s_queueMutex;
+
+// ----------------------------------------------------------
+// 将事件推入队列
+// ----------------------------------------------------------
+void QueueEvent(int id)
+{
+    std::lock_guard<std::mutex> lock(s_queueMutex);
+    s_eventQueue.push(id);
+}
+
+// ----------------------------------------------------------
+// 处理事件队列
+// ----------------------------------------------------------
+void ProcessEventQueue()
+{
+    config::Settings cfg = config::Load();
+    std::queue<int> q;
+
+    {
+        std::lock_guard<std::mutex> lock(s_queueMutex);
+        q.swap(s_eventQueue);
+    }
+
+    while (!q.empty())
+    {
+        int id = q.front();
+        q.pop();
+
+        // 击杀音效替换：只处理 1-5 和 deathmatch (-1)
+        if (id >= 1 && id <= 5)
+        {
+            std::cout << "[音效] " << id << "杀!" << std::endl;
+            if (cfg.enable_kill_sound)
+                sound::Play(id, cfg.volume);
+        }
+        else if (id == -1)
+        {
+            std::cout << "[音效] 多杀/死斗" << std::endl;
+            if (cfg.enable_kill_sound)
+                sound::Play(-1, cfg.volume);
+        }
+        // 音乐包音效：由 custom_musickit 控制
+        else if (id == -13) // 回合开始
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-13, cfg.volume);
+        }
+        else if (id == -14) // 购买
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-14, cfg.volume);
+        }
+        else if (id == -12) // 炸弹
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-12, cfg.volume);
+        }
+        else if (id == -2) // MVP
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-2, cfg.volume);
+        }
+        else if (id == -3) // 胜利
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-3, cfg.volume);
+        }
+        else if (id == -4) // 失败
+        {
+            if (cfg.custom_musickit)
+                sound::Play(-4, cfg.volume);
+        }
+        else if (id == -18) // 死亡—始终播放
+        {
+            std::cout << "[音效] 玩家死亡" << std::endl;
+            sound::Play(-18, cfg.volume);
+        }
+    }
+}
+
+// ----------------------------------------------------------
+// GSI POST 处理
 // ----------------------------------------------------------
 static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 {
@@ -35,118 +126,126 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     if (g_debug)
     {
-        std::cout << "======== GSI 原始 JSON 开始 ========" << std::endl;
+        std::cout << "======== GSI 原始 JSON ========" << std::endl;
         std::cout << rawJson << std::endl;
-        std::cout << "======== GSI 原始 JSON 结束 ========" << std::endl;
+        std::cout << "===============================" << std::endl;
     }
 
     try {
         nlohmann::json j = nlohmann::json::parse(rawJson);
-        config::Settings cfg = config::Load();
 
-        // 提取字段
-        int roundKills = 0;
+        // ===== 提取字段 =====
         std::string phase;
         std::string activity;
-        std::string mapMode = "competitive";
+        int roundKills = 0;
+        int mvps = 0;
         int health = 100;
 
         if (j.contains("player") && j["player"].is_object())
         {
-            auto& player = j["player"];
-            if (player.contains("state") && player["state"].is_object())
+            auto& pl = j["player"];
+            if (pl.contains("activity") && pl["activity"].is_string())
+                activity = pl["activity"].get<std::string>();
+            if (pl.contains("state") && pl["state"].is_object())
             {
-                auto& state = player["state"];
-                if (state.contains("round_kills") && state["round_kills"].is_number())
-                    roundKills = state["round_kills"].get<int>();
-                if (state.contains("health") && state["health"].is_number())
-                    health = state["health"].get<int>();
+                auto& st = pl["state"];
+                if (st.contains("round_kills") && st["round_kills"].is_number())
+                    roundKills = st["round_kills"].get<int>();
+                if (st.contains("health") && st["health"].is_number())
+                    health = st["health"].get<int>();
             }
-            if (player.contains("activity") && player["activity"].is_string())
-                activity = player["activity"].get<std::string>();
+            if (pl.contains("match_stats") && pl["match_stats"].is_object())
+            {
+                auto& ms = pl["match_stats"];
+                if (ms.contains("mvps") && ms["mvps"].is_number())
+                    mvps = ms["mvps"].get<int>();
+            }
         }
 
         if (j.contains("round") && j["round"].is_object())
         {
-            auto& round = j["round"];
-            if (round.contains("phase") && round["phase"].is_string())
-                phase = round["phase"].get<std::string>();
+            auto& r = j["round"];
+            if (r.contains("phase") && r["phase"].is_string())
+                phase = r["phase"].get<std::string>();
         }
 
-        if (j.contains("map") && j["map"].is_object())
-        {
-            auto& map = j["map"];
-            if (map.contains("mode") && map["mode"].is_string())
-                mapMode = map["mode"].get<std::string>();
-        }
+        // ===== 击杀回退修复 =====
+        if (roundKills < s_lastKills)
+            s_lastKills = roundKills;
 
-        if (g_debug)
+        // ===== 回合切换 =====
+        if (phase != s_lastPhase)
         {
-            std::cout << "[GSI] phase=" << phase << " act=" << activity
-                      << " kills=" << roundKills << " last=" << s_lastKills
-                      << " hp=" << health << std::endl;
-        }
-
-        // ===== 回合开始重置 =====
-        if (phase == "live" && s_lastPhase != "live")
-        {
-            std::cout << "[GSI] 回合开始，重置击杀计数" << std::endl;
-            s_lastKills = 0;
-            if (cfg.custom_musickit && cfg.enable_kill_sound)
-                sound::Play(-13, cfg.volume);
-        }
-
-        // ===== 击杀判定（适用于 live 和 over 阶段） =====
-        // 注意：round_kills 在回合结束后仍然存在，所以我们在 over 阶段也能拿到击杀数
-        if (cfg.enable_kill_sound && roundKills > s_lastKills)
-        {
-            for (int k = s_lastKills + 1; k <= roundKills; ++k)
+            if (phase == "live")
             {
-                if (k > 5)
+                s_lastKills = 0;
+                s_mvpsAtRoundStart = mvps;
+                s_mvpCandidateKills = 0;
+                s_mvpPushedThisRound = false;
+                QueueEvent(-13); // 回合开始
+            }
+
+            if (s_lastPhase == "live" && phase == "over")
+            {
+                // 回合结束时处理击杀
+                if (roundKills > s_lastKills)
                 {
-                    std::cout << "[GSI] 超过五杀(" << k << ")，播放 deathmatch" << std::endl;
-                    sound::Play(-1, cfg.volume);
+                    for (int k = s_lastKills + 1; k <= roundKills; ++k)
+                        QueueEvent(k > 5 ? -1 : k);
+                    s_mvpCandidateKills += (roundKills - s_lastKills);
+                    s_lastKills = roundKills;
                 }
-                else
+
+                // MVP 判定
+                bool isMvp = (mvps > s_mvpsAtRoundStart) ||
+                    (!s_mvpPushedThisRound && s_mvpCandidateKills > 0);
+                if (isMvp)
                 {
-                    std::cout << "[GSI] " << k << "杀! 播放音效" << std::endl;
-                    sound::Play(k, cfg.volume);
+                    QueueEvent(-2);
+                    s_mvpPushedThisRound = true;
                 }
             }
-            s_lastKills = roundKills;
+
+            s_lastPhase = phase;
         }
 
-        // ===== 死亡判定 =====
-        if (cfg.enable_kill_sound && phase == "live" && health <= 0 && activity == "playing")
+        // ===== live 阶段击杀判定 =====
+        if (phase == "live" && activity == "playing")
         {
-            std::cout << "[GSI] 玩家死亡" << std::endl;
-            sound::Play(-18, cfg.volume);
+            if (roundKills > s_lastKills)
+            {
+                for (int k = s_lastKills + 1; k <= roundKills; ++k)
+                    QueueEvent(k > 5 ? -1 : k);
+                s_mvpCandidateKills += (roundKills - s_lastKills);
+                s_lastKills = roundKills;
+            }
         }
 
-        // ===== 死斗模式 =====
-        if (cfg.enable_kill_sound && mapMode == "deathmatch" && roundKills > s_lastKills)
+        // ===== 死亡判定（不受 enable_kill_sound 控制） =====
+        if (phase == "live" && activity == "playing" && health <= 0)
+            QueueEvent(-18);
+
+        // ===== 调试输出 =====
+        if (g_debug)
         {
-            std::cout << "[GSI] 死斗击杀" << std::endl;
-            sound::Play(-1, cfg.volume);
-            s_lastKills = roundKills;
+            std::cout << "[GSI] phase=" << phase
+                      << " act=" << activity
+                      << " kills=" << roundKills
+                      << " last=" << s_lastKills
+                      << " hp=" << health
+                      << std::endl;
         }
-
-        // ===== 购买阶段 =====
-        if (phase == "freezetime" && s_lastPhase != "freezetime")
-        {
-            if (cfg.custom_musickit && cfg.enable_kill_sound)
-                sound::Play(-14, cfg.volume);
-        }
-
-        s_lastPhase = phase;
     }
     catch (const std::exception& e)
     {
-        std::cerr << "[GSI] 处理错误: " << e.what() << std::endl;
+        std::cerr << "[GSI] 错误: " << e.what() << std::endl;
     }
 
     res.status = 200;
     res.set_content("OK", "text/plain");
+
+    // 处理事件队列
+    ProcessEventQueue();
 }
 
 // ----------------------------------------------------------
@@ -175,8 +274,7 @@ bool StartServer()
 
     s_server = new httplib::Server();
     s_server->Post("/", OnGSIRequest);
-
-    std::cout << "[GSI] 服务器启动，监听 127.0.0.1:1009" << std::endl;
+    std::cout << "[GSI] 监听 127.0.0.1:1009" << std::endl;
 
     s_running = true;
     s_serverThread = std::thread([]() {
