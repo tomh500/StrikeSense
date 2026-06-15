@@ -6,16 +6,11 @@
 
 #include "console.h"
 #include "steam_helper.h"
+#include "gsi_server.h"
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
 #include <ShlObj.h>
-#include <thread>
-
-// vcpkg 库测试
-#include <nlohmann/json.hpp>
-#include <httplib.h>
-#include <yaml-cpp/yaml.h>
 
 #define MAX_LOADSTRING 100
 
@@ -25,15 +20,8 @@ WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
 Console g_Console;
 
-// GSI 调试开关 — 1=打印原始 GSI JSON 到控制台
-int g_debugGSI = 1;
-
-// 存储 GSI cfg 路径
+// GSI cfg 路径
 std::wstring g_gsiCfgPath;
-
-// GSI HTTP 服务器实例
-httplib::Server* g_gsiServer = nullptr;
-std::thread g_gsiServerThread;
 
 // 前向声明
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -41,119 +29,9 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
-void                StartGSIServer();
-void                StopGSIServer();
 
-// ----------------------------------------------------------
-static bool TestVcpkgLibraries()
-{
-    try {
-        nlohmann::json j = {{"name", "StrikeSense"}, {"version", 1.0}, {"debug", true}};
-        (void)j.dump();
-    }
-    catch (...) { return false; }
-    try {
-        YAML::Node node; node["test"] = "hello";
-        (void)YAML::Dump(node);
-    }
-    catch (...) { return false; }
-    httplib::Client cli("http://localhost:8080");
-    (void)cli;
-    return true;
-}
-
-// ============================================================
-// GSI HTTP POST 处理函数 — httplib 接收到 CS2 发送的 JSON
-// ============================================================
-static void HandleGSIRequest(const httplib::Request& req, httplib::Response& res)
-{
-    // req.body 包含 CS2 发来的完整 JSON
-    std::string rawJson = req.body;
-
-    // 调试输出
-    if (g_debugGSI)
-    {
-        std::cout << "=== GSI 原始数据 ===" << std::endl;
-        std::cout << rawJson << std::endl;
-        std::cout << "====================" << std::endl;
-    }
-
-    // 解析 JSON
-    try {
-        nlohmann::json j = nlohmann::json::parse(rawJson);
-
-        // 后续：提取 provider、map、player 等字段
-        // 这里先做基础解析
-        if (j.contains("provider"))
-        {
-            auto& prov = j["provider"];
-            if (prov.contains("name"))
-                std::cout << "[GSI] Provider: " << prov["name"].get<std::string>() << std::endl;
-            if (prov.contains("steamid"))
-                std::cout << "[GSI] SteamID: " << prov["steamid"].get<std::string>() << std::endl;
-        }
-        if (j.contains("map"))
-        {
-            auto& map = j["map"];
-            if (map.contains("name"))
-                std::cout << "[GSI] 地图: " << map["name"].get<std::string>() << std::endl;
-        }
-        if (j.contains("player"))
-        {
-            auto& player = j["player"];
-            if (player.contains("name"))
-                std::wcout << L"[GSI] 玩家: " << player["name"].get<std::string>().c_str() << std::endl;
-        }
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "[GSI] JSON 解析错误: " << e.what() << std::endl;
-    }
-
-    res.status = 200;
-    res.set_content("OK", "text/plain");
-}
-
-// ============================================================
-// 启动 GSI HTTP 服务器（端口 1009）
-// ============================================================
-void StartGSIServer()
-{
-    if (g_gsiServer)
-        return;  // 已启动
-
-    g_gsiServer = new httplib::Server();
-
-    // 注册 POST 处理 — CS2 用 POST 发 GSI 数据
-    g_gsiServer->Post("/", HandleGSIRequest);
-
-    std::cout << "[GSI] HTTP 服务器启动中，监听 0.0.0.0:1009..." << std::endl;
-
-    // 在后台线程启动
-    g_gsiServerThread = std::thread([&]() {
-        if (!g_gsiServer->listen("0.0.0.0", 1009))
-        {
-            std::cerr << "[GSI] 服务器启动失败！端口 1009 可能已被占用。" << std::endl;
-        }
-    });
-    g_gsiServerThread.detach();
-
-    std::cout << "[GSI] HTTP 服务器已启动！（线程已分离）" << std::endl;
-}
-
-// ============================================================
-// 停止 GSI HTTP 服务器
-// ============================================================
-void StopGSIServer()
-{
-    if (g_gsiServer)
-    {
-        g_gsiServer->stop();
-        delete g_gsiServer;
-        g_gsiServer = nullptr;
-        std::cout << "[GSI] HTTP 服务器已停止。" << std::endl;
-    }
-}
+static std::wstring GetCS2CfgPath();
+static void OnCreateGSIConfig(HWND hWnd);
 
 // ============================================================
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -164,23 +42,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
+    // 第一步：输出重定向
     g_Console.InitRedirection();
 
-    if (!TestVcpkgLibraries())
+    // 启动 GSI HTTP 服务器（namespace gsi）
+    std::cout << "[主程序] 正在初始化 GSI 服务器..." << std::endl;
+    if (gsi::Initialize())
     {
-        MessageBoxW(nullptr, L"vcpkg 库初始化失败！", L"错误", MB_ICONERROR);
-        return FALSE;
+        std::cout << "[主程序] GSI 服务器初始化成功，启动监听..." << std::endl;
+        gsi::StartServer();
+    }
+    else
+    {
+        std::cerr << "[主程序] 警告：GSI 服务器初始化失败！" << std::endl;
     }
 
+    // 初始化窗口
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     if (!InitInstance(hInstance, nCmdShow))
         return FALSE;
-
-    // 启动 GSI HTTP 服务器
-    StartGSIServer();
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_STRIKESENSE));
 
@@ -194,10 +77,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    StopGSIServer();
+    // 退出前清理
+    std::cout << "[主程序] 正在停止 GSI 服务器..." << std::endl;
+    gsi::StopServer();
+    gsi::Cleanup();
+
     return (int)msg.wParam;
 }
 
+// ============================================================
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
@@ -216,10 +104,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return RegisterClassExW(&wcex);
 }
 
+// ============================================================
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     hInst = hInstance;
-    // 较小的主窗口: 800x550
     HWND hWnd = CreateWindowW(szWindowClass, szTitle,
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, 800, 550,
@@ -231,12 +119,19 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 }
 
 // ============================================================
+// CS2 cfg 路径获取 — 优先本地配置，其次自动检测
+// ============================================================
 static std::wstring GetCS2CfgPath()
 {
+    // 1. 优先读取本地保存的配置
     std::wstring saved = strikesense::LoadSavedCfgPath();
     if (!saved.empty() && fs::exists(saved))
+    {
+        std::wcout << L"[GSI] 使用已保存的 cfg 路径: " << saved << std::endl;
         return saved;
+    }
 
+    // 2. 通过注册表找 Steam
     std::wcout << L"[GSI] 从注册表读取 Steam 路径..." << std::endl;
     std::wstring steamPath = strikesense::GetSteamPathFromRegistry();
     if (steamPath.empty())
@@ -246,6 +141,7 @@ static std::wstring GetCS2CfgPath()
     }
     std::wcout << L"[GSI] Steam 路径: " << steamPath << std::endl;
 
+    // 3. 解析 appmanifest_730.acf 找 CS2 安装目录
     std::wcout << L"[GSI] 查找 CS2 安装目录..." << std::endl;
     std::wstring cs2Dir = strikesense::FindCS2InstallDir(steamPath);
     if (cs2Dir.empty())
@@ -255,12 +151,15 @@ static std::wstring GetCS2CfgPath()
     }
     std::wcout << L"[GSI] CS2 安装目录: " << cs2Dir << std::endl;
 
+    // 4. 拼接 cfg 路径
     std::wstring cfgPath = strikesense::GetCS2CfgPath(cs2Dir);
     std::wcout << L"[GSI] cfg 目录: " << cfgPath << std::endl;
 
     return cfgPath;
 }
 
+// ============================================================
+// 路径确认对话框
 // ============================================================
 INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -306,7 +205,6 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
         case IDC_DELETE_CFG:
         {
-            // 删除已安装的配置文件
             fs::path gsiFile = fs::path(g_gsiCfgPath) / L"gamestate_integration_square.cfg";
             if (fs::exists(gsiFile))
             {
@@ -407,6 +305,8 @@ static void OnCreateGSIConfig(HWND hWnd)
 }
 
 // ============================================================
+// WndProc
+// ============================================================
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -431,6 +331,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             g_Console.ShowDebugger(hInst, hWnd);
             std::cout << "=== Debugger 调试输出已打开 ===" << std::endl;
             std::cout << "时间戳: " << __DATE__ << " " << __TIME__ << std::endl;
+            std::cout << "[GSI] 服务器状态: " << (gsi::IsRunning() ? "运行中 ✅" : "未启动 ❌") << std::endl;
+            std::cout << "[GSI] 调试输出(原始JSON): " << (gsi::g_debug ? "开启 ✅" : "关闭") << std::endl;
+            std::cout << "[GSI] 使用 cs2 调试开关: 设置 g_debug=1/g_debug=0" << std::endl;
             break;
 
         case IDM_ABOUT:

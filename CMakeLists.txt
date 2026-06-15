@@ -59,12 +59,14 @@ set(SOURCES
     StrikeSense.cpp
     console.cpp
     steam_helper.cpp
+    gsi_server.cpp
 )
 
 set(HEADERS
     StrikeSense.h
     console.h
     steam_helper.h
+    gsi_server.h
     framework.h
     targetver.h
     Resource.h
