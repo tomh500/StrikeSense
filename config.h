@@ -9,7 +9,7 @@ namespace config {
 
 struct Settings {
     bool match = true;
-    float volume = 0.80f;
+    float volume = 0.88f;
     bool ogg = false;
     bool custom_musickit = false;
     bool custom_flashbang = false;
@@ -17,6 +17,7 @@ struct Settings {
     bool show_mvp = false;
     bool enable_kill_sound = true;
 
+    // 音效路径（存储在 sound_config.json，不污染 gsi.json）
     std::wstring snd_1, snd_2, snd_3, snd_4, snd_5;
     std::wstring snd_extra;
     std::wstring snd_mvp, snd_win, snd_lose, snd_bomb;
@@ -26,14 +27,18 @@ struct Settings {
 void EnsureDirectoriesExist();
 std::wstring GetConfigDir();
 std::wstring GetConfigPath();
-Settings Load();
-bool Save(const Settings& s);
 std::wstring GetDefaultSndDir();
 std::wstring GetDefaultSndPath(const std::wstring& name, bool useOgg);
 
-// 全局缓存（避免每次请求都读文件）
-extern Settings g_cache;
+// gsi.json + sound_config.json 完整加载/保存
+Settings Load();
+bool Save(const Settings& s);
 
+// 音效配置文件独立读写
+void LoadSoundConfig(Settings& s);
+void SaveSoundConfig(const Settings& s);
+
+extern Settings g_cache;
 void InvalidateCache();
 
 } // namespace config

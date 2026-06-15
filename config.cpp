@@ -26,7 +26,7 @@ void EnsureDirectoriesExist()
     EnsureDirectory(base);
     EnsureDirectory(base / L"setting");
     EnsureDirectory(base / L"snd");
-    std::cout << "[配置] 目录结构已确保: " << base.string() << std::endl;
+    std::cout << "[配置] 目录已创建: " << base.string() << std::endl;
 }
 
 std::wstring GetConfigDir()
@@ -60,12 +60,12 @@ Settings Load()
     if (s_cacheValid) return g_cache;
 
     Settings& s = g_cache;
-    s = Settings();  // 重置默认值
+    s = Settings();
     fs::path path(GetConfigPath());
 
     if (!fs::exists(path))
     {
-        std::cout << "[配置] 首次运行，创建默认配置:" << path.string() << std::endl;
+        std::cout << "[配置] 创建默认 gsi.json" << std::endl;
         Save(s);
         s_cacheValid = true;
         return s;
@@ -79,13 +79,151 @@ Settings Load()
         in >> j;
         in.close();
 
-        auto readBool = [&](const std::string& key, bool& target) {
-            if (j.contains(key) && j[key].is_boolean()) target = j[key];
-        };
-        auto readFloat = [&](const std::string& key, float& target) {
-            if (j.contains(key) && j[key].is_number_float()) target = j[key];
-            else if (j.contains(key) && j[key].is_number()) target = j[key].get<float>();
-        };
+        // 只有这些字段，其他字段（snd_*）在 sound_config.json
+        if (j.contains("enable_kill_sound") && j["enable_kill_sound"].is_boolean())
+            s.enable_kill_sound = j["enable_kill_sound"];
+        else
+            s.enable_kill_sound = true;
+
+        if (j.contains("vol") && j["vol"].is_number())
+            s.volume = j["vol"].get<float>();
+
+        if (j.contains("ogg") && j["ogg"].is_boolean())
+            s.ogg = j["ogg"];
+
+        if (j.contains("custom_musickit") && j["custom_musickit"].is_boolean())
+            s.custom_musickit = j["custom_musickit"];
+
+        if (j.contains("custom_flashbang") && j["custom_flashbang"].is_boolean())
+            s.custom_flashbang = j["custom_flashbang"];
+
+        if (j.contains("low_memory") && j["low_memory"].is_boolean())
+            s.low_memory = j["low_memory"];
+
+        if (j.contains("show_mvp") && j["show_mvp"].is_boolean())
+            s.show_mvp = j["show_mvp"];
+
+        std::cout << "[配置] gsi.json 加载成功。" << std::endl;
+
+        // 然后加载音效配置
+        LoadSoundConfig(s);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "[配置] 加载 gsi.json 出错: " << e.what() << std::endl;
+    }
+
+    s_cacheValid = true;
+    return s;
+}
+
+bool Save(const Settings& s)
+{
+    g_cache = s;
+    s_cacheValid = true;
+    EnsureDirectoriesExist();
+
+    // ======= 保存 gsi.json（原版格式） =======
+    fs::path path(GetConfigPath());
+    try {
+        nlohmann::json j;
+
+        // 先读取已有文件保留 __comments
+        if (fs::exists(path))
+        {
+            try {
+                std::ifstream in(path);
+                if (in.is_open()) {
+                    in >> j;
+                    in.close();
+                }
+            }
+            catch (...) {}
+        }
+
+        // 写入/覆盖字段
+        j["match"] = true;
+        j["vol"] = 0.88f;
+        j["ogg"] = s.ogg;
+        j["custom_musickit"] = s.custom_musickit;
+        j["custom_flashbang"] = s.custom_flashbang;
+        j["low_memory"] = s.low_memory;
+        j["show_mvp"] = s.show_mvp;
+        j["enable_kill_sound"] = s.enable_kill_sound;
+
+        // 保留 __comments
+        if (!j.contains("__comments"))
+        {
+            j["__comments"] = nlohmann::json::object();
+            j["__comments"]["tips"] = "这里是配置文件的说明，帮助你快速了解每个选项的作用";
+            j["__comments"]["match"] = "新版本已弃用该选项，请保持true";
+            j["__comments"]["mvp"] = "新版本已弃用该选项，请保持true";
+            j["__comments"]["vol"] = "播放音量，取值范围vol∈(0.0 , 1.0]";
+            j["__comments"]["ogg"] = "音频格式是否使用 .ogg格式";
+            j["__comments"]["custom_musickit"] = "是否启用自定义音乐包逻辑";
+            j["__comments"]["custom_flashbang"] = "是否启用闪光叠加页面";
+            j["__comments"]["low_memory"] = "是否开启低内存模式";
+            j["__comments"]["show_mvp"] = "是否展示MVP信息板";
+            j["__comments"]["enable_kill_sound"] = "是否开启击杀音效替换";
+        }
+
+        std::ofstream out(path);
+        if (out.is_open()) {
+            out << j.dump(2);
+            out.close();
+        }
+    }
+    catch (...) {}
+
+    // ======= 保存音效配置到独立文件 =======
+    SaveSoundConfig(s);
+
+    std::cout << "[配置] 保存成功。" << std::endl;
+    return true;
+}
+
+// ============================================================
+// 音效配置文件独立管理
+// ============================================================
+
+static std::wstring GetSoundConfigPath()
+{
+    return (fs::path(GetConfigDir()) / L"sound_config.json").wstring();
+}
+
+// 字段对照表
+struct SoundField {
+    const char* key;
+    std::wstring Settings::*ptr;
+};
+
+static const SoundField s_soundFields[] = {
+    {"snd_1", &Settings::snd_1}, {"snd_2", &Settings::snd_2},
+    {"snd_3", &Settings::snd_3}, {"snd_4", &Settings::snd_4},
+    {"snd_5", &Settings::snd_5}, {"snd_extra", &Settings::snd_extra},
+    {"snd_mvp", &Settings::snd_mvp}, {"snd_win", &Settings::snd_win},
+    {"snd_lose", &Settings::snd_lose}, {"snd_bomb", &Settings::snd_bomb},
+    {"snd_round", &Settings::snd_round}, {"snd_buy", &Settings::snd_buy},
+    {"snd_death", &Settings::snd_death}, {"snd_gameover", &Settings::snd_gameover},
+    {"snd_menu", &Settings::snd_menu}
+};
+
+void LoadSoundConfig(Settings& s)
+{
+    fs::path path(GetSoundConfigPath());
+    if (!fs::exists(path))
+    {
+        std::cout << "[音效配置] 文件不存在，使用默认路径。" << std::endl;
+        return;
+    }
+
+    try {
+        std::ifstream in(path);
+        if (!in.is_open()) return;
+
+        nlohmann::json j;
+        in >> j;
+        in.close();
+
         auto readStr = [&](const std::string& key, std::wstring& target) {
             if (j.contains(key) && j[key].is_string()) {
                 std::string u8 = j[key];
@@ -98,46 +236,21 @@ Settings Load()
             }
         };
 
-        // force enable_kill_sound to true (overrides old configs)
-        s.enable_kill_sound = true;
-        if (j.contains("enable_kill_sound") && j["enable_kill_sound"].is_boolean())
-            s.enable_kill_sound = j["enable_kill_sound"];
-        readBool("ogg", s.ogg);
-        readBool("custom_musickit", s.custom_musickit);
-        readFloat("vol", s.volume);
+        for (const auto& f : s_soundFields)
+            readStr(f.key, s.*(f.ptr));
 
-        readStr("snd_1", s.snd_1); readStr("snd_2", s.snd_2);
-        readStr("snd_3", s.snd_3); readStr("snd_4", s.snd_4);
-        readStr("snd_5", s.snd_5); readStr("snd_extra", s.snd_extra);
-        readStr("snd_mvp", s.snd_mvp); readStr("snd_win", s.snd_win);
-        readStr("snd_lose", s.snd_lose); readStr("snd_bomb", s.snd_bomb);
-        readStr("snd_round", s.snd_round); readStr("snd_buy", s.snd_buy);
-        readStr("snd_death", s.snd_death); readStr("snd_gameover", s.snd_gameover);
-        readStr("snd_menu", s.snd_menu);
-
-        std::cout << "[配置] 加载成功。" << std::endl;
+        std::cout << "[音效配置] 加载成功。" << std::endl;
     }
     catch (const std::exception& e) {
-        std::cerr << "[配置] 加载出错: " << e.what() << std::endl;
+        std::cerr << "[音效配置] 加载出错: " << e.what() << std::endl;
     }
-
-    s_cacheValid = true;
-    return s;
 }
 
-bool Save(const Settings& s)
+void SaveSoundConfig(const Settings& s)
 {
-    g_cache = s;
-    s_cacheValid = true;
-    EnsureDirectoriesExist();
-    fs::path path(GetConfigPath());
-
+    fs::path path(GetSoundConfigPath());
     try {
         nlohmann::json j;
-        j["enable_kill_sound"] = s.enable_kill_sound;
-        j["ogg"] = s.ogg;
-        j["custom_musickit"] = s.custom_musickit;
-        j["vol"] = s.volume;
 
         auto writeStr = [&](const std::string& key, const std::wstring& val) {
             if (val.empty()) { j[key] = ""; return; }
@@ -148,27 +261,17 @@ bool Save(const Settings& s)
                 j[key] = u8;
             }
         };
-        writeStr("snd_1", s.snd_1); writeStr("snd_2", s.snd_2);
-        writeStr("snd_3", s.snd_3); writeStr("snd_4", s.snd_4);
-        writeStr("snd_5", s.snd_5); writeStr("snd_extra", s.snd_extra);
-        writeStr("snd_mvp", s.snd_mvp); writeStr("snd_win", s.snd_win);
-        writeStr("snd_lose", s.snd_lose); writeStr("snd_bomb", s.snd_bomb);
-        writeStr("snd_round", s.snd_round); writeStr("snd_buy", s.snd_buy);
-        writeStr("snd_death", s.snd_death); writeStr("snd_gameover", s.snd_gameover);
-        writeStr("snd_menu", s.snd_menu);
+
+        for (const auto& f : s_soundFields)
+            writeStr(f.key, s.*(f.ptr));
 
         std::ofstream out(path);
-        if (!out.is_open()) return false;
-        out << j.dump(2);
-        out.close();
-
-        std::cout << "[配置] 保存成功。" << std::endl;
-        return true;
+        if (out.is_open()) {
+            out << j.dump(2);
+            out.close();
+        }
     }
-    catch (const std::exception& e) {
-        std::cerr << "[配置] 保存出错: " << e.what() << std::endl;
-        return false;
-    }
+    catch (...) {}
 }
 
 } // namespace config
