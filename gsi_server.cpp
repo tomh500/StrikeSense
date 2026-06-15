@@ -205,8 +205,9 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
             }
 
             // live 阶段 → 回合开始
-            if (phase == "live" && s_waitingForLive)
+            if (phase == "live" && s_waitingForLive )
             {
+
                 s_lastKills = 0;
                 s_mvpsAtRoundStart = mvps;
                 s_mvpCandidateKills = 0;
@@ -215,7 +216,11 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 s_bombPlantedThisRound = false;
                 s_waitingForLive = false;
                 s_roundStarted = true;
-                QueueEvent(-13);
+                if (mapMode == "deathmatch")
+                {
+                    QueueEvent(-13);
+                }
+                
             }
 
             // over → 检查是否刚刚从 live 过来了
