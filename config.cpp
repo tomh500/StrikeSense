@@ -98,7 +98,10 @@ Settings Load()
             }
         };
 
-        readBool("enable_kill_sound", s.enable_kill_sound);
+        // force enable_kill_sound to true (overrides old configs)
+        s.enable_kill_sound = true;
+        if (j.contains("enable_kill_sound") && j["enable_kill_sound"].is_boolean())
+            s.enable_kill_sound = j["enable_kill_sound"];
         readBool("ogg", s.ogg);
         readBool("custom_musickit", s.custom_musickit);
         readFloat("vol", s.volume);

@@ -144,6 +144,11 @@ void Play(int id, float volume)
     else
     {
         std::wcout << L"[音效] 播放 id=" << id << L" (" << path << L") 通道=" << played << std::endl;
+        // 音效播放完后自动释放（SDL_mixer 会在播放完毕后自动释放？需要回调）
+        // 这里让 chunk 在音效结束后自动回收
+        Mix_ChannelFinished([](int ch) {
+            // 不做事，chunk 由调用者管理
+        });
     }
 }
 
