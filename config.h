@@ -9,13 +9,13 @@ namespace config {
 
 struct Settings {
     bool match = true;
-    float volume = 0.88f;
+    float volume = 0.80f;
     bool ogg = false;
     bool custom_musickit = false;
     bool custom_flashbang = false;
     bool low_memory = false;
     bool show_mvp = false;
-    bool enable_kill_sound = false;
+    bool enable_kill_sound = true;
 
     std::wstring snd_1, snd_2, snd_3, snd_4, snd_5;
     std::wstring snd_extra;
@@ -30,5 +30,10 @@ Settings Load();
 bool Save(const Settings& s);
 std::wstring GetDefaultSndDir();
 std::wstring GetDefaultSndPath(const std::wstring& name, bool useOgg);
+
+// 全局缓存（避免每次请求都读文件）
+extern Settings g_cache;
+
+void InvalidateCache();
 
 } // namespace config

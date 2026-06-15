@@ -6,9 +6,11 @@
 
 namespace config {
 
-// ----------------------------------------------------------
-// 确保目录结构存在
-// ----------------------------------------------------------
+Settings g_cache;
+static bool s_cacheValid = false;
+
+void InvalidateCache() { s_cacheValid = false; }
+
 static void EnsureDirectory(const fs::path& dir)
 {
     std::error_code ec;
@@ -16,7 +18,6 @@ static void EnsureDirectory(const fs::path& dir)
         fs::create_directories(dir, ec);
 }
 
-// ----------------------------------------------------------
 void EnsureDirectoriesExist()
 {
     wchar_t profile[MAX_PATH] = {};
@@ -24,11 +25,10 @@ void EnsureDirectoriesExist()
     fs::path base = fs::path(profile) / L"StrikeSense";
     EnsureDirectory(base);
     EnsureDirectory(base / L"setting");
-    EnsureDirectory(base / L"Snd");
-    std::cout << "[配置] 目录结构已确保存在: " << base.string() << std::endl;
+    EnsureDirectory(base / L"snd");
+    std::cout << "[配置] 目录结构已确保: " << base.string() << std::endl;
 }
 
-// ----------------------------------------------------------
 std::wstring GetConfigDir()
 {
     wchar_t profile[MAX_PATH] = {};
@@ -36,21 +36,18 @@ std::wstring GetConfigDir()
     return (fs::path(profile) / L"StrikeSense" / L"setting").wstring();
 }
 
-// ----------------------------------------------------------
 std::wstring GetConfigPath()
 {
     return (fs::path(GetConfigDir()) / L"gsi.json").wstring();
 }
 
-// ----------------------------------------------------------
 std::wstring GetDefaultSndDir()
 {
     wchar_t profile[MAX_PATH] = {};
     GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
-    return (fs::path(profile) / L"StrikeSense" / L"Snd").wstring();
+    return (fs::path(profile) / L"StrikeSense" / L"snd").wstring();
 }
 
-// ----------------------------------------------------------
 std::wstring GetDefaultSndPath(const std::wstring& name, bool useOgg)
 {
     fs::path sndDir(GetDefaultSndDir());
@@ -58,22 +55,25 @@ std::wstring GetDefaultSndPath(const std::wstring& name, bool useOgg)
     return (sndDir / (name + ext)).wstring();
 }
 
-// ----------------------------------------------------------
 Settings Load()
 {
-    Settings s;
+    if (s_cacheValid) return g_cache;
+
+    Settings& s = g_cache;
+    s = Settings();  // 重置默认值
     fs::path path(GetConfigPath());
 
     if (!fs::exists(path))
     {
-        std::cout << "[配置] 配置文件不存在，使用默认值并创建。" << std::endl;
+        std::cout << "[配置] 首次运行，创建默认配置:" << path.string() << std::endl;
         Save(s);
+        s_cacheValid = true;
         return s;
     }
 
     try {
         std::ifstream in(path);
-        if (!in.is_open()) return s;
+        if (!in.is_open()) { s_cacheValid = true; return s; }
 
         nlohmann::json j;
         in >> j;
@@ -84,10 +84,12 @@ Settings Load()
         };
         auto readFloat = [&](const std::string& key, float& target) {
             if (j.contains(key) && j[key].is_number_float()) target = j[key];
+            else if (j.contains(key) && j[key].is_number()) target = j[key].get<float>();
         };
         auto readStr = [&](const std::string& key, std::wstring& target) {
             if (j.contains(key) && j[key].is_string()) {
                 std::string u8 = j[key];
+                if (u8.empty()) return;
                 int wlen = MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), (int)u8.length(), nullptr, 0);
                 if (wlen > 0) {
                     target.resize(wlen);
@@ -96,14 +98,10 @@ Settings Load()
             }
         };
 
-        readBool("match", s.match);
-        readFloat("vol", s.volume);
+        readBool("enable_kill_sound", s.enable_kill_sound);
         readBool("ogg", s.ogg);
         readBool("custom_musickit", s.custom_musickit);
-        readBool("custom_flashbang", s.custom_flashbang);
-        readBool("low_memory", s.low_memory);
-        readBool("show_mvp", s.show_mvp);
-        readBool("enable_kill_sound", s.enable_kill_sound);
+        readFloat("vol", s.volume);
 
         readStr("snd_1", s.snd_1); readStr("snd_2", s.snd_2);
         readStr("snd_3", s.snd_3); readStr("snd_4", s.snd_4);
@@ -114,30 +112,29 @@ Settings Load()
         readStr("snd_death", s.snd_death); readStr("snd_gameover", s.snd_gameover);
         readStr("snd_menu", s.snd_menu);
 
-        std::cout << "[配置] 加载配置成功。" << std::endl;
+        std::cout << "[配置] 加载成功。" << std::endl;
     }
     catch (const std::exception& e) {
-        std::cerr << "[配置] 加载配置出错: " << e.what() << std::endl;
+        std::cerr << "[配置] 加载出错: " << e.what() << std::endl;
     }
+
+    s_cacheValid = true;
     return s;
 }
 
-// ----------------------------------------------------------
 bool Save(const Settings& s)
 {
+    g_cache = s;
+    s_cacheValid = true;
     EnsureDirectoriesExist();
     fs::path path(GetConfigPath());
 
     try {
         nlohmann::json j;
-        j["match"] = s.match;
-        j["vol"] = s.volume;
+        j["enable_kill_sound"] = s.enable_kill_sound;
         j["ogg"] = s.ogg;
         j["custom_musickit"] = s.custom_musickit;
-        j["custom_flashbang"] = s.custom_flashbang;
-        j["low_memory"] = s.low_memory;
-        j["show_mvp"] = s.show_mvp;
-        j["enable_kill_sound"] = s.enable_kill_sound;
+        j["vol"] = s.volume;
 
         auto writeStr = [&](const std::string& key, const std::wstring& val) {
             if (val.empty()) { j[key] = ""; return; }
@@ -162,11 +159,11 @@ bool Save(const Settings& s)
         out << j.dump(2);
         out.close();
 
-        std::cout << "[配置] 保存配置成功。" << std::endl;
+        std::cout << "[配置] 保存成功。" << std::endl;
         return true;
     }
     catch (const std::exception& e) {
-        std::cerr << "[配置] 保存配置出错: " << e.what() << std::endl;
+        std::cerr << "[配置] 保存出错: " << e.what() << std::endl;
         return false;
     }
 }
