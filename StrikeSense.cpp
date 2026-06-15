@@ -42,6 +42,7 @@ float g_crosshairScale = 0.2f;
 
 bool  g_styleDropdownOpen = false;
 int   g_dropdownSelection = -1;
+bool  g_langCN = true;  // true=中文, false=English
 
 static HWND g_crossHWnd = nullptr;
 static std::thread g_crossThread;
@@ -188,10 +189,18 @@ static void PaintAll(HWND hw,HDC hdc){
 static void PaintSidebar(Gdiplus::Graphics& g,int W,int H){
     using namespace Gdiplus;SolidBrush bg(Color(255,200,230,250));Pen ln(Color(255,160,210,240),2.0f);
     Font tF(L"Microsoft YaHei",16,FontStyleBold),nF(L"Microsoft YaHei",12),nAF(L"Microsoft YaHei",12,FontStyleBold);
+    Font sF(L"Microsoft YaHei",9);
     SolidBrush tb(Color(255,20,80,140)),td(Color(255,30,60,100)),naB(Color(255,160,210,245));
+    SolidBrush onBr(Color(255,100,200,140)),offBr(Color(255,180,180,190)),kBr(Color(255,255,255,255));
     g.FillRectangle(&bg,0,0,SIDEBAR_W,H);g.DrawLine(&ln,SIDEBAR_W,0,SIDEBAR_W,H);g.DrawString(L"StrikeSense",-1,&tF,PointF(10,12),&tb);
     struct{const wchar_t*t;int p;int y;}items[]={{L"文件位置",0,52},{L"遗产核心",1,82},{L"进化分支",2,112},{L"Semi Rage",3,142}};
-    for(auto&it:items){if(g_currentPage==it.p)g.FillRectangle(&naB,8,it.y,SIDEBAR_W-16,24);Font&f=(g_currentPage==it.p)?nAF:nF;g.DrawString(it.t,-1,&f,PointF(14,it.y+3),g_currentPage==it.p?&tb:&td);}}
+    for(auto&it:items){if(g_currentPage==it.p)g.FillRectangle(&naB,8,it.y,SIDEBAR_W-16,24);Font&f=(g_currentPage==it.p)?nAF:nF;g.DrawString(it.t,-1,&f,PointF(14,it.y+3),g_currentPage==it.p?&tb:&td);}
+    // 语言切换开关（侧边栏底部）
+    int langY=H-40;int ltx=SIDEBAR_W/2-30;
+    g.DrawString(g_langCN?L"中文" : L"English",-1,&sF,PointF(10,langY+2),&td);
+    int ttx=ltx, tty=langY; RectF tr((REAL)ttx,(REAL)tty,50.f,24.f);
+    GraphicsPath tp;tp.AddArc(ttx,tty,24,24,90,180);tp.AddArc(ttx+50-24,tty,24,24,270,180);tp.CloseFigure();
+    g.FillPath(g_langCN?&onBr:&offBr,&tp);float kkx=g_langCN?ttx+50-22.f:ttx+2.f;g.FillEllipse(&kBr,kkx,tty+2.f,20.f,20.f);}
 static void PaintSoundsPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND hw){
     using namespace Gdiplus;SolidBrush hdrBg(Color(255,180,220,245));
     Font pF(L"Microsoft YaHei",13,FontStyleBold),rF(L"Microsoft YaHei",11),bF(L"Microsoft YaHei",9),sF(L"Microsoft YaHei",9);
@@ -254,7 +263,7 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     {Gdiplus::Pen kp(Gdiplus::Color(100,100,150,200));g.DrawRectangle(&kp,keyRect);g.DrawString(g_hotkeyWaiting?L"按下任何字母键或数字键..." : L"点击修改快捷键",-1,&sF,PointF(cx+14,154),g_hotkeyWaiting?(const Gdiplus::Brush*)&tbCol:(const Gdiplus::Brush*)&tmDim);}
 
     // ---- 狙击准星设置 ----
-    int yRgb=230, yRow1=255, yEnable=310;
+    int yRgb=230, yRow2=265, yEnable=295;
     g.DrawString(L"狙击准星设置",-1,&rF,PointF(cx+10,195),&tdCol);
 
     // R G B 滑块（同一行）
@@ -268,9 +277,7 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
         wchar_t bf[8];swprintf_s(bf,L"%d",*rgbV[i]);g.DrawString(bf,-1,&sF,PointF(bx+105,yRgb-2),&tdCol);
     }
 
-    // 第二行: 粗细、缩放、样式 靠左紧凑排列
-    int yRow2 = yRow1 + 30;
-
+    // 第二行: 粗细、缩放、样式 和 启用准星 全部在同一水平线
     // 粗细
     int thX=cx+10; g.DrawString(L"粗细:",-1,&sF,PointF(thX,yRow2),&tdCol);
     int thBarX=thX+40; int thBarW=80;
@@ -283,22 +290,23 @@ static void PaintEvolutionPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
     g.FillRectangle(&sBg,scBarX,yRow2,scBarW,10);int fw4=(int)(scBarW*(g_crosshairScale-0.1f)/0.5f);g.FillRectangle(&sFill,scBarX,yRow2,fw4,10);
     wchar_t scT[8];swprintf_s(scT,L"%.2f",g_crosshairScale);g.DrawString(scT,-1,&sF,PointF(scBarX+scBarW+4,yRow2-2),&tdCol);
 
-    // 样式
+    // 样式（下拉框在同一排）
     int styX=scBarX+scBarW+40; g.DrawString(L"样式:",-1,&sF,PointF(styX,yRow2),&tdCol);
     int ddX=styX+40; int ddW=100, ddH=20;
     const wchar_t*sty[]={L"空心圆",L"实心圆",L"经典"};
     {SolidBrush ddBtn(Color(255,180,220,250));Pen ddPen(Color(255,100,150,200));
-    Gdiplus::RectF ddRect((REAL)ddX,(REAL)(yRow1-2),(REAL)ddW,(REAL)ddH);
-    g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF((REAL)ddX+4,(REAL)yRow1),&tdCol);
-    SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF((REAL)ddX+ddW-8,(REAL)(yRow1+4)),PointF((REAL)(ddX+ddW),(REAL)(yRow1+4)),PointF((REAL)(ddX+ddW-4),(REAL)(yRow1+12))};
+    Gdiplus::RectF ddRect((REAL)ddX,(REAL)(yRow2-2),(REAL)ddW,(REAL)ddH);
+    g.FillRectangle(&ddBtn,ddRect);g.DrawRectangle(&ddPen,ddRect);g.DrawString(sty[g_crosshairStyle],-1,&sF,PointF((REAL)ddX+4,(REAL)yRow2),&tdCol);
+    SolidBrush arr(Color(255,30,60,100));PointF arrPts[]={PointF((REAL)ddX+ddW-8,(REAL)(yRow2+4)),PointF((REAL)(ddX+ddW),(REAL)(yRow2+4)),PointF((REAL)(ddX+ddW-4),(REAL)(yRow2+12))};
     g.FillPolygon(&arr,arrPts,3);
-    if(g_styleDropdownOpen){for(int j=0;j<3;++j){Gdiplus::RectF optRect((REAL)ddX,(REAL)(yRow1+16+j*18),(REAL)ddW,18.f);g_dropdownRects[j]=optRect;
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){Gdiplus::RectF optRect((REAL)ddX,(REAL)(yRow2+16+j*18),(REAL)ddW,18.f);g_dropdownRects[j]=optRect;
         SolidBrush*optBg=(j==g_dropdownSelection)?&ddHoverBg:&ddBg;g.FillRectangle(optBg,optRect);g.DrawRectangle(&ddPen,optRect);
-        g.DrawString(sty[j],-1,&sF,PointF((REAL)ddX+4,(REAL)(yRow1+18+j*18)),&tdCol);}}}
+        g.DrawString(sty[j],-1,&sF,PointF((REAL)ddX+4,(REAL)(yRow2+18+j*18)),&tdCol);}}}
 
-    // 启用准星
-    g.DrawString(L"启用准星",-1,&rF,PointF(cx+10,yEnable),&tdCol);
-    {int tx=cx+120,ty=yEnable-4;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);GraphicsPath tp;tp.AddArc(tx,ty,24,24,90,180);tp.AddArc(tx+50-24,ty,24,24,270,180);tp.CloseFigure();
+    // 启用准星（和粗细/缩放/样式同一排）
+    int enableX=ddX+ddW+40;
+    g.DrawString(L"启用",-1,&sF,PointF(enableX,yRow2),&tdCol);
+    {int tx=enableX+40,ty=yRow2-4;RectF tr((REAL)tx,(REAL)ty,50.f,24.f);GraphicsPath tp;tp.AddArc(tx,ty,24,24,90,180);tp.AddArc(tx+50-24,ty,24,24,270,180);tp.CloseFigure();
         SolidBrush onBr(Color(255,100,200,140)),offBr(Color(255,180,180,190)),kBr(Color(255,255,255,255));
         g.FillPath(g_crosshairEnabled?&onBr:&offBr,&tp);float kkx=g_crosshairEnabled?tx+50-22.f:tx+2.f;g.FillEllipse(&kBr,kkx,ty+2.f,20.f,20.f);}
 }
@@ -314,7 +322,10 @@ static void PaintSemiRagePage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND){
 
 static void CheckSidebarClick(int mx,int my){
     struct{int y;int p;}items[]={{52,0},{82,1},{112,2},{142,3}};
-    for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}}
+    for(auto&it:items){if(mx>=8&&mx<=SIDEBAR_W&&my>=it.y&&my<=it.y+24){g_currentPage=it.p;g_styleDropdownOpen=false;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}
+    // 语言切换
+    int langY=0;{RECT rc;GetClientRect(FindWindowW(szWindowClass,nullptr),&rc);langY=rc.bottom-rc.top-40;}
+    if(mx>=8&&mx<=SIDEBAR_W&&my>=langY&&my<=langY+24){g_langCN=!g_langCN;InvalidateRect(FindWindowW(szWindowClass,nullptr),nullptr,FALSE);return;}}
 static void CheckSettingsClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
     for(int i=0;i<6;++i){int tx=cx+cw-60,ty=50+i*36;if(mx>=tx&&mx<=tx+50&&my>=ty&&my<=ty+24){s_toggleStates[i]=!s_toggleStates[i];config::Settings c=config::Load();
@@ -323,7 +334,7 @@ static void CheckSettingsClick(HWND hw,int mx,int my){
 static void CheckEvolutionClick(HWND hw,int mx,int my){
     int cx=SIDEBAR_W+12,cw=0;{RECT rc;GetClientRect(hw,&rc);cw=rc.right-rc.left-cx-12;}
 
-    int yVolSlider=80, yRgb=230, yRow1=255, yEnable=310;
+    int yVolSlider=80, yRgb=230, yRow2=265;
     int slW=cw-100;
 
     // 即时音量
@@ -336,17 +347,18 @@ static void CheckEvolutionClick(HWND hw,int mx,int my){
     for(int i=0;i<3;++i){int bx=rgbLabelX+i*rgbSpacing;int*rgbV[]={&g_crosshairR,&g_crosshairG,&g_crosshairB};
         if(mx>=bx+20&&mx<=bx+20+rgbBarW&&my>=yRgb-8&&my<=yRgb+12){float t=(float)(mx-bx-20)/(float)rgbBarW;if(t<0)t=0;if(t>1)t=1;*rgbV[i]=(int)(t*255.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}
     // 粗细
-    int thBarX=cx+10+40; int thBarW=80; int yRow2=yRow1+30;
+    int thBarX=cx+10+40; int thBarW=80;
     if(mx>=thBarX&&mx<=thBarX+thBarW&&my>=yRow2-8&&my<=yRow2+12){float t=(float)(mx-thBarX)/(float)thBarW;if(t<0)t=0;if(t>1)t=1;g_crosshairThickness=1+(int)(t*9.f);SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
     // 缩放
-    int scBarX=thBarX+thBarW+40+40; int scBarW=100;
+    int scX=thBarX+thBarW+40;int scBarX=scX+40; int scBarW=100;
     if(mx>=scBarX&&mx<=scBarX+scBarW&&my>=yRow2-8&&my<=yRow2+12){float t=(float)(mx-scBarX)/(float)scBarW;if(t<0)t=0;if(t>1)t=1;g_crosshairScale=0.1f+t*0.5f;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}
     // 样式
-    int ddX=scBarX+scBarW+40+40; int ddW=100;
-    if(my>=yRow1-2&&my<=yRow1+18&&mx>=ddX&&mx<=ddX+ddW){if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}}
-    if(g_styleDropdownOpen){for(int j=0;j<3;++j){if(mx>=ddX&&mx<=ddX+ddW&&my>=yRow1+16+j*18&&my<=yRow1+34+j*18){g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;}
-    // 启用
-    int tx=cx+120,tye=yEnable-4;if(mx>=tx&&mx<=tx+50&&my>=tye&&my<=tye+24){g_crosshairEnabled=!g_crosshairEnabled;SaveEvolutionParams();
+    int styX=scBarX+scBarW+40;int ddX=styX+40; int ddW=100;
+    if(my>=yRow2-2&&my<=yRow2+18&&mx>=ddX&&mx<=ddX+ddW){if(!g_styleDropdownOpen){g_styleDropdownOpen=true;InvalidateRect(hw,nullptr,FALSE);return;}}
+    if(g_styleDropdownOpen){for(int j=0;j<3;++j){if(mx>=ddX&&mx<=ddX+ddW&&my>=yRow2+16+j*18&&my<=yRow2+34+j*18){g_crosshairStyle=j;g_styleDropdownOpen=false;SaveEvolutionParams();InvalidateRect(hw,nullptr,FALSE);return;}}g_styleDropdownOpen=false;InvalidateRect(hw,nullptr,FALSE);return;}
+    // 启用准星（同一排）
+    int enableX=ddX+ddW+40;int tx=enableX+40,tye=yRow2-4;
+    if(mx>=tx&&mx<=tx+50&&my>=tye&&my<=tye+24){g_crosshairEnabled=!g_crosshairEnabled;SaveEvolutionParams();
         if(g_crosshairEnabled&&!g_crossThreadRunning){g_crossThreadRunning=true;g_crossThread=std::thread(CrosshairThreadFunc,hInst);g_crossThread.detach();}
         else if(!g_crosshairEnabled)DestroyCrosshairInternal();InvalidateRect(hw,nullptr,FALSE);return;}
 }
