@@ -19,35 +19,35 @@ static std::thread s_serverThread;
 static std::atomic<bool> s_running{ false };
 static bool s_wsaInitialized = false;
 
-// GSI 状态
+// GSI 状态（从 legacy/Event.cpp 照搬）
 static std::string s_lastPhase;
 static int s_lastKills = 0;
 static int s_lastMvps = 0;
+static bool s_deadMuted = false;
+static bool s_waitingForLive = true;
+static bool s_roundStarted = false;
 static int s_mvpCandidateKills = 0;
 static bool s_mvpPushedThisRound = false;
 static int s_mvpsAtRoundStart = 0;
+static bool s_gameoverPushed = false;
+static bool s_bombPlantedThisRound = false;
+static std::atomic<bool> s_bombSoundPlaying{ false };
+static std::string s_playerTeam;
 
 // ===== 事件队列 =====
 static std::queue<int> s_eventQueue;
 static std::mutex s_queueMutex;
 
-// ----------------------------------------------------------
-// 将事件推入队列
-// ----------------------------------------------------------
 void QueueEvent(int id)
 {
     std::lock_guard<std::mutex> lock(s_queueMutex);
     s_eventQueue.push(id);
 }
 
-// ----------------------------------------------------------
-// 处理事件队列
-// ----------------------------------------------------------
 void ProcessEventQueue()
 {
     config::Settings cfg = config::Load();
     std::queue<int> q;
-
     {
         std::lock_guard<std::mutex> lock(s_queueMutex);
         q.swap(s_eventQueue);
@@ -55,10 +55,8 @@ void ProcessEventQueue()
 
     while (!q.empty())
     {
-        int id = q.front();
-        q.pop();
+        int id = q.front(); q.pop();
 
-        // 击杀音效替换：只处理 1-5 和 deathmatch (-1)
         if (id >= 1 && id <= 5)
         {
             std::cout << "[音效] " << id << "杀!" << std::endl;
@@ -71,52 +69,62 @@ void ProcessEventQueue()
             if (cfg.enable_kill_sound)
                 sound::Play(-1, cfg.volume);
         }
-        // 音乐包音效：由 custom_musickit 控制
-        else if (id == -13) // 回合开始
+        else if (id == -13) // 回合开始—音乐包
         {
+            std::cout << "[音效] 回合开始" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-13, cfg.volume);
         }
-        else if (id == -14) // 购买
+        else if (id == -14) // 购买—音乐包
         {
+            std::cout << "[音效] 购买阶段" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-14, cfg.volume);
         }
-        else if (id == -12) // 炸弹
+        else if (id == -12) // 炸弹—音乐包
         {
+            std::cout << "[音效] 炸弹" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-12, cfg.volume);
         }
-        else if (id == -2) // MVP
+        else if (id == -2) // MVP—音乐包
         {
+            std::cout << "[音效] MVP" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-2, cfg.volume);
         }
-        else if (id == -3) // 胜利
+        else if (id == -3) // 胜利—音乐包
         {
+            std::cout << "[音效] 胜利!" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-3, cfg.volume);
         }
-        else if (id == -4) // 失败
+        else if (id == -4) // 失败—音乐包
         {
+            std::cout << "[音效] 失败" << std::endl;
             if (cfg.custom_musickit)
                 sound::Play(-4, cfg.volume);
         }
-        else if (id == -18) // 死亡—始终播放
+        else if (id == -18) // 死亡—始终播放（不受 enable_kill_sound 控制）
         {
             std::cout << "[音效] 玩家死亡" << std::endl;
             sound::Play(-18, cfg.volume);
         }
+        else if (id == -19) // 游戏结束
+        {
+            std::cout << "[音效] 游戏结束" << std::endl;
+            if (cfg.custom_musickit)
+                sound::Play(-19, cfg.volume);
+        }
     }
 }
 
-// ----------------------------------------------------------
+// ============================================================
 // GSI POST 处理
-// ----------------------------------------------------------
+// ============================================================
 static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 {
     std::string rawJson = req.body;
-
     if (rawJson.empty())
     {
         res.status = 200;
@@ -133,19 +141,25 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     try {
         nlohmann::json j = nlohmann::json::parse(rawJson);
+        config::Settings cfg = config::Load();
 
-        // ===== 提取字段 =====
         std::string phase;
         std::string activity;
-        int roundKills = 0;
-        int mvps = 0;
-        int health = 100;
+        int roundKills = 0, mvps = 0, health = 100;
+        std::string mapMode = "competitive";
+        std::string playerSteamid;
 
+        // 提取玩家数据
         if (j.contains("player") && j["player"].is_object())
         {
             auto& pl = j["player"];
             if (pl.contains("activity") && pl["activity"].is_string())
                 activity = pl["activity"].get<std::string>();
+            if (pl.contains("steamid") && pl["steamid"].is_string())
+                playerSteamid = pl["steamid"].get<std::string>();
+            if (pl.contains("team") && pl["team"].is_string())
+                s_playerTeam = pl["team"].get<std::string>();
+
             if (pl.contains("state") && pl["state"].is_object())
             {
                 auto& st = pl["state"];
@@ -162,6 +176,13 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
             }
         }
 
+        if (j.contains("map") && j["map"].is_object())
+        {
+            auto& m = j["map"];
+            if (m.contains("mode") && m["mode"].is_string())
+                mapMode = m["mode"].get<std::string>();
+        }
+
         if (j.contains("round") && j["round"].is_object())
         {
             auto& r = j["round"];
@@ -169,31 +190,75 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 phase = r["phase"].get<std::string>();
         }
 
-        // ===== 击杀回退修复 =====
+        // 击杀回退修复（legacy）
         if (roundKills < s_lastKills)
             s_lastKills = roundKills;
 
-        // ===== 回合切换 =====
+        // ===== 阶段切换（legacy 核心逻辑） =====
         if (phase != s_lastPhase)
         {
-            if (phase == "live")
+            // freezetime → buy 音效
+            if (phase == "freezetime" && s_lastPhase != "freezetime")
+            {
+                QueueEvent(-14);
+                s_bombPlantedThisRound = false;
+            }
+
+            // live 阶段 → 回合开始
+            if (phase == "live" && s_waitingForLive)
             {
                 s_lastKills = 0;
                 s_mvpsAtRoundStart = mvps;
                 s_mvpCandidateKills = 0;
                 s_mvpPushedThisRound = false;
-                QueueEvent(-13); // 回合开始
+                s_deadMuted = false;
+                s_bombPlantedThisRound = false;
+                s_waitingForLive = false;
+                s_roundStarted = true;
+                QueueEvent(-13);
             }
 
-            if (s_lastPhase == "live" && phase == "over")
+            // over → 检查是否刚刚从 live 过来了
+            if (s_lastPhase == "live" && (phase == "over" || phase == "gameover"))
             {
-                // 回合结束时处理击杀
+                // 回合结束时处理尾刀
                 if (roundKills > s_lastKills)
                 {
                     for (int k = s_lastKills + 1; k <= roundKills; ++k)
-                        QueueEvent(k > 5 ? -1 : k);
+                    {
+                        if (mapMode == "deathmatch")
+                            QueueEvent(-1);
+                        else
+                            QueueEvent(k > 5 ? -1 : k);
+                    }
                     s_mvpCandidateKills += (roundKills - s_lastKills);
                     s_lastKills = roundKills;
+                }
+
+                // 胜负判定
+                bool hasWinTeam = false;
+                std::string winTeam;
+                if (j.contains("round") && j["round"].is_object())
+                {
+                    auto& r = j["round"];
+                    if (r.contains("win_team") && r["win_team"].is_string())
+                    {
+                        hasWinTeam = true;
+                        winTeam = r["win_team"].get<std::string>();
+                    }
+                }
+                else if (j.contains("added") && j["added"].is_object())
+                {
+                    auto& a = j["added"];
+                    if (a.contains("round") && a["round"].is_object())
+                    {
+                        auto& ar = a["round"];
+                        if (ar.contains("win_team") && ar["win_team"].is_string())
+                        {
+                            hasWinTeam = true;
+                            winTeam = ar["win_team"].get<std::string>();
+                        }
+                    }
                 }
 
                 // MVP 判定
@@ -204,26 +269,121 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                     QueueEvent(-2);
                     s_mvpPushedThisRound = true;
                 }
+
+                // 胜负音效
+                if (!s_mvpPushedThisRound && hasWinTeam)
+                {
+                    if (winTeam == s_playerTeam)
+                        QueueEvent(-3); // 胜利
+                    else
+                        QueueEvent(-4); // 失败
+                }
+
+                if (phase == "gameover" && !s_gameoverPushed)
+                {
+                    QueueEvent(-19);
+                    s_gameoverPushed = true;
+                }
+
+                s_roundStarted = false;
+            }
+
+            // 离开 live → 标记等待
+            if (phase != "live")
+            {
+                s_waitingForLive = true;
+                s_roundStarted = false;
             }
 
             s_lastPhase = phase;
         }
 
-        // ===== live 阶段击杀判定 =====
+        // ===== live 阶段击杀判定（稳态） =====
         if (phase == "live" && activity == "playing")
         {
-            if (roundKills > s_lastKills)
+            // 死亡判定
+            if (health <= 0)
+            {
+                if (!s_deadMuted)
+                {
+                    QueueEvent(-18);
+                    s_deadMuted = true;
+                }
+                s_mvpPushedThisRound = true; // 死亡后本回合不再触发 MVP
+            }
+
+            // 击杀判定
+            if (!s_deadMuted && roundKills > s_lastKills)
             {
                 for (int k = s_lastKills + 1; k <= roundKills; ++k)
-                    QueueEvent(k > 5 ? -1 : k);
-                s_mvpCandidateKills += (roundKills - s_lastKills);
+                {
+                    if (mapMode == "deathmatch")
+                        QueueEvent(-1);
+                    else
+                        QueueEvent(k > 5 ? -1 : k);
+                }
+                if (roundKills > s_mvpCandidateKills)
+                    s_mvpCandidateKills = roundKills;
                 s_lastKills = roundKills;
             }
         }
 
-        // ===== 死亡判定（不受 enable_kill_sound 控制） =====
-        if (phase == "live" && activity == "playing" && health <= 0)
-            QueueEvent(-18);
+        // ===== 死斗模式 =====
+        if (mapMode == "deathmatch" && roundKills > s_lastKills)
+        {
+            QueueEvent(-1);
+            s_lastKills = roundKills;
+        }
+
+        // ===== 炸弹（音乐包） =====
+        if (j.contains("round") && j["round"].is_object())
+        {
+            auto& r = j["round"];
+            if (r.contains("bomb") && r["bomb"].is_string())
+            {
+                std::string bs = r["bomb"].get<std::string>();
+                if (bs == "planted" && !s_bombPlantedThisRound)
+                {
+                    s_bombPlantedThisRound = true;
+                    if (cfg.custom_musickit && cfg.enable_kill_sound)
+                        QueueEvent(-12);
+                }
+            }
+        }
+
+        // ===== 闪光弹（custom_flashbang） =====
+        if (cfg.custom_flashbang)
+        {
+            int flashedNow = 0, flashedBefore = 0;
+            if (j.contains("player") && j["player"].is_object())
+            {
+                auto& pl = j["player"];
+                if (pl.contains("state") && pl["state"].is_object())
+                {
+                    auto& st = pl["state"];
+                    if (st.contains("flashed") && st["flashed"].is_number())
+                        flashedNow = st["flashed"].get<int>();
+                }
+            }
+            if (j.contains("previously") && j["previously"].is_object())
+            {
+                auto& prev = j["previously"];
+                if (prev.contains("player") && prev["player"].is_object())
+                {
+                    auto& ppl = prev["player"];
+                    if (ppl.contains("state") && ppl["state"].is_object())
+                    {
+                        auto& pst = ppl["state"];
+                        if (pst.contains("flashed") && pst["flashed"].is_number())
+                            flashedBefore = pst["flashed"].get<int>();
+                    }
+                }
+            }
+            if (flashedNow > 0 && flashedBefore == 0)
+                std::cout << "[FLASH] 玩家被闪光弹击中" << std::endl;
+            else if (flashedNow == 0 && flashedBefore > 0)
+                std::cout << "[FLASH] 闪光效果结束" << std::endl;
+        }
 
         // ===== 调试输出 =====
         if (g_debug)
@@ -233,6 +393,7 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                       << " kills=" << roundKills
                       << " last=" << s_lastKills
                       << " hp=" << health
+                      << " map=" << mapMode
                       << std::endl;
         }
     }
@@ -244,20 +405,14 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
     res.status = 200;
     res.set_content("OK", "text/plain");
 
-    // 处理事件队列
     ProcessEventQueue();
 }
 
-// ----------------------------------------------------------
 bool Initialize()
 {
     if (s_wsaInitialized) return true;
     WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
-    {
-        std::cerr << "[GSI] WSAStartup 失败" << std::endl;
-        return false;
-    }
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) return false;
     s_wsaInitialized = true;
     return true;
 }
