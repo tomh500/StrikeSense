@@ -1,0 +1,18 @@
+{
+  "name": "strikesense",
+  "version": "1.0.0",
+  "description": "StrikeSense Win32 Desktop Application",
+  "homepage": "https://github.com/your-username/StrikeSense",
+  "license": "MIT",
+  "dependencies": [
+    "nlohmann-json",
+    "cpp-httplib",
+    "yaml-cpp",
+    {
+      "name": "vcpkg-cmake-get-vars",
+      "host": true
+    }
+  ],
+  "builtin-baseline": "1140bfb51a8ed34e4463a80a9f2acfcb08403578",
+  "overrides": []
+}
