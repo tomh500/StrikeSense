@@ -1,24 +1,15 @@
 #include "gsi_server.h"
+#include "config.h"
+#include "sound_player.h"
 #include <iostream>
 #include <thread>
 #include <atomic>
-
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <winsock2.h>
-#include <ws2ipdef.h>
-#include <iphlpapi.h>
-#include <tlhelp32.h>
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "iphlpapi.lib")
-
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
 namespace gsi {
 
-// ----------------------------------------------------------
-// 全局变量
-// ----------------------------------------------------------
 int g_debug = 1;
 
 static httplib::Server* s_server = nullptr;
@@ -26,77 +17,19 @@ static std::thread s_serverThread;
 static std::atomic<bool> s_running{ false };
 static bool s_wsaInitialized = false;
 
-// ----------------------------------------------------------
-// 检测端口 1009 被哪个进程占用
-// 返回 PID，0 = 空闲
-// ----------------------------------------------------------
-int CheckPortInUse()
-{
-    ULONG bufSize = 0;
-    GetExtendedTcpTable(nullptr, &bufSize, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+// GSI 事件状态
+static std::string s_lastPhase;
+static int s_lastKills = 0;
 
-    std::vector<char> buf(bufSize);
-    PMIB_TCPTABLE_OWNER_PID tcpTable = reinterpret_cast<PMIB_TCPTABLE_OWNER_PID>(buf.data());
-
-    if (GetExtendedTcpTable(tcpTable, &bufSize, FALSE, AF_INET,
-                            TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR)
-        return 0;
-
-    for (DWORD i = 0; i < tcpTable->dwNumEntries; ++i)
-    {
-        MIB_TCPROW_OWNER_PID& row = tcpTable->table[i];
-        // 监听状态 + 本地端口 1009
-        if (row.dwState == MIB_TCP_STATE_LISTEN &&
-            ntohs((u_short)row.dwLocalPort) == 1009)
-        {
-            return (int)row.dwOwningPid;
-        }
-    }
-
-    return 0;
-}
-
-// ----------------------------------------------------------
-// 根据 PID 获取进程名称
-// ----------------------------------------------------------
-std::wstring GetProcessName(int pid)
-{
-    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (hSnapshot == INVALID_HANDLE_VALUE)
-        return L"未知进程";
-
-    PROCESSENTRY32W pe = { sizeof(PROCESSENTRY32W) };
-    std::wstring name = L"未知进程";
-
-    if (Process32FirstW(hSnapshot, &pe))
-    {
-        do {
-            if (pe.th32ProcessID == pid)
-            {
-                name = pe.szExeFile;
-                break;
-            }
-        } while (Process32NextW(hSnapshot, &pe));
-    }
-
-    CloseHandle(hSnapshot);
-    return name;
-}
-
-// ----------------------------------------------------------
-// GSI POST 处理回调
 // ----------------------------------------------------------
 static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 {
     std::string rawJson = req.body;
 
-    std::cout << "[GSI] 收到 CS2 GSI 请求!(" << rawJson.length() << " 字节)" << std::endl;
-
     if (rawJson.empty())
     {
-        std::cout << "[GSI] 数据为空，忽略。" << std::endl;
         res.status = 200;
-        res.set_content("OK (empty)", "text/plain");
+        res.set_content("OK", "text/plain");
         return;
     }
 
@@ -109,74 +42,136 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     try {
         nlohmann::json j = nlohmann::json::parse(rawJson);
+        config::Settings cfg = config::Load();
 
-        std::cout << "[GSI] JSON 解析成功！顶级键数量: " << j.size() << std::endl;
+        // 提取玩家击杀数
+        int roundKills = 0;
+        std::string phase;
+        std::string activity;
+        std::string mapMode = "competitive";
+        int health = 100;
+        int mvps = 0;
 
-        for (auto& [key, val] : j.items())
-            std::cout << "  [GSI] 顶层字段: " << key << std::endl;
-
-        if (j.contains("provider") && j["provider"].is_object())
+        if (j.contains("player") && j["player"].is_object())
         {
-            auto& p = j["provider"];
-            if (p.contains("name"))
-                std::cout << "[GSI] 提供者: " << p["name"].get<std::string>() << std::endl;
-            if (p.contains("appid"))
-                std::cout << "[GSI] AppID: " << p["appid"].get<int>() << std::endl;
-            if (p.contains("steamid"))
-                std::cout << "[GSI] SteamID(64): " << p["steamid"].get<std::string>() << std::endl;
-        }
-
-        if (j.contains("map") && j["map"].is_object())
-        {
-            auto& m = j["map"];
-            if (m.contains("name"))
-                std::cout << "[GSI] 地图: " << m["name"].get<std::string>() << std::endl;
-            if (m.contains("mode"))
-                std::cout << "[GSI] 模式: " << m["mode"].get<std::string>() << std::endl;
-            if (m.contains("phase"))
-                std::cout << "[GSI] 地图阶段: " << m["phase"].get<std::string>() << std::endl;
-            if (m.contains("round"))
-                std::cout << "[GSI] 回合: " << m["round"].get<int>() << std::endl;
+            auto& player = j["player"];
+            if (player.contains("state") && player["state"].is_object())
+            {
+                auto& state = player["state"];
+                if (state.contains("round_kills") && state["round_kills"].is_number())
+                    roundKills = state["round_kills"].get<int>();
+                if (state.contains("health") && state["health"].is_number())
+                    health = state["health"].get<int>();
+            }
+            if (player.contains("match_stats") && player["match_stats"].is_object())
+            {
+                auto& ms = player["match_stats"];
+                if (ms.contains("mvps") && ms["mvps"].is_number())
+                    mvps = ms["mvps"].get<int>();
+            }
+            if (player.contains("activity") && player["activity"].is_string())
+                activity = player["activity"].get<std::string>();
         }
 
         if (j.contains("round") && j["round"].is_object())
         {
-            auto& r = j["round"];
-            if (r.contains("phase"))
-                std::cout << "[GSI] 回合阶段: " << r["phase"].get<std::string>() << std::endl;
+            auto& round = j["round"];
+            if (round.contains("phase") && round["phase"].is_string())
+                phase = round["phase"].get<std::string>();
         }
 
-        if (j.contains("player") && j["player"].is_object())
+        if (j.contains("map") && j["map"].is_object())
         {
-            auto& pl = j["player"];
-            if (pl.contains("name"))
-                std::cout << "[GSI] 玩家: " << pl["name"].get<std::string>() << std::endl;
-            if (pl.contains("steamid"))
-                std::cout << "[GSI] SteamID: " << pl["steamid"].get<std::string>() << std::endl;
-            if (pl.contains("team"))
-                std::cout << "[GSI] 队伍: " << pl["team"].get<std::string>() << std::endl;
-            if (pl.contains("activity"))
-                std::cout << "[GSI] 状态: " << pl["activity"].get<std::string>() << std::endl;
+            auto& map = j["map"];
+            if (map.contains("mode") && map["mode"].is_string())
+                mapMode = map["mode"].get<std::string>();
         }
 
-        if (j.contains("bomb") && j["bomb"].is_object())
+        // 调试打印
+        if (g_debug)
         {
-            auto& b = j["bomb"];
-            if (b.contains("state"))
-                std::cout << "[GSI] 炸弹: " << b["state"].get<std::string>() << std::endl;
+            std::cout << "[GSI] phase=" << phase
+                      << " activity=" << activity
+                      << " kills=" << roundKills
+                      << " last_kills=" << s_lastKills
+                      << " health=" << health
+                      << std::endl;
         }
-    }
-    catch (const nlohmann::json::exception& e)
-    {
-        std::cerr << "[GSI] JSON 解析错误: " << e.what() << std::endl;
-        std::cerr << "[GSI] 原始数据前200字节: " << rawJson.substr(0, 200) << std::endl;
+
+        // === 事件处理 ===
+
+        // 死亡判定
+        if (phase == "live" && health <= 0 && activity == "playing")
+        {
+            std::cout << "[GSI] 玩家死亡，播放死亡音效" << std::endl;
+            if (cfg.enable_kill_sound)
+                sound::Play(-18, cfg.volume);
+        }
+
+        // 击杀判定：仅在回合进行中且玩家存活时
+        if (phase == "live" && activity == "playing" && health > 0)
+        {
+            if (roundKills > s_lastKills)
+            {
+                // 处理跳杀（如 0→2）
+                for (int k = s_lastKills + 1; k <= roundKills; ++k)
+                {
+                    if (k > 5)
+                    {
+                        // 超过五杀，播放 deathmatch
+                        std::cout << "[GSI] 超过五杀(" << k << ")，播放 deathmatch 音效" << std::endl;
+                        if (cfg.enable_kill_sound)
+                            sound::Play(-1, cfg.volume);
+                    }
+                    else
+                    {
+                        std::cout << "[GSI] " << k << "杀!" << std::endl;
+                        if (cfg.enable_kill_sound)
+                            sound::Play(k, cfg.volume);
+                    }
+                }
+                s_lastKills = roundKills;
+            }
+        }
+
+        // 死亡竞赛模式击杀
+        if (mapMode == "deathmatch" && roundKills > s_lastKills)
+        {
+            std::cout << "[GSI] 死斗模式击杀" << std::endl;
+            if (cfg.enable_kill_sound)
+                sound::Play(-1, cfg.volume);
+            s_lastKills = roundKills;
+        }
+
+        // 回合开始
+        if (phase == "live" && s_lastPhase != "live")
+        {
+            std::cout << "[GSI] 回合开始" << std::endl;
+            s_lastKills = 0;
+            if (cfg.custom_musickit && cfg.enable_kill_sound)
+                sound::Play(-13, cfg.volume);
+        }
+
+        // freezetime → buy
+        if (phase == "freezetime" && s_lastPhase != "freezetime")
+        {
+            if (cfg.custom_musickit && cfg.enable_kill_sound)
+                sound::Play(-14, cfg.volume);
+        }
+
+        // 回合结束
+        if (phase == "over" && s_lastPhase == "live")
+        {
+            std::cout << "[GSI] 回合结束" << std::endl;
+        }
+
+        s_lastPhase = phase;
     }
     catch (const std::exception& e)
     {
         std::cerr << "[GSI] 处理错误: " << e.what() << std::endl;
     }
 
-    std::cout << "[GSI] 回复 CS2: OK" << std::endl;
     res.status = 200;
     res.set_content("OK", "text/plain");
 }
@@ -184,107 +179,50 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 // ----------------------------------------------------------
 bool Initialize()
 {
-    if (s_wsaInitialized)
-        return true;
-
+    if (s_wsaInitialized) return true;
     WSADATA wsaData;
-    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (result != 0)
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
-        std::cerr << "[GSI] WSAStartup 失败，错误码: " << result << std::endl;
+        std::cerr << "[GSI] WSAStartup 失败" << std::endl;
         return false;
     }
     s_wsaInitialized = true;
-    std::cout << "[GSI] Winsock 初始化成功。" << std::endl;
     return true;
 }
 
-// ----------------------------------------------------------
 void Cleanup()
 {
-    if (s_wsaInitialized)
-    {
-        WSACleanup();
-        s_wsaInitialized = false;
-        std::cout << "[GSI] Winsock 清理完成。" << std::endl;
-    }
+    if (s_wsaInitialized) { WSACleanup(); s_wsaInitialized = false; }
 }
 
-// ----------------------------------------------------------
 bool StartServer()
 {
-    if (s_running)
-    {
-        std::cout << "[GSI] 服务器已在运行中。" << std::endl;
-        return true;
-    }
-
-    if (!s_wsaInitialized)
-    {
-        if (!Initialize())
-            return false;
-    }
+    if (s_running) return true;
+    if (!s_wsaInitialized && !Initialize()) return false;
 
     s_server = new httplib::Server();
-
-    // 注册 POST / — CS2 GSI 使用 POST 方式发送 JSON 数据
     s_server->Post("/", OnGSIRequest);
 
+    std::cout << "[GSI] 服务器启动，监听 127.0.0.1:1009" << std::endl;
+
     s_running = true;
-    std::cout << "==============================================" << std::endl;
-    std::cout << "[GSI] GSI HTTP 服务器启动中..." << std::endl;
-    std::cout << "[GSI] 监听地址: 127.0.0.1:1009" << std::endl;
-    std::cout << "[GSI] CS2 连接地址: http://127.0.0.1:1009" << std::endl;
-    std::cout << "[GSI] 调试输出(原始JSON): " << (g_debug ? "开启" : "关闭") << std::endl;
-    std::cout << "==============================================" << std::endl;
-
     s_serverThread = std::thread([]() {
-        std::cout << "[GSI] listen() 线程已进入，等待 CS2 连接..." << std::endl;
-
         if (!s_server->listen("127.0.0.1", 1009))
         {
-            std::cerr << "[GSI] 监听失败！错误: ";
-            int err = WSAGetLastError();
-            std::cerr << "WSAGetLastError=" << err;
-            if (err == 10048) std::cerr << " (端口已被占用)";
-            std::cerr << std::endl;
+            std::cerr << "[GSI] 监听失败" << std::endl;
             s_running = false;
-        }
-        else
-        {
-            std::cout << "[GSI] listen() 返回，服务器已停止。" << std::endl;
         }
     });
     s_serverThread.detach();
-
-    Sleep(300);
-
-    if (s_running)
-        std::cout << "[GSI] GSI HTTP 服务器启动成功！" << std::endl;
-    else
-        std::cerr << "[GSI] GSI HTTP 服务器启动失败！" << std::endl;
-
+    Sleep(200);
     return s_running;
 }
 
-// ----------------------------------------------------------
 void StopServer()
 {
-    if (s_server)
-    {
-        std::cout << "[GSI] 正在停止服务器..." << std::endl;
-        s_server->stop();
-        delete s_server;
-        s_server = nullptr;
-        s_running = false;
-        std::cout << "[GSI] 服务器已停止。" << std::endl;
-    }
+    if (s_server) { s_server->stop(); delete s_server; s_server = nullptr; s_running = false; }
 }
 
-// ----------------------------------------------------------
-bool IsRunning()
-{
-    return s_running;
-}
+bool IsRunning() { return s_running; }
 
 } // namespace gsi

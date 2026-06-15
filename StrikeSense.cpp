@@ -8,6 +8,7 @@
 #include "steam_helper.h"
 #include "gsi_server.h"
 #include "config.h"
+#include "sound_player.h"
 #include <iostream>
 #include <cstdlib>
 #include <filesystem>
@@ -48,51 +49,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // 第一步：输出重定向
     g_Console.InitRedirection();
 
-    // 第二步：检测端口 1009 是否被占用
-    {
-        int pid = gsi::CheckPortInUse();
-        if (pid != 0)
-        {
-            std::wstring procName = gsi::GetProcessName(pid);
-            std::wcout << L"[主程序] 端口 1009 已被占用！PID=" << pid
-                       << L" 进程名=" << procName.c_str() << std::endl;
+    // 确保配置目录存在
+    config::EnsureDirectoriesExist();
+    config::Load();  // 自动创建默认配置文件
 
-            wchar_t msg[512];
-            swprintf_s(msg, L"端口 1009 已被进程 %s (PID=%d) 占用！\n是否自动结束该进程并继续启动？",
-                       procName.c_str(), pid);
+    // 初始化 SDL_mixer 音频系统
+    sound::Init();
 
-            int result = MessageBoxW(nullptr, msg, L"端口被占用",
-                                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-            if (result == IDYES)
-            {
-                // 结束占用进程
-                HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
-                if (hProc)
-                {
-                    TerminateProcess(hProc, 0);
-                    CloseHandle(hProc);
-                    Sleep(200); // 等待进程退出
-                    std::cout << "[主程序] 进程已结束。" << std::endl;
-                }
-                else
-                {
-                    std::cerr << "[主程序] 无法结束进程！错误码: " << GetLastError() << std::endl;
-                    MessageBoxW(nullptr, L"无法结束占用进程！请以管理员身份运行此程序。",
-                               L"权限不足", MB_OK | MB_ICONERROR);
-                    return FALSE;
-                }
-            }
-            else
-            {
-                std::cout << "[主程序] 用户选择退出程序。" << std::endl;
-                return FALSE;
-            }
-        }
-        else
-        {
-            std::cout << "[主程序] 端口 1009 空闲。" << std::endl;
-        }
-    }
+    std::cout << "[主程序] 端口检测已内置于 GSI 服务器。" << std::endl;
 
     // 启动 GSI HTTP 服务器
     std::cout << "[主程序] 正在初始化 GSI 服务器..." << std::endl;
