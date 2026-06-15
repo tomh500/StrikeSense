@@ -30,6 +30,24 @@ void CoutStreambuf::AppendUtf8(const char* data, size_t len)
     wtext.resize(wlen);
     MultiByteToWideChar(codePage, 0, data, (int)len, &wtext[0], wlen);
 
+    // 修复换行: Windows 编辑框需要 \r\n，而 std::endl 只输出 \n
+    // 将所有独立的 \n（前面没有 \r 的）替换为 \r\n
+    {
+        std::wstring fixed;
+        fixed.reserve(wtext.length());
+        for (size_t i = 0; i < wtext.length(); ++i)
+        {
+            if (wtext[i] == L'\n')
+            {
+                if (i == 0 || wtext[i - 1] != L'\r')
+                    fixed += L'\r';
+            }
+            fixed += wtext[i];
+        }
+        if (fixed.length() > 0)
+            wtext.swap(fixed);
+    }
+
     {
         std::lock_guard<std::mutex> lock(*m_mutex);
         m_buffer->push_back(std::move(wtext));

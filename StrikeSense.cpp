@@ -10,8 +10,9 @@
 #include <cstdlib>
 #include <filesystem>
 #include <ShlObj.h>
+#include <thread>
 
-// vcpkg 库测试 — include 确认它们可用
+// vcpkg 库测试
 #include <nlohmann/json.hpp>
 #include <httplib.h>
 #include <yaml-cpp/yaml.h>
@@ -19,22 +20,31 @@
 #define MAX_LOADSTRING 100
 
 // 全局变量:
-HINSTANCE hInst;                                // 当前实例
-WCHAR szTitle[MAX_LOADSTRING];                  // 标题栏文本
-WCHAR szWindowClass[MAX_LOADSTRING];            // 主窗口类名
-Console g_Console;                              // 调试输出窗口管理
+HINSTANCE hInst;
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
+Console g_Console;
 
-// 此代码模块中包含的函数的前向声明:
+// GSI 调试开关 — 1=打印原始 GSI JSON 到控制台
+int g_debugGSI = 1;
+
+// 存储 GSI cfg 路径
+std::wstring g_gsiCfgPath;
+
+// GSI HTTP 服务器实例
+httplib::Server* g_gsiServer = nullptr;
+std::thread g_gsiServerThread;
+
+// 前向声明
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
+void                StartGSIServer();
+void                StopGSIServer();
 
-// 存储 GSI cfg 路径（由对话框填写）
-std::wstring g_gsiCfgPath;
-
-// 命令行测试 vcpkg 库（在 main 之前调用）
+// ----------------------------------------------------------
 static bool TestVcpkgLibraries()
 {
     try {
@@ -42,20 +52,110 @@ static bool TestVcpkgLibraries()
         (void)j.dump();
     }
     catch (...) { return false; }
-
     try {
-        YAML::Node node;
-        node["test"] = "hello";
+        YAML::Node node; node["test"] = "hello";
         (void)YAML::Dump(node);
     }
     catch (...) { return false; }
-
     httplib::Client cli("http://localhost:8080");
     (void)cli;
-
     return true;
 }
 
+// ============================================================
+// GSI HTTP POST 处理函数 — httplib 接收到 CS2 发送的 JSON
+// ============================================================
+static void HandleGSIRequest(const httplib::Request& req, httplib::Response& res)
+{
+    // req.body 包含 CS2 发来的完整 JSON
+    std::string rawJson = req.body;
+
+    // 调试输出
+    if (g_debugGSI)
+    {
+        std::cout << "=== GSI 原始数据 ===" << std::endl;
+        std::cout << rawJson << std::endl;
+        std::cout << "====================" << std::endl;
+    }
+
+    // 解析 JSON
+    try {
+        nlohmann::json j = nlohmann::json::parse(rawJson);
+
+        // 后续：提取 provider、map、player 等字段
+        // 这里先做基础解析
+        if (j.contains("provider"))
+        {
+            auto& prov = j["provider"];
+            if (prov.contains("name"))
+                std::cout << "[GSI] Provider: " << prov["name"].get<std::string>() << std::endl;
+            if (prov.contains("steamid"))
+                std::cout << "[GSI] SteamID: " << prov["steamid"].get<std::string>() << std::endl;
+        }
+        if (j.contains("map"))
+        {
+            auto& map = j["map"];
+            if (map.contains("name"))
+                std::cout << "[GSI] 地图: " << map["name"].get<std::string>() << std::endl;
+        }
+        if (j.contains("player"))
+        {
+            auto& player = j["player"];
+            if (player.contains("name"))
+                std::wcout << L"[GSI] 玩家: " << player["name"].get<std::string>().c_str() << std::endl;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "[GSI] JSON 解析错误: " << e.what() << std::endl;
+    }
+
+    res.status = 200;
+    res.set_content("OK", "text/plain");
+}
+
+// ============================================================
+// 启动 GSI HTTP 服务器（端口 1009）
+// ============================================================
+void StartGSIServer()
+{
+    if (g_gsiServer)
+        return;  // 已启动
+
+    g_gsiServer = new httplib::Server();
+
+    // 注册 POST 处理 — CS2 用 POST 发 GSI 数据
+    g_gsiServer->Post("/", HandleGSIRequest);
+
+    std::cout << "[GSI] HTTP 服务器启动中，监听 0.0.0.0:1009..." << std::endl;
+
+    // 在后台线程启动
+    g_gsiServerThread = std::thread([&]() {
+        if (!g_gsiServer->listen("0.0.0.0", 1009))
+        {
+            std::cerr << "[GSI] 服务器启动失败！端口 1009 可能已被占用。" << std::endl;
+        }
+    });
+    g_gsiServerThread.detach();
+
+    std::cout << "[GSI] HTTP 服务器已启动！（线程已分离）" << std::endl;
+}
+
+// ============================================================
+// 停止 GSI HTTP 服务器
+// ============================================================
+void StopGSIServer()
+{
+    if (g_gsiServer)
+    {
+        g_gsiServer->stop();
+        delete g_gsiServer;
+        g_gsiServer = nullptr;
+        std::cout << "[GSI] HTTP 服务器已停止。" << std::endl;
+    }
+}
+
+// ============================================================
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -64,24 +164,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // === 第一步：初始化输出重定向 ===
     g_Console.InitRedirection();
 
-    // 验证 vcpkg 库链接正确
     if (!TestVcpkgLibraries())
     {
         MessageBoxW(nullptr, L"vcpkg 库初始化失败！", L"错误", MB_ICONERROR);
         return FALSE;
     }
 
-    // 初始化全局字符串
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
-    // 执行应用程序初始化:
-    if (!InitInstance (hInstance, nCmdShow))
+    if (!InitInstance(hInstance, nCmdShow))
         return FALSE;
+
+    // 启动 GSI HTTP 服务器
+    StartGSIServer();
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_STRIKESENSE));
 
@@ -95,49 +194,49 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    return (int) msg.wParam;
+    StopGSIServer();
+    return (int)msg.wParam;
 }
 
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_STRIKESENSE));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_STRIKESENSE);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_STRIKESENSE));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_STRIKESENSE);
+    wcex.lpszClassName = szWindowClass;
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
     return RegisterClassExW(&wcex);
 }
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance;
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
-   if (!hWnd) return FALSE;
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-   return TRUE;
+    hInst = hInstance;
+    // 较小的主窗口: 800x550
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle,
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, 800, 550,
+        nullptr, nullptr, hInstance, nullptr);
+    if (!hWnd) return FALSE;
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
+    return TRUE;
 }
 
 // ============================================================
-// 获取 CS2 cfg 路径的逻辑
-// ============================================================
 static std::wstring GetCS2CfgPath()
 {
-    // 1. 优先读取本地保存的配置
     std::wstring saved = strikesense::LoadSavedCfgPath();
     if (!saved.empty() && fs::exists(saved))
         return saved;
 
-    // 2. 通过注册表找 Steam
     std::wcout << L"[GSI] 从注册表读取 Steam 路径..." << std::endl;
     std::wstring steamPath = strikesense::GetSteamPathFromRegistry();
     if (steamPath.empty())
@@ -147,7 +246,6 @@ static std::wstring GetCS2CfgPath()
     }
     std::wcout << L"[GSI] Steam 路径: " << steamPath << std::endl;
 
-    // 3. 找 CS2 安装目录
     std::wcout << L"[GSI] 查找 CS2 安装目录..." << std::endl;
     std::wstring cs2Dir = strikesense::FindCS2InstallDir(steamPath);
     if (cs2Dir.empty())
@@ -157,7 +255,6 @@ static std::wstring GetCS2CfgPath()
     }
     std::wcout << L"[GSI] CS2 安装目录: " << cs2Dir << std::endl;
 
-    // 4. 拼接 cfg 路径
     std::wstring cfgPath = strikesense::GetCS2CfgPath(cs2Dir);
     std::wcout << L"[GSI] cfg 目录: " << cfgPath << std::endl;
 
@@ -165,24 +262,19 @@ static std::wstring GetCS2CfgPath()
 }
 
 // ============================================================
-// 路径确认对话框过程
-// ============================================================
 INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
     case WM_INITDIALOG:
     {
-        // 显示路径
         HWND hEdit = GetDlgItem(hDlg, IDC_PATH_LABEL);
-        if (hEdit)
-            SetWindowTextW(hEdit, g_gsiCfgPath.c_str());
+        if (hEdit) SetWindowTextW(hEdit, g_gsiCfgPath.c_str());
 
-        // 居中
         RECT rc;
         GetWindowRect(GetParent(hDlg), &rc);
         int x = rc.left + (rc.right - rc.left) / 2 - 225;
-        int y = rc.top + (rc.bottom - rc.top) / 2 - 90;
+        int y = rc.top + (rc.bottom - rc.top) / 2 - 108;
         SetWindowPos(hDlg, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
         return TRUE;
     }
@@ -194,7 +286,6 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
         {
         case IDYES:
         {
-            // 用户确认 → 写入 GSI 配置文件
             std::wcout << L"[GSI] 用户确认路径，写入配置文件..." << std::endl;
             if (strikesense::WriteGSIConfig(g_gsiCfgPath))
             {
@@ -213,9 +304,34 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
             return TRUE;
         }
 
+        case IDC_DELETE_CFG:
+        {
+            // 删除已安装的配置文件
+            fs::path gsiFile = fs::path(g_gsiCfgPath) / L"gamestate_integration_square.cfg";
+            if (fs::exists(gsiFile))
+            {
+                std::error_code ec;
+                fs::remove(gsiFile, ec);
+                if (!ec)
+                {
+                    std::wcout << L"[GSI] 已删除: " << gsiFile.wstring() << std::endl;
+                    MessageBoxW(hDlg, L"GSI 配置文件已删除！", L"成功", MB_OK | MB_ICONINFORMATION);
+                }
+                else
+                {
+                    std::wcout << L"[GSI] 删除失败！" << std::endl;
+                    MessageBoxW(hDlg, L"删除失败！", L"错误", MB_OK | MB_ICONERROR);
+                }
+            }
+            else
+            {
+                MessageBoxW(hDlg, L"该目录下未安装 GSI 配置文件。", L"提示", MB_OK | MB_ICONINFORMATION);
+            }
+            return TRUE;
+        }
+
         case IDC_BROWSE_BTN:
         {
-            // 用户选择浏览 → 打开文件夹选择对话框
             wchar_t path[MAX_PATH] = {};
             BROWSEINFOW bi = {};
             bi.hwndOwner = hDlg;
@@ -230,10 +346,8 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
                 {
                     g_gsiCfgPath = path;
                     HWND hEdit = GetDlgItem(hDlg, IDC_PATH_LABEL);
-                    if (hEdit)
-                        SetWindowTextW(hEdit, g_gsiCfgPath.c_str());
+                    if (hEdit) SetWindowTextW(hEdit, g_gsiCfgPath.c_str());
                 }
-
                 IMalloc* pMalloc = nullptr;
                 if (SUCCEEDED(SHGetMalloc(&pMalloc)))
                 {
@@ -255,19 +369,15 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 }
 
 // ============================================================
-// 处理 "创建 GSI 配置文件"
-// ============================================================
 static void OnCreateGSIConfig(HWND hWnd)
 {
     std::wcout << L"[GSI] === 开始创建 GSI 配置文件 ===" << std::endl;
 
-    // 获取 CS2 cfg 路径
     g_gsiCfgPath = GetCS2CfgPath();
     if (g_gsiCfgPath.empty())
     {
         std::wcout << L"[GSI] 无法自动检测 CS2 路径，弹出浏览框" << std::endl;
 
-        // 自动检测失败 → 直接弹出浏览对话框选择目录
         wchar_t path[MAX_PATH] = {};
         BROWSEINFOW bi = {};
         bi.hwndOwner = hWnd;
@@ -281,27 +391,21 @@ static void OnCreateGSIConfig(HWND hWnd)
             std::wcout << L"[GSI] 用户取消浏览" << std::endl;
             return;
         }
-
         if (SHGetPathFromIDListW(pidl, path))
             g_gsiCfgPath = path;
-
         IMalloc* pMalloc = nullptr;
         if (SUCCEEDED(SHGetMalloc(&pMalloc)))
         {
             pMalloc->Free(pidl);
             pMalloc->Release();
         }
-
         if (g_gsiCfgPath.empty())
             return;
     }
 
-    // 显示路径确认对话框
     DialogBoxW(hInst, MAKEINTRESOURCEW(IDD_CONFIRM_PATH), hWnd, ConfirmPathDlgProc);
 }
 
-// ============================================================
-// WndProc
 // ============================================================
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -361,7 +465,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// "关于"框的消息处理程序。
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
@@ -369,7 +472,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     {
     case WM_INITDIALOG:
         return (INT_PTR)TRUE;
-
     case WM_COMMAND:
         if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
         {

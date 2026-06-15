@@ -28,6 +28,7 @@
 // 路径确认对话框控件
 #define IDC_PATH_LABEL			1010	// 路径显示静态文本
 #define IDC_BROWSE_BTN			1011	// 浏览按钮
+#define IDC_DELETE_CFG			1012	// 删除已安装的配置文件按钮
 
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1
