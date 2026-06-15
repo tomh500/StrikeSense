@@ -177,36 +177,25 @@ bool StartServer()
     // 注册 POST / — CS2 GSI 使用 POST 方式发送 JSON 数据
     s_server->Post("/", OnGSIRequest);
 
-    // GET / 用于测试服务器是否存活
-    s_server->Get("/", [](const httplib::Request&, httplib::Response& res) {
-        std::cout << "[GSI] 收到 GET 测试请求" << std::endl;
-        res.set_content("StrikeSense GSI Server is running on 127.0.0.1:1009", "text/plain");
-    });
-
     s_running = true;
     std::cout << "==============================================" << std::endl;
     std::cout << "[GSI] GSI HTTP 服务器启动中..." << std::endl;
     std::cout << "[GSI] 监听地址: 127.0.0.1:1009" << std::endl;
-    std::cout << "[GSI] CS2 的连接地址: http://127.0.0.1:1009" << std::endl;
+    std::cout << "[GSI] CS2 连接地址: http://127.0.0.1:1009" << std::endl;
     std::cout << "[GSI] 调试输出(原始JSON): " << (g_debug ? "开启" : "关闭") << std::endl;
     std::cout << "==============================================" << std::endl;
 
     s_serverThread = std::thread([]() {
         std::cout << "[GSI] listen() 线程已进入，等待 CS2 连接..." << std::endl;
 
-        // ===== 关键：监听 127.0.0.1，与 CS2 配置文件中的 uri 一致 =====
+        // 关键：监听 127.0.0.1，与 CS2 配置文件中的 uri 一致
         if (!s_server->listen("127.0.0.1", 1009))
         {
-            std::cerr << "[GSI] ❌ 监听失败！错误码: "
-                      << (s_server ? "" : "s_server is null")
-                      << std::endl;
+            std::cerr << "[GSI] 监听失败！错误: ";
             int err = WSAGetLastError();
-            std::cerr << "[GSI] WSAGetLastError: " << err << std::endl;
-
-            // 常见错误 10048 = WSAEADDRINUSE
-            if (err == 10048)
-                std::cerr << "[GSI] 端口 1009 已被占用！可能已有程序在使用此端口。" << std::endl;
-
+            std::cerr << "WSAGetLastError=" << err;
+            if (err == 10048) std::cerr << " (端口已被占用)";
+            std::cerr << std::endl;
             s_running = false;
         }
         else
@@ -219,37 +208,38 @@ bool StartServer()
     // 给服务器一点时间启动
     Sleep(300);
 
-    // ===== 自我测试：用 httplib 的 client 发个 GET 请求验证服务器是否在监听 =====
+    // ===== 自我测试：用 POST 请求验证（CS2 使用 POST 发送数据） =====
     if (s_running)
     {
-        std::cout << "[GSI] 正在执行自检: http://127.0.0.1:1009 ..." << std::endl;
+        std::cout << "[GSI] 正在自检 (POST /) ..." << std::endl;
         try {
             httplib::Client testClient("http://127.0.0.1:1009");
-            testClient.set_connection_timeout(0, 500000);  // 500ms 超时
-            auto testRes = testClient.Get("/");
-            if (testRes && testRes->status == 200)
+            testClient.set_connection_timeout(0, 1000000);
+            // 发送和 CS2 格式类似的 POST 测试数据
+            auto testRes = testClient.Post("/", "{\"test\":\"hello\"}", "application/json");
+            if (testRes)
             {
-                std::cout << "[GSI] ✅ 自检成功！服务器响应: " << testRes->body << std::endl;
+                std::cout << "[GSI] 自检响应: HTTP " << testRes->status
+                          << " body=" << testRes->body << std::endl;
+                std::cout << "[GSI] 服务器已就绪，等待 CS2 连接..." << std::endl;
             }
             else
             {
-                std::cout << "[GSI] ⚠️ 自检失败，服务器可能未正确启动。状态码: "
-                          << (testRes ? std::to_string(testRes->status) : "无响应")
-                          << std::endl;
+                std::cout << "[GSI] 自检无响应，服务器可能未正确启动。" << std::endl;
                 s_running = false;
             }
         }
         catch (const std::exception& e)
         {
-            std::cerr << "[GSI] ❌ 自检异常: " << e.what() << std::endl;
+            std::cerr << "[GSI] 自检异常: " << e.what() << std::endl;
             s_running = false;
         }
     }
 
     if (s_running)
-        std::cout << "[GSI] ✅ GSI HTTP 服务器启动成功！" << std::endl;
+        std::cout << "[GSI] GSI HTTP 服务器启动成功！" << std::endl;
     else
-        std::cerr << "[GSI] ❌ GSI HTTP 服务器启动失败！请检查端口 1009 是否被占用。" << std::endl;
+        std::cerr << "[GSI] GSI HTTP 服务器启动失败！" << std::endl;
 
     return s_running;
 }
