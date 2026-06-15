@@ -44,13 +44,12 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         nlohmann::json j = nlohmann::json::parse(rawJson);
         config::Settings cfg = config::Load();
 
-        // 提取玩家击杀数
+        // 提取字段
         int roundKills = 0;
         std::string phase;
         std::string activity;
         std::string mapMode = "competitive";
         int health = 100;
-        int mvps = 0;
 
         if (j.contains("player") && j["player"].is_object())
         {
@@ -62,12 +61,6 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                     roundKills = state["round_kills"].get<int>();
                 if (state.contains("health") && state["health"].is_number())
                     health = state["health"].get<int>();
-            }
-            if (player.contains("match_stats") && player["match_stats"].is_object())
-            {
-                auto& ms = player["match_stats"];
-                if (ms.contains("mvps") && ms["mvps"].is_number())
-                    mvps = ms["mvps"].get<int>();
             }
             if (player.contains("activity") && player["activity"].is_string())
                 activity = player["activity"].get<std::string>();
@@ -87,82 +80,62 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 mapMode = map["mode"].get<std::string>();
         }
 
-        // 调试打印
         if (g_debug)
         {
-            std::cout << "[GSI] phase=" << phase
-                      << " activity=" << activity
-                      << " kills=" << roundKills
-                      << " last_kills=" << s_lastKills
-                      << " health=" << health
-                      << std::endl;
+            std::cout << "[GSI] phase=" << phase << " act=" << activity
+                      << " kills=" << roundKills << " last=" << s_lastKills
+                      << " hp=" << health << std::endl;
         }
 
-        // === 事件处理 ===
-
-        // 死亡判定
-        if (phase == "live" && health <= 0 && activity == "playing")
-        {
-            std::cout << "[GSI] 玩家死亡，播放死亡音效" << std::endl;
-            if (cfg.enable_kill_sound)
-                sound::Play(-18, cfg.volume);
-        }
-
-        // 击杀判定：仅在回合进行中且玩家存活时
-        if (phase == "live" && activity == "playing" && health > 0)
-        {
-            if (roundKills > s_lastKills)
-            {
-                // 处理跳杀（如 0→2）
-                for (int k = s_lastKills + 1; k <= roundKills; ++k)
-                {
-                    if (k > 5)
-                    {
-                        // 超过五杀，播放 deathmatch
-                        std::cout << "[GSI] 超过五杀(" << k << ")，播放 deathmatch 音效" << std::endl;
-                        if (cfg.enable_kill_sound)
-                            sound::Play(-1, cfg.volume);
-                    }
-                    else
-                    {
-                        std::cout << "[GSI] " << k << "杀!" << std::endl;
-                        if (cfg.enable_kill_sound)
-                            sound::Play(k, cfg.volume);
-                    }
-                }
-                s_lastKills = roundKills;
-            }
-        }
-
-        // 死亡竞赛模式击杀
-        if (mapMode == "deathmatch" && roundKills > s_lastKills)
-        {
-            std::cout << "[GSI] 死斗模式击杀" << std::endl;
-            if (cfg.enable_kill_sound)
-                sound::Play(-1, cfg.volume);
-            s_lastKills = roundKills;
-        }
-
-        // 回合开始
+        // ===== 回合开始重置 =====
         if (phase == "live" && s_lastPhase != "live")
         {
-            std::cout << "[GSI] 回合开始" << std::endl;
+            std::cout << "[GSI] 回合开始，重置击杀计数" << std::endl;
             s_lastKills = 0;
             if (cfg.custom_musickit && cfg.enable_kill_sound)
                 sound::Play(-13, cfg.volume);
         }
 
-        // freezetime → buy
+        // ===== 击杀判定（适用于 live 和 over 阶段） =====
+        // 注意：round_kills 在回合结束后仍然存在，所以我们在 over 阶段也能拿到击杀数
+        if (cfg.enable_kill_sound && roundKills > s_lastKills)
+        {
+            for (int k = s_lastKills + 1; k <= roundKills; ++k)
+            {
+                if (k > 5)
+                {
+                    std::cout << "[GSI] 超过五杀(" << k << ")，播放 deathmatch" << std::endl;
+                    sound::Play(-1, cfg.volume);
+                }
+                else
+                {
+                    std::cout << "[GSI] " << k << "杀! 播放音效" << std::endl;
+                    sound::Play(k, cfg.volume);
+                }
+            }
+            s_lastKills = roundKills;
+        }
+
+        // ===== 死亡判定 =====
+        if (cfg.enable_kill_sound && phase == "live" && health <= 0 && activity == "playing")
+        {
+            std::cout << "[GSI] 玩家死亡" << std::endl;
+            sound::Play(-18, cfg.volume);
+        }
+
+        // ===== 死斗模式 =====
+        if (cfg.enable_kill_sound && mapMode == "deathmatch" && roundKills > s_lastKills)
+        {
+            std::cout << "[GSI] 死斗击杀" << std::endl;
+            sound::Play(-1, cfg.volume);
+            s_lastKills = roundKills;
+        }
+
+        // ===== 购买阶段 =====
         if (phase == "freezetime" && s_lastPhase != "freezetime")
         {
             if (cfg.custom_musickit && cfg.enable_kill_sound)
                 sound::Play(-14, cfg.volume);
-        }
-
-        // 回合结束
-        if (phase == "over" && s_lastPhase == "live")
-        {
-            std::cout << "[GSI] 回合结束" << std::endl;
         }
 
         s_lastPhase = phase;
