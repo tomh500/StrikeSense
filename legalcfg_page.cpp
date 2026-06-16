@@ -179,7 +179,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         GraphicsPath p; p.AddArc(x,y,16,16,180,90); p.AddArc(x+BW-16,y,16,16,270,90);
         p.AddArc(x+BW-16,y+BH-16,16,16,0,90); p.AddArc(x,y+BH-16,16,16,90,90); p.CloseFigure();
         g.FillPath(&bb,&p); g.DrawPath(&bp,&p);
-        float tw = (float)wcslen(t) * 7.f; g.DrawString(t,-1,&sf,PointF(x+(BW-tw)/2.f,y+6),&tb);
+        g.DrawString(t,-1,&sf,PointF(x+6,y+6),&tb);  // 左对齐 +6px 内边距
     };
 
     int by = 85 + eh + 10;
