@@ -9,6 +9,7 @@
 #include "antistupid.h"
 #include "i18n.h"
 #include "quickstop.h"
+#include "volume_mixer.h"
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
@@ -59,7 +60,17 @@ static void PaintAll(HWND, HDC);
 
 // ===== WinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
-    if (antistupid::CheckAndBlock()) return 1;
+    // 互斥锁：防止多个实例同时运行
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
+    if (GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        std::cout << "[系统] 已有 StrikeSense 实例在运行" << std::endl;
+        MessageBoxW(nullptr, L"程序已在运行中，不能重复启动。", L"StrikeSense", MB_OK | MB_ICONINFORMATION);
+        if (hMutex) CloseHandle(hMutex);
+        return 1;
+    }
+
+    if (antistupid::CheckAndBlock()) { if (hMutex) CloseHandle(hMutex); return 1; }
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
@@ -110,6 +121,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     UnregisterHotKey(nullptr, 1);
     gsi::StopServer(); gsi::Cleanup(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);
+    if (hMutex) CloseHandle(hMutex);
     return (int)m.wParam;
 }
 
@@ -212,6 +224,19 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         case IDM_EXIT: DestroyWindow(hw); break;
         default: return DefWindowProc(hw, m, wp, lp);
         }
+        break;
+    }
+    case WM_HOTKEY:
+    {
+        // Ctrl+M 快捷键：切换音量降低开关
+        g_deathMute = !g_deathMute;
+        SaveEvolutionParams();
+        if (g_deathMute)
+            StartCS2VolumeControl(g_death_vol);
+        else
+            StopCS2VolumeControl();
+        std::cout << "[快捷键] 音量降低: " << (g_deathMute ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
         break;
     }
     case WM_CLOSE: DestroyWindow(hw); break;

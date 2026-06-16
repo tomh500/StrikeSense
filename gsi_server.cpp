@@ -431,6 +431,69 @@ void Cleanup()
     if (s_wsaInitialized) { WSACleanup(); s_wsaInitialized = false; }
 }
 
+// 检查端口 1009 是否被占用，返回占用进程的 exe 名称（空表示空闲）
+std::wstring CheckPortInUse()
+{
+    // 用 Raw Sockets 检查端口监听
+    SOCKET testSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (testSock == INVALID_SOCKET) return L"";
+
+    sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(1009);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    // connect 成功说明端口已被占用
+    int ret = connect(testSock, (sockaddr*)&addr, sizeof(addr));
+    closesocket(testSock);
+
+    if (ret == 0)
+    {
+        // 端口在用，用 netstat 查占用程序
+        // 创建一个临时文件
+        std::string result;
+        FILE* pipe = _popen("netstat -ano | findstr :1009 | findstr LISTENING", "r");
+        if (pipe)
+        {
+            char buf[256];
+            while (fgets(buf, sizeof(buf), pipe))
+                result += buf;
+            _pclose(pipe);
+        }
+
+        // 从 netstat 输出提取 PID
+        // 格式: TCP 127.0.0.1:1009 0.0.0.0:0 LISTENING 1234
+        auto pos = result.find("LISTENING");
+        if (pos != std::string::npos)
+        {
+            std::string pidStr = result.substr(pos + 10);
+            // 去掉空格
+            pidStr.erase(0, pidStr.find_first_not_of(" \t\r\n"));
+            int pid = atoi(pidStr.c_str());
+            if (pid > 0)
+            {
+                HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+                if (hProc)
+                {
+                    wchar_t exeName[MAX_PATH] = {};
+                    DWORD sz = MAX_PATH;
+                    if (QueryFullProcessImageNameW(hProc, 0, exeName, &sz))
+                    {
+                        std::wstring exePath(exeName);
+                        closesocket(testSock);
+                        CloseHandle(hProc);
+                        return exePath;
+                    }
+                    CloseHandle(hProc);
+                }
+            }
+        }
+        return L"未知进程";
+    }
+
+    return L""; // 端口空闲
+}
+
 bool StartServer()
 {
     if (s_running) return true;

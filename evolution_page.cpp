@@ -130,6 +130,12 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     wchar_t vt[32]; swprintf_s(vt, L"%.0f%%", g_death_vol * 100.f);
     g.DrawString(vt, -1, &rF, PointF(cx + 20 + slW, yVolSlider - 8), &tdCol);
 
+    g.DrawString(L"降低开启:", -1, &sF, PointF(cx + 10, 115), &tdCol);
+    g_deathMuteToggleRect = RectF((REAL)(cx + 80), (REAL)111, 50.f, 24.f);
+    ui::DrawToggle(g, cx + 80, 111, g_deathMute);
+
+    g.DrawString(L"此开关开启后，仅降低CS2进程的音量，不影响其他程序", -1, &sF, PointF(cx + 140, 115), &tmDim);
+
     std::wstring keyName;
     if (g_hotkeyMod & MOD_CONTROL) keyName += L"Ctrl+";
     if (g_hotkeyMod & MOD_ALT) keyName += L"Alt+";
@@ -140,19 +146,16 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     wchar_t hs[128];
     swprintf_s(hs, L"快捷键: %s (点击下方修改)", g_hotkeyWaiting ? L"等待按键..." : keyName.c_str());
-    g.DrawString(hs, -1, &rF, PointF(cx + 10, 130), &tdCol);
-    g.DrawString(L"降低开启:", -1, &sF, PointF(cx + 10, 155), &tdCol);
-    g_deathMuteToggleRect = RectF((REAL)(cx + 80), (REAL)151, 50.f, 24.f);
-    ui::DrawToggle(g, cx + 80, 151, g_deathMute);
+    g.DrawString(hs, -1, &rF, PointF(cx + 10, 150), &tdCol);
     {
         Gdiplus::Pen kp(Color(100, 100, 150, 200));
-        Gdiplus::RectF keyRect(cx + 10, 152, 200, 20);
+        Gdiplus::RectF keyRect(cx + 10, 172, 200, 20);
         g.DrawRectangle(&kp, keyRect);
-        g.DrawString(g_hotkeyWaiting ? L"按下任何字母键或数字键..." : L"点击修改快捷键", -1, &sF, PointF(cx + 14, 154),
+        g.DrawString(g_hotkeyWaiting ? L"按下任何字母键或数字键..." : L"点击修改快捷键", -1, &sF, PointF(cx + 14, 174),
             g_hotkeyWaiting ? (const Brush*)&tbCol : (const Brush*)&tmDim);
     }
 
-    int yRgb = 230, yRow2 = 265;
+    int yRgb = 210, yRow2 = 245;
     g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 195), &tdCol);
     int rgbLabelX = cx + 10; int rgbBarW = 80, rgbSpacing = 150;
     const wchar_t* rgbL[] = { L"R", L"G", L"B" };
@@ -202,11 +205,10 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 void CheckEvolutionClick(HWND hw, int mx, int my) {
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
-    int yVolSlider = 80, yRgb = 230, yRow2 = 265; int slW = cw - 100; float val;
+    int yVolSlider = 80, yRgb = 210, yRow2 = 245; int slW = cw - 100; float val;
     if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) {
         g_death_vol = val;
         SaveEvolutionParams();
-        // CS2 进程音量控制
         if (g_deathMute)
         {
             SetCS2VolumeReduction(g_death_vol);
@@ -228,7 +230,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
-    if (mx >= cx + 10 && mx <= cx + 210 && my >= 152 && my <= 172) { g_hotkeyWaiting = !g_hotkeyWaiting; InvalidateRect(hw, nullptr, FALSE); return; }
+    if (mx >= cx + 10 && mx <= cx + 210 && my >= 172 && my <= 192) { g_hotkeyWaiting = !g_hotkeyWaiting; InvalidateRect(hw, nullptr, FALSE); return; }
 
     int rgbLabelX = cx + 10, rgbBarW = 80, rgbSpacing = 150;
     for (int i = 0; i < 3; ++i) {
