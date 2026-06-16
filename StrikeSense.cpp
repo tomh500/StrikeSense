@@ -108,7 +108,9 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
 
     // 热键
     UnregisterHotKey(nullptr, 1);
+    UnregisterHotKey(nullptr, 2);
     RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
+    RegisterHotKey(nullptr, 2, MOD_CONTROL, 'M'); // Ctrl+M 备用的音量开关
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;

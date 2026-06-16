@@ -155,8 +155,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
             g_hotkeyWaiting ? (const Brush*)&tbCol : (const Brush*)&tmDim);
     }
 
-    int yRgb = 210, yRow2 = 245;
-    g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 195), &tdCol);
+    int yRgb = 235, yRow2 = 270;
+    g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 220), &tdCol);
     int rgbLabelX = cx + 10; int rgbBarW = 80, rgbSpacing = 150;
     const wchar_t* rgbL[] = { L"R", L"G", L"B" };
     int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
@@ -205,7 +205,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 void CheckEvolutionClick(HWND hw, int mx, int my) {
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
-    int yVolSlider = 80, yRgb = 210, yRow2 = 245; int slW = cw - 100; float val;
+    int yVolSlider = 80, yRgb = 235, yRow2 = 270; int slW = cw - 100; float val;
     if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) {
         g_death_vol = val;
         SaveEvolutionParams();
@@ -218,9 +218,37 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
-    // 降低开关
+    // 降低开关（需管理员权限）
     if (ui::CheckToggleClick(mx, my, (int)g_deathMuteToggleRect.X, (int)g_deathMuteToggleRect.Y))
     {
+        // 检查管理员权限
+        BOOL isElevated = FALSE;
+        HANDLE hToken = nullptr;
+        if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
+        {
+            TOKEN_ELEVATION te;
+            DWORD size = sizeof(te);
+            if (GetTokenInformation(hToken, TokenElevation, &te, size, &size))
+                isElevated = te.TokenIsElevated;
+            CloseHandle(hToken);
+        }
+
+        if (!isElevated)
+        {
+            int ret = MessageBoxW(hw,
+                L"音量降低器需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？",
+                L"⚠️ 权限不足",
+                MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+            if (ret == IDYES)
+            {
+                wchar_t exePath[MAX_PATH] = {};
+                GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+                ShellExecuteW(nullptr, L"runas", exePath, nullptr, nullptr, SW_SHOWNORMAL);
+                PostQuitMessage(0);
+            }
+            return;
+        }
+
         g_deathMute = !g_deathMute;
         SaveEvolutionParams();
         if (g_deathMute)
