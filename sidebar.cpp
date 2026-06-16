@@ -73,7 +73,8 @@ void CheckSidebarClick(HWND hw, int mx, int my) {
     int langY = rc.bottom - rc.top - 40;
     int ltx = SIDEBAR_W / 2 - 30; // 40
     if (mx >= ltx && mx <= ltx + 50 && my >= langY && my <= langY + 24) {
-        i18n::Switch(); // 切换语言（内部切换 g_langCN）
+        i18n::Switch(); // 切换语言
+        SaveEvolutionParams(); // 保存到 evolution.json
         InvalidateRect(hw, nullptr, FALSE);
     }
 }

@@ -36,7 +36,8 @@ static constexpr int SND_COUNT = sizeof(s_sounds) / sizeof(s_sounds[0]);
 
 void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
     using namespace Gdiplus;
-    ui::DrawHeader(g, cx, cw, L"文件位置");
+    using namespace i18n;
+    ui::DrawHeader(g, cx, cw, _(Keys::SOUNDS_TITLE));
     Font rF(L"Microsoft YaHei", 11), bF(L"Microsoft YaHei", 9), sF(L"Microsoft YaHei", 9);
     SolidBrush tdCol(Color(255, 30, 60, 100)), tmDim(Color(255, 100, 130, 160)), tbCol(Color(255, 20, 80, 140));
     SolidBrush r0(Color(255, 220, 240, 255)), r1(Color(255, 240, 248, 255));

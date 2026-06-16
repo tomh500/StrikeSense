@@ -1,62 +1,24 @@
 #pragma once
 #include <string>
-#include <unordered_map>
 
-// ===== 国际化 (i18n) =====
 extern bool g_langCN;
+#define _(K) i18n::T(K)
 
 namespace i18n {
     void Init();
-
-    // 获取翻译文本
     const wchar_t* T(const char* key);
-    void Switch();  // 切换语言后刷新
-
-    // 常用字符串键名
+    void Switch();
+    
     namespace Keys {
-        // 侧边栏
-        extern const char* SIDEBAR_FILE;
-        extern const char* SIDEBAR_SETTINGS;
-        extern const char* SIDEBAR_EVOLUTION;
-        extern const char* SIDEBAR_LEGAL;
-        extern const char* SIDEBAR_OVERCLOCK;
-        extern const char* SIDEBAR_ITEMHELPER;
-
-        // 通用
-        extern const char* STATUS_SAVED;
-        extern const char* STATUS_LOADING;
-        extern const char* STATUS_ERROR;
-
-        // 合法配置
-        extern const char* LEGAL_TITLE;
-        extern const char* LEGAL_STATUS;
-        extern const char* LEGAL_SAVE;
-        extern const char* LEGAL_REFRESH;
-        extern const char* LEGAL_EDIT_HINT;
-        extern const char* LEGAL_ADD_SOCD;
-        extern const char* LEGAL_REMOVE_SOCD;
-        extern const char* LEGAL_ADD_MWHEEL;
-        extern const char* LEGAL_REMOVE_MWHEEL;
-        extern const char* LEGAL_ADD_MS;
-        extern const char* LEGAL_REMOVE_MS;
-        extern const char* LEGAL_ADD_CHSW;
-        extern const char* LEGAL_REMOVE_CHSW;
-        extern const char* LEGAL_NORMAL;
-        extern const char* LEGAL_ATTACK;
-        extern const char* LEGAL_CUSTOM_HINT;
-
-        // 遗产核心
-        extern const char* SETTINGS_TITLE;
-        extern const char* SETTINGS_VOL;
-
-        // 进化分支
-        extern const char* EVO_TITLE;
-        extern const char* EVO_VOL_ADJ;
-        extern const char* EVO_HOTKEY;
-        extern const char* EVO_CROSSHAIR;
-        extern const char* EVO_THICKNESS;
-        extern const char* EVO_SCALE;
-        extern const char* EVO_STYLE;
-        extern const char* EVO_ENABLE;
+        extern const char* SIDEBAR_FILE, *SIDEBAR_SETTINGS, *SIDEBAR_EVOLUTION, *SIDEBAR_LEGAL, *SIDEBAR_OVERCLOCK, *SIDEBAR_ITEMHELPER;
+        extern const char* SOUNDS_TITLE, *SOUNDS_GSI_RUNNING, *SOUNDS_GSI_STOPPED, *SOUNDS_ENABLED, *SOUNDS_DISABLED, *SOUNDS_SELECT, *SOUNDS_FOLDER_BTN;
+        extern const char* SETTINGS_TITLE, *SETTINGS_VOL, *SETTINGS_CUSTOM_MUSIC, *SETTINGS_KILL_SOUND, *SETTINGS_FLASH, *SETTINGS_LOWMEM, *SETTINGS_MVP, *SETTINGS_OGG;
+        extern const char* EVO_TITLE, *EVO_VOL_ADJ, *EVO_HOTKEY, *EVO_CROSSHAIR, *EVO_THICKNESS, *EVO_SCALE, *EVO_STYLE, *EVO_ENABLE;
+        extern const char* EVO_STYLE_HOLLOW, *EVO_STYLE_SOLID, *EVO_STYLE_CLASSIC, *EVO_WAITING_KEY, *EVO_CLICK_MODIFY, *EVO_STATUS_NORMAL, *EVO_STATUS_MUTED;
+        extern const char* LEGAL_TITLE, *LEGAL_SAVE, *LEGAL_REFRESH, *LEGAL_EDIT_HINT, *LEGAL_ADD_SOCD, *LEGAL_REMOVE_SOCD, *LEGAL_ADD_MWHEEL, *LEGAL_REMOVE_MWHEEL;
+        extern const char* LEGAL_ADD_MS, *LEGAL_REMOVE_MS, *LEGAL_ADD_CHSW, *LEGAL_REMOVE_CHSW, *LEGAL_NORMAL, *LEGAL_ATTACK, *LEGAL_CUSTOM_HINT;
+        extern const char* LEGAL_STATUS_PREFIX, *LEGAL_SAVED, *LEGAL_NOT_FOUND;
+        extern const char* OVERCLOCK_TITLE, *OVERCLOCK_PLACEHOLDER;
+        extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
     }
 }
