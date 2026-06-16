@@ -134,7 +134,7 @@ static void PaintAll(HWND hw, HDC hdc) {
     case PAGE_SETTINGS:   PaintSettingsPage(g, cx, cw, H, hw); break;
     case PAGE_EVOLUTION:  PaintEvolutionPage(g, cx, cw, H, hw); break;
     case PAGE_LEGALCFG:   PaintLegalCfgPage(g, cx, cw, H, hw); break;
-    case PAGE_OVERCLOCK:  PaintOverclockPage(g, cx, cw, H, hw); break;
+    case PAGE_Rage:  PaintRagePage(g, cx, cw, H, hw); break;
     case PAGE_ITEMHELPER: PaintItemHelperPage(g, cx, cw, H, hw); break;
     }
     BitBlt(hdc, 0, 0, W, H, md, 0, 0, SRCCOPY);
@@ -157,7 +157,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         case PAGE_SETTINGS:   CheckSettingsClick(hw, mx, my); break;
         case PAGE_EVOLUTION:  CheckEvolutionClick(hw, mx, my); break;
         case PAGE_LEGALCFG:   CheckLegalCfgClick(hw, mx, my); break;
-        case PAGE_OVERCLOCK:  CheckOverclockClick(hw, mx, my); break;
+        case PAGE_Rage:  CheckRageClick(hw, mx, my); break;
         case PAGE_ITEMHELPER: CheckItemHelperClick(hw, mx, my); break;
         }
         break;

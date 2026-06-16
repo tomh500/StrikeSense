@@ -8,7 +8,7 @@ const SidebarItem g_sidebarItems[] = {
     {L"遗产核心",      PAGE_SETTINGS,   82},
     {L"进化分支",      PAGE_EVOLUTION,  112},
     {L"合法配置",      PAGE_LEGALCFG,   142},
-    {L"超频配置",      PAGE_OVERCLOCK,  172},
+    {L"超频配置",      PAGE_Rage,  172},
     {L"道具助手",      PAGE_ITEMHELPER, 202},
 };
 
@@ -31,7 +31,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
     g.DrawString(L"StrikeSense", -1, &tF, PointF(10, 12), &tb);
 
-    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_OVERCLOCK), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER)};
+    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER)};
     int idx = 0;
     for (auto& it : g_sidebarItems) {
         if (g_currentPage == it.page)

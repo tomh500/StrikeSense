@@ -11,7 +11,7 @@ enum Page {
     PAGE_SETTINGS = 1,
     PAGE_EVOLUTION = 2,
     PAGE_LEGALCFG = 3,
-    PAGE_OVERCLOCK = 4,
+    PAGE_Rage = 4,
     PAGE_ITEMHELPER = 5,
     PAGE_COUNT
 };
@@ -65,7 +65,7 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
-void PaintOverclockPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
+void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 
 // ===== 各页面 Click =====
@@ -74,7 +74,7 @@ void CheckSoundsClick(HWND hw, int mx, int my);
 void CheckSettingsClick(HWND hw, int mx, int my);
 void CheckEvolutionClick(HWND hw, int mx, int my);
 void CheckLegalCfgClick(HWND hw, int mx, int my);
-void CheckOverclockClick(HWND hw, int mx, int my);
+void CheckRageClick(HWND hw, int mx, int my);
 void CheckItemHelperClick(HWND hw, int mx, int my);
 
 // ===== 合法配置键盘输入 =====

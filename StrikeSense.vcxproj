@@ -445,7 +445,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\settings_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\evolution_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\legalcfg_page.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\overclock_page.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Rage_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\i18n.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
