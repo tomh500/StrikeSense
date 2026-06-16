@@ -4,6 +4,18 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+// CS2 窗口标题匹配
+static bool IsCS2Foreground()
+{
+    HWND fg = GetForegroundWindow();
+    if (!fg) return false;
+    wchar_t title[256];
+    GetWindowTextW(fg, title, 256);
+    std::wstring wt(title);
+    return (wt.find(L"Counter-Strike 2") != std::string::npos ||
+            wt.find(L"反恐精英：全球攻势") != std::string::npos);
+}
+
 namespace fs = std::filesystem;
 
 static QuickStopConfig s_qsConfig;
@@ -172,6 +184,9 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
 {
     if (nCode == HC_ACTION)
     {
+        // 只在 CS2 前台时才处理急停
+        if (!IsCS2Foreground()) return CallNextHookEx(nullptr, nCode, wParam, lParam);
+
         auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         if (kb)
         {

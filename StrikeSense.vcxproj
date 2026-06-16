@@ -453,6 +453,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\i18n.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h" />
@@ -466,6 +467,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\pages.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\i18n.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\framework.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\targetver.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h" />

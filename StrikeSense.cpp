@@ -39,6 +39,7 @@ bool  g_deathMute = false;
 int   g_hotkeyMod = MOD_CONTROL;
 int   g_hotkeyVk = 'M';
 bool  g_hotkeyWaiting = false;
+Gdiplus::RectF g_deathMuteToggleRect;
 
 bool  g_crosshairEnabled = false;
 int   g_crosshairR = 255, g_crosshairG = 0, g_crosshairB = 0;

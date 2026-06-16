@@ -39,6 +39,7 @@ extern float g_death_vol;
 extern bool  g_deathMute;
 extern int   g_hotkeyMod, g_hotkeyVk;
 extern bool  g_hotkeyWaiting;
+extern Gdiplus::RectF g_deathMuteToggleRect;
 
 // 准星变量
 extern bool  g_crosshairEnabled;

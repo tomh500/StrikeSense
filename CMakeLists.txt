@@ -31,11 +31,12 @@ set(SOURCES
     config.cpp sound_player.cpp sound_ui.cpp kernelcore.cpp normalgen.cpp antistupid.cpp
     ui_common.cpp sidebar.cpp sounds_page.cpp settings_page.cpp evolution_page.cpp
     legalcfg_page.cpp Rage_page.cpp itemhelper_page.cpp i18n.cpp quickstop.cpp
+    volume_mixer.cpp
 )
 set(HEADERS
     StrikeSense.h console.h steam_helper.h gsi_server.h config.h
     sound_player.h sound_ui.h kernelcore.h normalgen.h antistupid.h
-    pages.h i18n.h quickstop.h framework.h targetver.h Resource.h
+    pages.h i18n.h quickstop.h volume_mixer.h framework.h targetver.h Resource.h
 )
 set(RESOURCES StrikeSense.rc)
 

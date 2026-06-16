@@ -1,4 +1,5 @@
 #include "pages.h"
+#include "volume_mixer.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <thread>
@@ -138,8 +139,11 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     else { wchar_t b[16]; swprintf_s(b, L"Vk=%d", g_hotkeyVk); keyName += b; }
 
     wchar_t hs[128];
-    swprintf_s(hs, L"快捷键: %s (点击下方修改) 状态: %s", g_hotkeyWaiting ? L"等待按键..." : keyName.c_str(), g_deathMute ? L"降低开启" : L"正常");
+    swprintf_s(hs, L"快捷键: %s (点击下方修改)", g_hotkeyWaiting ? L"等待按键..." : keyName.c_str());
     g.DrawString(hs, -1, &rF, PointF(cx + 10, 130), &tdCol);
+    g.DrawString(L"降低开启:", -1, &sF, PointF(cx + 10, 155), &tdCol);
+    g_deathMuteToggleRect = RectF((REAL)(cx + 80), (REAL)151, 50.f, 24.f);
+    ui::DrawToggle(g, cx + 80, 151, g_deathMute);
     {
         Gdiplus::Pen kp(Color(100, 100, 150, 200));
         Gdiplus::RectF keyRect(cx + 10, 152, 200, 20);
@@ -199,7 +203,31 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
     int yVolSlider = 80, yRgb = 230, yRow2 = 265; int slW = cw - 100; float val;
-    if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) { g_death_vol = val; SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) {
+        g_death_vol = val;
+        SaveEvolutionParams();
+        // CS2 进程音量控制
+        if (g_deathMute)
+        {
+            SetCS2VolumeReduction(g_death_vol);
+            if (!IsCS2VolumeActive())
+                StartCS2VolumeControl(g_death_vol);
+        }
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    // 降低开关
+    if (ui::CheckToggleClick(mx, my, (int)g_deathMuteToggleRect.X, (int)g_deathMuteToggleRect.Y))
+    {
+        g_deathMute = !g_deathMute;
+        SaveEvolutionParams();
+        if (g_deathMute)
+            StartCS2VolumeControl(g_death_vol);
+        else
+            StopCS2VolumeControl();
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
     if (mx >= cx + 10 && mx <= cx + 210 && my >= 152 && my <= 172) { g_hotkeyWaiting = !g_hotkeyWaiting; InvalidateRect(hw, nullptr, FALSE); return; }
 
     int rgbLabelX = cx + 10, rgbBarW = 80, rgbSpacing = 150;
