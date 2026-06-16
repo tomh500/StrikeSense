@@ -109,10 +109,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
 
     // 热键
     UnregisterHotKey(nullptr, 1);
-    UnregisterHotKey(nullptr, 2);
     RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
-    // ID 2 保留给固定的 Ctrl+M 音量开关（始终有效，即使热键被修改）
-    RegisterHotKey(nullptr, 2, MOD_CONTROL, 'M');
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;
@@ -228,19 +225,6 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         case IDM_EXIT: DestroyWindow(hw); break;
         default: return DefWindowProc(hw, m, wp, lp);
         }
-        break;
-    }
-    case WM_HOTKEY:
-    {
-        // Ctrl+M 快捷键：切换音量降低开关
-        g_deathMute = !g_deathMute;
-        SaveEvolutionParams();
-        if (g_deathMute)
-            StartCS2VolumeControl(g_death_vol);
-        else
-            StopCS2VolumeControl();
-        std::cout << "[快捷键] 音量降低: " << (g_deathMute ? "开启" : "关闭") << std::endl;
-        InvalidateRect(hw, nullptr, FALSE);
         break;
     }
     case WM_CLOSE: DestroyWindow(hw); break;

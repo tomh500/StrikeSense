@@ -156,7 +156,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     int yRgb = 235, yRow2 = 270;
-    g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 220), &tdCol);
+    g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 205), &tdCol);
     int rgbLabelX = cx + 10; int rgbBarW = 80, rgbSpacing = 150;
     const wchar_t* rgbL[] = { L"R", L"G", L"B" };
     int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
