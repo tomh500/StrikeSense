@@ -28,6 +28,7 @@ WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
 Console g_Console;
 std::wstring g_gsiCfgPath;
 static ULONG_PTR g_gdiToken = 0;
+HANDLE g_hMutex = nullptr; // 全局互斥锁句柄（用于管理员提权时释放）
 
 int g_currentPage = 0;
 bool g_langCN = true;
@@ -61,16 +62,16 @@ static void PaintAll(HWND, HDC);
 // ===== WinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     // 互斥锁：防止多个实例同时运行
-    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
+    g_hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
         std::cout << "[系统] 已有 StrikeSense 实例在运行" << std::endl;
         MessageBoxW(nullptr, L"程序已在运行中，不能重复启动。", L"StrikeSense", MB_OK | MB_ICONINFORMATION);
-        if (hMutex) CloseHandle(hMutex);
+        if (g_hMutex) CloseHandle(g_hMutex);
         return 1;
     }
 
-    if (antistupid::CheckAndBlock()) { if (hMutex) CloseHandle(hMutex); return 1; }
+    if (antistupid::CheckAndBlock()) { if (g_hMutex) CloseHandle(g_hMutex); return 1; }
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
@@ -110,7 +111,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     UnregisterHotKey(nullptr, 1);
     UnregisterHotKey(nullptr, 2);
     RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
-    RegisterHotKey(nullptr, 2, MOD_CONTROL, 'M'); // Ctrl+M 备用的音量开关
+    // ID 2 保留给固定的 Ctrl+M 音量开关（始终有效，即使热键被修改）
+    RegisterHotKey(nullptr, 2, MOD_CONTROL, 'M');
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;
@@ -123,7 +125,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     UnregisterHotKey(nullptr, 1);
     gsi::StopServer(); gsi::Cleanup(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);
-    if (hMutex) CloseHandle(hMutex);
+    if (g_hMutex) CloseHandle(g_hMutex);
     return (int)m.wParam;
 }
 

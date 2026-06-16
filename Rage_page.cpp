@@ -135,7 +135,8 @@ void CheckRageClick(HWND hw, int mx, int my) {
                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (ret == IDYES)
                 {
-                    // 重新以管理员身份拉起
+                    // 先释放互斥锁，再重新以管理员身份拉起
+                    if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
                     wchar_t exePath[MAX_PATH] = {};
                     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
                     ShellExecuteW(nullptr, L"runas", exePath, nullptr, nullptr, SW_SHOWNORMAL);

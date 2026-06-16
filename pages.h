@@ -33,6 +33,7 @@ extern bool g_styleDropdownOpen;
 extern int  g_dropdownSelection;
 extern Gdiplus::RectF g_dropdownRects[3];
 extern WCHAR szWindowClass[];
+extern HANDLE g_hMutex; // 全局互斥锁（用于管理员提权时释放）
 
 // 进化页面变量
 extern float g_death_vol;
