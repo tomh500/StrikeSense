@@ -8,6 +8,7 @@
 #include "sound_player.h"
 #include "antistupid.h"
 #include "i18n.h"
+#include "quickstop.h"
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
@@ -62,6 +63,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
     config::EnsureDirectoriesExist(); config::Load();
+    LoadQuickStopConfig();
     sound::Init(); sound::PreloadSounds();
     if (gsi::Initialize()) gsi::StartServer();
 

@@ -18,7 +18,7 @@ namespace i18n {
         extern const char* LEGAL_TITLE, *LEGAL_SAVE, *LEGAL_REFRESH, *LEGAL_EDIT_HINT, *LEGAL_ADD_SOCD, *LEGAL_REMOVE_SOCD, *LEGAL_ADD_MWHEEL, *LEGAL_REMOVE_MWHEEL;
         extern const char* LEGAL_ADD_MS, *LEGAL_REMOVE_MS, *LEGAL_ADD_CHSW, *LEGAL_REMOVE_CHSW, *LEGAL_NORMAL, *LEGAL_ATTACK, *LEGAL_CUSTOM_HINT;
         extern const char* LEGAL_STATUS_PREFIX, *LEGAL_SAVED, *LEGAL_NOT_FOUND;
-        extern const char* Rage_TITLE, *Rage_PLACEHOLDER;
+        extern const char* Rage_TITLE, *Rage_PLACEHOLDER, *Rage_QUICKSTOP, *Rage_MIN_PULSE, *Rage_MAX_PULSE, *Rage_CAP_PULSE, *Rage_MOVE_START, *Rage_MOVE_CAP;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
     }
 }

@@ -67,6 +67,12 @@ void i18n::Init() {
 
     cn[Keys::Rage_TITLE] = L"超频配置"; en[Keys::Rage_TITLE] = L"Rage";
     cn[Keys::Rage_PLACEHOLDER] = L"功能开发中..."; en[Keys::Rage_PLACEHOLDER] = L"Coming soon...";
+    cn[Keys::Rage_QUICKSTOP] = L"自动急停 (OpenDear)"; en[Keys::Rage_QUICKSTOP] = L"Auto QuickStop (OpenDear)";
+    cn[Keys::Rage_MIN_PULSE] = L"最小脉冲 (ms)"; en[Keys::Rage_MIN_PULSE] = L"Min Pulse (ms)";
+    cn[Keys::Rage_MAX_PULSE] = L"最大脉冲 (ms)"; en[Keys::Rage_MAX_PULSE] = L"Max Pulse (ms)";
+    cn[Keys::Rage_CAP_PULSE] = L"上限脉冲 (ms)"; en[Keys::Rage_CAP_PULSE] = L"Cap Pulse (ms)";
+    cn[Keys::Rage_MOVE_START] = L"起始移动距离"; en[Keys::Rage_MOVE_START] = L"Move Start At (ms)";
+    cn[Keys::Rage_MOVE_CAP] = L"封顶移动距离"; en[Keys::Rage_MOVE_CAP] = L"Move Cap At (ms)";
     cn[Keys::ITEM_TITLE] = L"道具助手"; en[Keys::ITEM_TITLE] = L"Item Helper";
     cn[Keys::ITEM_PLACEHOLDER] = L"功能开发中..."; en[Keys::ITEM_PLACEHOLDER] = L"Coming soon...";
 }
@@ -88,6 +94,6 @@ namespace i18n { namespace Keys {
     const char *LEGAL_TITLE="LEGAL_TITLE",*LEGAL_SAVE="LEGAL_SAVE",*LEGAL_REFRESH="LEGAL_REFRESH",*LEGAL_EDIT_HINT="LEGAL_EDIT_HINT",*LEGAL_ADD_SOCD="LEGAL_ADD_SOCD",*LEGAL_REMOVE_SOCD="LEGAL_REMOVE_SOCD",*LEGAL_ADD_MWHEEL="LEGAL_ADD_MWHEEL",*LEGAL_REMOVE_MWHEEL="LEGAL_REMOVE_MWHEEL";
     const char *LEGAL_ADD_MS="LEGAL_ADD_MS",*LEGAL_REMOVE_MS="LEGAL_REMOVE_MS",*LEGAL_ADD_CHSW="LEGAL_ADD_CHSW",*LEGAL_REMOVE_CHSW="LEGAL_REMOVE_CHSW",*LEGAL_NORMAL="LEGAL_NORMAL",*LEGAL_ATTACK="LEGAL_ATTACK",*LEGAL_CUSTOM_HINT="LEGAL_CUSTOM_HINT";
     const char *LEGAL_STATUS_PREFIX="LEGAL_STATUS_PREFIX",*LEGAL_SAVED="LEGAL_SAVED",*LEGAL_NOT_FOUND="LEGAL_NOT_FOUND";
-    const char *Rage_TITLE="Rage_TITLE",*Rage_PLACEHOLDER="Rage_PLACEHOLDER";
+    const char *Rage_TITLE="Rage_TITLE",*Rage_PLACEHOLDER="Rage_PLACEHOLDER",*Rage_QUICKSTOP="Rage_QUICKSTOP",*Rage_MIN_PULSE="Rage_MIN_PULSE",*Rage_MAX_PULSE="Rage_MAX_PULSE",*Rage_CAP_PULSE="Rage_CAP_PULSE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
 }}

@@ -460,6 +460,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\pages.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\i18n.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\framework.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\targetver.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h" />
