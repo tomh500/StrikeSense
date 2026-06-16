@@ -144,15 +144,16 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     else if (g_hotkeyVk >= '0' && g_hotkeyVk <= '9') keyName += (wchar_t)g_hotkeyVk;
     else { wchar_t b[16]; swprintf_s(b, L"Vk=%d", g_hotkeyVk); keyName += b; }
 
+    // 快捷键绑定已禁用（仅供查看）
+    SolidBrush disabledCol(Color(180, 150, 150, 160));
     wchar_t hs[128];
-    swprintf_s(hs, L"快捷键: %s (点击下方修改)", g_hotkeyWaiting ? L"等待按键..." : keyName.c_str());
-    g.DrawString(hs, -1, &rF, PointF(cx + 10, 150), &tdCol);
+    swprintf_s(hs, L"快捷键: %s (已禁用)", keyName.c_str());
+    g.DrawString(hs, -1, &rF, PointF(cx + 10, 150), &disabledCol);
     {
-        Gdiplus::Pen kp(Color(100, 100, 150, 200));
+        Gdiplus::Pen kp(Color(80, 150, 150, 160));
         Gdiplus::RectF keyRect(cx + 10, 172, 200, 20);
         g.DrawRectangle(&kp, keyRect);
-        g.DrawString(g_hotkeyWaiting ? L"按下任何字母键或数字键..." : L"点击修改快捷键", -1, &sF, PointF(cx + 14, 174),
-            g_hotkeyWaiting ? (const Brush*)&tbCol : (const Brush*)&tmDim);
+        g.DrawString(L"已封锁（仅查看）", -1, &sF, PointF(cx + 14, 174), &disabledCol);
     }
 
     int yRgb = 235, yRow2 = 270;
@@ -260,7 +261,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
-    if (mx >= cx + 10 && mx <= cx + 210 && my >= 172 && my <= 192) { g_hotkeyWaiting = !g_hotkeyWaiting; InvalidateRect(hw, nullptr, FALSE); return; }
+    // 热键绑定已禁用
 
     int rgbLabelX = cx + 10, rgbBarW = 80, rgbSpacing = 150;
     for (int i = 0; i < 3; ++i) {

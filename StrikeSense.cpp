@@ -75,6 +75,20 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
+
+    // ===== 启动信息 =====
+    std::cout << "============================================" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202606161612" << std::endl;
+    std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
+    std::cout << "============================================" << std::endl;
+    std::cout << "  本程序承诺：" << std::endl;
+    std::cout << "  ★ 永不联网！" << std::endl;
+    std::cout << "  ★ 绝对无毒！" << std::endl;
+    std::cout << "  ★ 数据安全！" << std::endl;
+    std::cout << "  ★ 快速好用！" << std::endl;
+    std::cout << "============================================" << std::endl;
+    std::cout << "  本程序承诺绝不联网！所以无法检查更新" << std::endl;
+    std::cout << "============================================" << std::endl;
     config::EnsureDirectoriesExist(); config::Load();
     LoadQuickStopConfig();
     sound::Init(); sound::PreloadSounds();
@@ -107,9 +121,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
         }
     }
 
-    // 热键
-    UnregisterHotKey(nullptr, 1);
-    RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
+    // 热键功能已禁用（仅显示UI，不可用）
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;
@@ -119,7 +131,6 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
-    UnregisterHotKey(nullptr, 1);
     gsi::StopServer(); gsi::Cleanup(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);
     if (g_hMutex) CloseHandle(g_hMutex);
@@ -199,20 +210,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         // 合法配置编辑框输入优先处理
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
             break;
-        if (g_hotkeyWaiting && m == WM_KEYDOWN) {
-            UINT vk = (UINT)wp;
-            if ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')) {
-                g_hotkeyVk = vk; g_hotkeyMod = 0;
-                if (GetAsyncKeyState(VK_CONTROL) & 0x8000) g_hotkeyMod |= MOD_CONTROL;
-                if (GetAsyncKeyState(VK_MENU) & 0x8000) g_hotkeyMod |= MOD_ALT;
-                if (GetAsyncKeyState(VK_SHIFT) & 0x8000) g_hotkeyMod |= MOD_SHIFT;
-                UnregisterHotKey(nullptr, 1);
-                RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
-                SaveEvolutionParams(); g_hotkeyWaiting = false;
-                std::cout << "快捷键已更新" << std::endl;
-                InvalidateRect(hw, nullptr, FALSE);
-            }
-        }
+        // 热键功能已禁用
         return DefWindowProc(hw, m, wp, lp);
     }
     case WM_COMMAND: {
