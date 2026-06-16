@@ -13,9 +13,10 @@ static std::wstring g_autoexecStatus = L"未加载";
 static ULONGLONG g_lastWriteTime = 0;
 static bool g_editing = false;
 static int g_cursorPos = 0;
-static int g_scrollOffset = 0;       // 行滚动偏移
-static int g_visibleLines = 0;       // 可见行数
+static int g_scrollOffset = 0;
+static int g_visibleLines = 0;
 
+// ===== SOCD 代码块（带标记） =====
 static const wchar_t* SOCD_BLOCK = LR"(
 //--StrikeSense SOCD--
 
@@ -51,6 +52,25 @@ bind d +RightEvent
 //--StrikeSense SOCD END--
 )";
 
+// ===== 滚轮跳代码块 =====
+static const wchar_t* MWHEELJUMP_BLOCK = LR"(
+//--StrikeSense MwheelJump--
+bind mouse_wheel +jump
+//--StrikeSense MwheelJump END--
+)";
+
+// ===== 工具：从内容中移除指定标记间的所有文本 =====
+// 如果找到并移除则返回 true
+static bool RemoveBlock(std::wstring& content, const std::wstring& startMarker, const std::wstring& endMarker) {
+    size_t start = content.find(startMarker);
+    if (start == std::string::npos) return false;
+    size_t end = content.find(endMarker, start);
+    if (end == std::string::npos) return false;
+    // 移除从 start 到 end+marker.length
+    content.erase(start, end + endMarker.length() - start);
+    return true;
+}
+
 static std::wstring FindAutoexecPath() {
     std::wstring sv = strikesense::LoadSavedCfgPath();
     if (!sv.empty()) {
@@ -65,7 +85,6 @@ static std::wstring FindAutoexecPath() {
     return strikesense::GetCS2CfgPath(cd) + L"\\autoexec.cfg";
 }
 
-// 将内容转为行数组
 static std::vector<std::wstring> ContentToLines(const std::wstring& content) {
     std::vector<std::wstring> lines;
     std::wstringstream ss(content);
@@ -74,30 +93,21 @@ static std::vector<std::wstring> ContentToLines(const std::wstring& content) {
     return lines;
 }
 
-// 从行/列得到光标绝对位置
 static int PosFromLineCol(const std::vector<std::wstring>& lines, int line, int col) {
     int pos = 0;
     for (int i = 0; i < line && i < (int)lines.size(); i++)
-        pos += (int)lines[i].length() + 1; // +1 for \n
+        pos += (int)lines[i].length() + 1;
     if (col < 0) col = 0;
-    if (line < (int)lines.size() && col > (int)lines[line].length())
-        col = (int)lines[line].length();
+    if (line < (int)lines.size() && col > (int)lines[line].length()) col = (int)lines[line].length();
     return pos + col;
 }
 
-// 从绝对位置得到行/列
 static void LineColFromPos(const std::vector<std::wstring>& lines, int pos, int& outLine, int& outCol) {
-    outLine = 0; outCol = 0;
-    int p = 0;
+    outLine = 0; outCol = 0; int p = 0;
     for (int i = 0; i < (int)lines.size(); i++) {
-        if (pos <= p + (int)lines[i].length()) {
-            outLine = i;
-            outCol = pos - p;
-            return;
-        }
+        if (pos <= p + (int)lines[i].length()) { outLine = i; outCol = pos - p; return; }
         p += (int)lines[i].length() + 1;
     }
-    // 超出末尾
     outLine = ((int)lines.size() - 1 > 0) ? (int)lines.size() - 1 : 0;
     outCol = lines.empty() ? 0 : (int)lines.back().length();
 }
@@ -116,7 +126,6 @@ static void LoadAutoexecContent() {
     ULONGLONG wt = ft.time_since_epoch().count();
     if (wt == g_lastWriteTime && !g_autoexecContent.empty() && !g_editing) return;
     g_lastWriteTime = wt;
-
     std::ifstream in(g_autoexecPath, std::ios::binary);
     if (!in.is_open()) { g_autoexecContent = L"// 无法读取文件"; g_autoexecStatus = L"读取失败"; return; }
     std::stringstream ss; ss << in.rdbuf(); in.close();
@@ -150,80 +159,77 @@ static void AppendToFile(const std::wstring& text) {
     SaveAutoexecContent(g_autoexecContent);
 }
 
-// 确保光标可见（自动滚动）
+// 移除指定标记的代码块并保存
+static bool RemoveBlockAndSave(const std::wstring& startMarker, const std::wstring& endMarker) {
+    std::wstring content = g_autoexecContent;
+    bool found = RemoveBlock(content, startMarker, endMarker);
+    if (found) {
+        g_autoexecContent = content;
+        g_editBuffer = content;
+        SaveAutoexecContent(content);
+    }
+    return found;
+}
+
 static void EnsureCursorVisible(const std::vector<std::wstring>& lines) {
     int cursorLine, cursorCol;
     LineColFromPos(lines, g_cursorPos, cursorLine, cursorCol);
-    if (cursorLine < g_scrollOffset)
-        g_scrollOffset = cursorLine;
-    if (cursorLine >= g_scrollOffset + g_visibleLines)
-        g_scrollOffset = cursorLine - g_visibleLines + 1;
+    if (cursorLine < g_scrollOffset) g_scrollOffset = cursorLine;
+    if (cursorLine >= g_scrollOffset + g_visibleLines) g_scrollOffset = cursorLine - g_visibleLines + 1;
     if (g_scrollOffset < 0) g_scrollOffset = 0;
 }
 
-// 行高
 constexpr int LINE_H = 18;
 
-static Gdiplus::RectF g_editRect, g_saveBtnRect, g_reloadBtnRect, g_socdBtnRect;
+// 按钮区域
+static Gdiplus::RectF g_editRect;
+static Gdiplus::RectF g_saveBtnRect, g_reloadBtnRect;
+static Gdiplus::RectF g_socdBtnRect, g_removeSocdBtnRect;
+static Gdiplus::RectF g_mwheelBtnRect, g_removeMwheelBtnRect;
 
 void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
     ui::DrawHeader(g, cx, cw, L"合法配置");
-    Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9);
+    Font sF(L"Microsoft YaHei", 9);
     SolidBrush tdCol(Color(255, 30, 60, 100)), tbCol(Color(255, 20, 80, 140)), tmDim(Color(255, 100, 130, 160));
     SolidBrush sFill(Color(255, 80, 180, 240));  // 统一水蓝色
-    SolidBrush socdFill(Color(255, 80, 180, 240)); // 统一水蓝色
     Pen btnP(Color(255, 100, 170, 220));
 
-    // 路径 + 状态
     g.DrawString(g_autoexecPath.c_str(), -1, &sF, PointF(cx + 10, 50), &tmDim);
     wchar_t sb[64]; swprintf_s(sb, L"状态: %s", g_autoexecStatus.c_str());
     g.DrawString(sb, -1, &sF, PointF(cx + 10, 65), g_autoexecStatus == L"已保存" ? &tbCol : &tdCol);
 
-    // 编辑框占 1/4
+    // 编辑框 1/4
     int totalAvail = H - 85;
     int editH = totalAvail / 4;
     if (editH < 120) editH = 120;
-    int editW = cw - 20;
-    int editY = 85;
+    int editW = cw - 20, editY = 85;
     g_editRect = RectF((REAL)(cx + 10), (REAL)editY, (REAL)editW, (REAL)editH);
 
     SolidBrush editBg(Color(255, 250, 250, 255)); Pen editPen(Color(255, 180, 200, 220));
     g.FillRectangle(&editBg, g_editRect); g.DrawRectangle(&editPen, g_editRect);
 
-    // 计算可见行数
     g_visibleLines = (editH - 4) / LINE_H;
-
-    // 准备行数据
     const std::wstring& display = g_editing ? g_editBuffer : g_autoexecContent;
     auto lines = ContentToLines(display);
-
-    // 确保光标可见
     if (g_editing) EnsureCursorVisible(lines);
-
-    // 绘制可见行
-    int lineY = editY + 4;
-    int drawLine = 0;
+    int lineY = editY + 4, drawLine = 0;
     for (int i = g_scrollOffset; i < (int)lines.size() && drawLine < g_visibleLines; i++, drawLine++) {
         g.DrawString(lines[i].c_str(), -1, &sF, PointF(cx + 14, lineY), &tdCol);
         lineY += LINE_H;
     }
-
-    // 画光标（在编辑模式下）
     if (g_editing) {
-        int cursorLine, cursorCol;
-        LineColFromPos(lines, g_cursorPos, cursorLine, cursorCol);
-        int visibleRow = cursorLine - g_scrollOffset;
-        if (visibleRow >= 0 && visibleRow < g_visibleLines) {
+        int cursorLine, cursorCol; LineColFromPos(lines, g_cursorPos, cursorLine, cursorCol);
+        int vr = cursorLine - g_scrollOffset;
+        if (vr >= 0 && vr < g_visibleLines) {
             SolidBrush cursorBrush(Color(255, 0, 0, 0));
-            g.FillRectangle(&cursorBrush, cx + 14 + cursorCol * 7, editY + 4 + visibleRow * LINE_H, 2, LINE_H);
+            g.FillRectangle(&cursorBrush, cx + 14 + cursorCol * 7, editY + 4 + vr * LINE_H, 2, LINE_H);
         }
     }
 
-    // 按钮区域（统一水色系）
+    // ===== 第一排按钮：保存 | 刷新 =====
     int btnY = editY + editH + 10, btnW = 80, btnH = 26;
 
-    // 保存
     g_saveBtnRect = RectF((REAL)(cx + 10), (REAL)btnY, (REAL)btnW, (REAL)btnH);
     GraphicsPath sp; sp.AddArc(cx + 10, btnY, 16, 16, 180, 90);
     sp.AddArc(cx + 10 + btnW - 16, btnY, 16, 16, 270, 90);
@@ -232,28 +238,56 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g.FillPath(&sFill, &sp); g.DrawPath(&btnP, &sp);
     g.DrawString(L"保存", -1, &sF, PointF(cx + 10 + 20, btnY + 6), &tbCol);
 
-    // 刷新
     g_reloadBtnRect = RectF((REAL)(cx + 10 + btnW + 10), (REAL)btnY, (REAL)btnW, (REAL)btnH);
     GraphicsPath rp; int rx = cx + 10 + btnW + 10;
     rp.AddArc(rx, btnY, 16, 16, 180, 90); rp.AddArc(rx + btnW - 16, btnY, 16, 16, 270, 90);
     rp.AddArc(rx + btnW - 16, btnY + btnH - 16, 16, 16, 0, 90);
     rp.AddArc(rx, btnY + btnH - 16, 16, 16, 90, 90); rp.CloseFigure();
-    SolidBrush rlBg(Color(255, 80, 180, 240));  // 统一水色
-    g.FillPath(&rlBg, &rp); g.DrawPath(&btnP, &rp);
+    g.FillPath(&sFill, &rp); g.DrawPath(&btnP, &rp);
     g.DrawString(L"刷新", -1, &sF, PointF(rx + 20, btnY + 6), &tbCol);
 
-    // 写入SOCD（统一水色系）
-    int socdX = rx + btnW + 10;
-    g_socdBtnRect = RectF((REAL)socdX, (REAL)btnY, (REAL)(btnW + 30), (REAL)btnH);
-    GraphicsPath socdP;
-    socdP.AddArc(socdX, btnY, 16, 16, 180, 90);
-    socdP.AddArc(socdX + btnW + 30 - 16, btnY, 16, 16, 270, 90);
-    socdP.AddArc(socdX + btnW + 30 - 16, btnY + btnH - 16, 16, 16, 0, 90);
-    socdP.AddArc(socdX, btnY + btnH - 16, 16, 16, 90, 90); socdP.CloseFigure();
-    g.FillPath(&socdFill, &socdP); g.DrawPath(&btnP, &socdP);
-    g.DrawString(L"写入SOCD", -1, &sF, PointF(socdX + 12, btnY + 6), &tbCol);
+    // ===== 第二排按钮：功能按钮（保存下方） =====
+    int fnY = btnY + btnH + 8;
+    int fnW = 90, fnH = 26;
+    SolidBrush fnFill(Color(255, 80, 180, 240));
 
-    int promptY = btnY + btnH + 10;
+    // 写入SOCD
+    g_socdBtnRect = RectF((REAL)(cx + 10), (REAL)fnY, (REAL)fnW, (REAL)fnH);
+    GraphicsPath socdP; socdP.AddArc(cx + 10, fnY, 16, 16, 180, 90);
+    socdP.AddArc(cx + 10 + fnW - 16, fnY, 16, 16, 270, 90);
+    socdP.AddArc(cx + 10 + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
+    socdP.AddArc(cx + 10, fnY + fnH - 16, 16, 16, 90, 90); socdP.CloseFigure();
+    g.FillPath(&fnFill, &socdP); g.DrawPath(&btnP, &socdP);
+    g.DrawString(L"写入SOCD", -1, &sF, PointF(cx + 14, fnY + 6), &tbCol);
+
+    // 移除SOCD
+    g_removeSocdBtnRect = RectF((REAL)(cx + 10 + fnW + 8), (REAL)fnY, (REAL)fnW, (REAL)fnH);
+    GraphicsPath rsP; int rsx = cx + 10 + fnW + 8;
+    rsP.AddArc(rsx, fnY, 16, 16, 180, 90); rsP.AddArc(rsx + fnW - 16, fnY, 16, 16, 270, 90);
+    rsP.AddArc(rsx + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
+    rsP.AddArc(rsx, fnY + fnH - 16, 16, 16, 90, 90); rsP.CloseFigure();
+    g.FillPath(&fnFill, &rsP); g.DrawPath(&btnP, &rsP);
+    g.DrawString(L"移除SOCD", -1, &sF, PointF(rsx + 8, fnY + 6), &tbCol);
+
+    // 写入滚轮跳
+    g_mwheelBtnRect = RectF((REAL)(rsx + fnW + 8), (REAL)fnY, (REAL)fnW, (REAL)fnH);
+    GraphicsPath mwP; int mwx = rsx + fnW + 8;
+    mwP.AddArc(mwx, fnY, 16, 16, 180, 90); mwP.AddArc(mwx + fnW - 16, fnY, 16, 16, 270, 90);
+    mwP.AddArc(mwx + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
+    mwP.AddArc(mwx, fnY + fnH - 16, 16, 16, 90, 90); mwP.CloseFigure();
+    g.FillPath(&fnFill, &mwP); g.DrawPath(&btnP, &mwP);
+    g.DrawString(L"写入滚轮跳", -1, &sF, PointF(mwx + 6, fnY + 6), &tbCol);
+
+    // 移除滚轮跳
+    g_removeMwheelBtnRect = RectF((REAL)(mwx + fnW + 8), (REAL)fnY, (REAL)(fnW + 5), (REAL)fnH);
+    GraphicsPath rmP; int rmx = mwx + fnW + 8;
+    rmP.AddArc(rmx, fnY, 16, 16, 180, 90); rmP.AddArc(rmx + fnW + 5 - 16, fnY, 16, 16, 270, 90);
+    rmP.AddArc(rmx + fnW + 5 - 16, fnY + fnH - 16, 16, 16, 0, 90);
+    rmP.AddArc(rmx, fnY + fnH - 16, 16, 16, 90, 90); rmP.CloseFigure();
+    g.FillPath(&fnFill, &rmP); g.DrawPath(&btnP, &rmP);
+    g.DrawString(L"移除滚轮跳", -1, &sF, PointF(rmx + 4, fnY + 6), &tbCol);
+
+    int promptY = fnY + fnH + 8;
     g.DrawString(L"点击编辑框编辑 | PageUp/Down翻页 | 鼠标点击移动光标", -1, &sF, PointF(cx + 10, promptY), &tmDim);
 }
 
@@ -271,131 +305,73 @@ void CheckLegalCfgClick(HWND hw, int mx, int my) {
         g_lastWriteTime = 0; LoadAutoexecContent(); g_editing = false;
         InvalidateRect(hw, nullptr, FALSE); return;
     }
-    // SOCD
+    // 写入SOCD
     if (mx >= g_socdBtnRect.X && mx <= g_socdBtnRect.X + g_socdBtnRect.Width &&
         my >= g_socdBtnRect.Y && my <= g_socdBtnRect.Y + g_socdBtnRect.Height) {
         AppendToFile(std::wstring(SOCD_BLOCK)); g_editing = false;
         InvalidateRect(hw, nullptr, FALSE); return;
     }
+    // 移除SOCD
+    if (mx >= g_removeSocdBtnRect.X && mx <= g_removeSocdBtnRect.X + g_removeSocdBtnRect.Width &&
+        my >= g_removeSocdBtnRect.Y && my <= g_removeSocdBtnRect.Y + g_removeSocdBtnRect.Height) {
+        bool found = RemoveBlockAndSave(L"//--StrikeSense SOCD--", L"//--StrikeSense SOCD END--");
+        g_autoexecStatus = found ? L"已移除SOCD" : L"未找到SOCD";
+        g_editing = false;
+        InvalidateRect(hw, nullptr, FALSE); return;
+    }
+    // 写入滚轮跳
+    if (mx >= g_mwheelBtnRect.X && mx <= g_mwheelBtnRect.X + g_mwheelBtnRect.Width &&
+        my >= g_mwheelBtnRect.Y && my <= g_mwheelBtnRect.Y + g_mwheelBtnRect.Height) {
+        AppendToFile(std::wstring(MWHEELJUMP_BLOCK)); g_editing = false;
+        InvalidateRect(hw, nullptr, FALSE); return;
+    }
+    // 移除滚轮跳
+    if (mx >= g_removeMwheelBtnRect.X && mx <= g_removeMwheelBtnRect.X + g_removeMwheelBtnRect.Width &&
+        my >= g_removeMwheelBtnRect.Y && my <= g_removeMwheelBtnRect.Y + g_removeMwheelBtnRect.Height) {
+        bool found = RemoveBlockAndSave(L"//--StrikeSense MwheelJump--", L"//--StrikeSense MwheelJump END--");
+        g_autoexecStatus = found ? L"已移除滚轮跳" : L"未找到滚轮跳";
+        g_editing = false;
+        InvalidateRect(hw, nullptr, FALSE); return;
+    }
     // 点击编辑框
     if (mx >= g_editRect.X && mx <= g_editRect.X + g_editRect.Width &&
         my >= g_editRect.Y && my <= g_editRect.Y + g_editRect.Height) {
-        if (!g_editing) {
-            g_editing = true;
-            g_editBuffer = g_autoexecContent;
-        }
-        // 计算点击位置对应的行/列
+        if (!g_editing) { g_editing = true; g_editBuffer = g_autoexecContent; }
         int relY = my - (int)g_editRect.Y - 4;
         int relX = mx - (int)g_editRect.X - 14;
         int clickedLine = relY / LINE_H + g_scrollOffset;
-        int clickedCol = (relX / 7 > 0) ? relX / 7 : 0; // 约7px每字符
-
+        int clickedCol = (relX / 7 > 0) ? relX / 7 : 0;
         auto lines = ContentToLines(g_editBuffer);
         if (clickedLine < 0) clickedLine = 0;
-        if (clickedLine >= (int)lines.size()) {
-            clickedLine = (int)lines.size() - 1;
-            clickedCol = (int)lines[clickedLine].length();
-        }
+        if (clickedLine >= (int)lines.size()) { clickedLine = (int)lines.size() - 1; clickedCol = (int)lines[clickedLine].length(); }
         g_cursorPos = PosFromLineCol(lines, clickedLine, clickedCol);
-
-        SetFocus(hw);
-        InvalidateRect(hw, nullptr, FALSE);
+        SetFocus(hw); InvalidateRect(hw, nullptr, FALSE);
     }
 }
 
 bool ProcessLegalCfgKeyInput(HWND hw, UINT msg, WPARAM wp, LPARAM lp) {
     if (!g_editing) return false;
     auto lines = ContentToLines(g_editBuffer);
-
     switch (msg) {
     case WM_CHAR: {
         wchar_t ch = (wchar_t)wp;
-        if (ch >= 32 && ch <= 126) {
-            g_editBuffer.insert(g_cursorPos, 1, ch);
-            g_cursorPos++;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (ch == 13) { // Enter
-            g_editBuffer.insert(g_cursorPos, 1, L'\n');
-            g_cursorPos++;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (ch == 9) {
-            g_editBuffer.insert(g_cursorPos, 4, L' ');
-            g_cursorPos += 4;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
+        if (ch >= 32 && ch <= 126) { g_editBuffer.insert(g_cursorPos, 1, ch); g_cursorPos++; InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (ch == 13) { g_editBuffer.insert(g_cursorPos, 1, L'\n'); g_cursorPos++; InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (ch == 9) { g_editBuffer.insert(g_cursorPos, 4, L' '); g_cursorPos += 4; InvalidateRect(hw, nullptr, FALSE); return true; }
         break;
     }
     case WM_KEYDOWN: {
         UINT vk = (UINT)wp;
-        if (vk == VK_BACK && g_cursorPos > 0) {
-            g_editBuffer.erase(g_cursorPos - 1, 1);
-            g_cursorPos--;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_DELETE && g_cursorPos < (int)g_editBuffer.length()) {
-            g_editBuffer.erase(g_cursorPos, 1);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_LEFT && g_cursorPos > 0) {
-            g_cursorPos--;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_RIGHT && g_cursorPos < (int)g_editBuffer.length()) {
-            g_cursorPos++;
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_UP) {
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            if (cl > 0) g_cursorPos = PosFromLineCol(lines, cl - 1, cc);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_DOWN) {
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            if (cl < (int)lines.size() - 1) g_cursorPos = PosFromLineCol(lines, cl + 1, cc);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_HOME) {
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            g_cursorPos = PosFromLineCol(lines, cl, 0);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_END) {
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            g_cursorPos = PosFromLineCol(lines, cl, (int)lines[cl].length());
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_PRIOR) { // PageUp
-            g_scrollOffset -= g_visibleLines;
-            if (g_scrollOffset < 0) g_scrollOffset = 0;
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            cl -= g_visibleLines;
-            if (cl < 0) cl = 0;
-            g_cursorPos = PosFromLineCol(lines, cl, cc);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
-        if (vk == VK_NEXT) { // PageDown
-            g_scrollOffset += g_visibleLines;
-            int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc);
-            cl += g_visibleLines;
-            if (cl >= (int)lines.size()) cl = (int)lines.size() - 1;
-            g_cursorPos = PosFromLineCol(lines, cl, cc);
-            InvalidateRect(hw, nullptr, FALSE);
-            return true;
-        }
+        if (vk == VK_BACK && g_cursorPos > 0) { g_editBuffer.erase(g_cursorPos - 1, 1); g_cursorPos--; InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_DELETE && g_cursorPos < (int)g_editBuffer.length()) { g_editBuffer.erase(g_cursorPos, 1); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_LEFT && g_cursorPos > 0) { g_cursorPos--; InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_RIGHT && g_cursorPos < (int)g_editBuffer.length()) { g_cursorPos++; InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_UP) { int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); if (cl > 0) g_cursorPos = PosFromLineCol(lines, cl - 1, cc); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_DOWN) { int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); if (cl < (int)lines.size() - 1) g_cursorPos = PosFromLineCol(lines, cl + 1, cc); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_HOME) { int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); g_cursorPos = PosFromLineCol(lines, cl, 0); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_END) { int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); g_cursorPos = PosFromLineCol(lines, cl, (int)lines[cl].length()); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_PRIOR) { g_scrollOffset -= g_visibleLines; if (g_scrollOffset < 0) g_scrollOffset = 0; int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); cl -= g_visibleLines; if (cl < 0) cl = 0; g_cursorPos = PosFromLineCol(lines, cl, cc); InvalidateRect(hw, nullptr, FALSE); return true; }
+        if (vk == VK_NEXT) { g_scrollOffset += g_visibleLines; int cl, cc; LineColFromPos(lines, g_cursorPos, cl, cc); cl += g_visibleLines; if (cl >= (int)lines.size()) cl = (int)lines.size() - 1; g_cursorPos = PosFromLineCol(lines, cl, cc); InvalidateRect(hw, nullptr, FALSE); return true; }
         break;
     }
     }
