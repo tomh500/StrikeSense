@@ -78,6 +78,22 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     // 页面初始化
     InitLegalCfgPage();
 
+    // ===== 自动检测 GSI 配置文件 =====
+    {
+        fs::path gsiCfg = fs::path(GetCS2CfgPath()) / L"gamestate_integration_square.cfg";
+        bool gsiExists = fs::exists(gsiCfg);
+        if (!gsiExists)
+        {
+            std::cout << "[GSI] 未发现 GSI 配置文件，准备安装..." << std::endl;
+            // 用消息循环延迟调用，确保窗口已经创建
+            PostMessageW(GetActiveWindow(), WM_COMMAND, IDM_CREATE_GSI_CFG, 0);
+        }
+        else
+        {
+            std::cout << "[GSI] GSI 配置文件已存在: " << gsiCfg.string() << std::endl;
+        }
+    }
+
     // 热键
     UnregisterHotKey(nullptr, 1);
     RegisterHotKey(nullptr, 1, (UINT)g_hotkeyMod, (UINT)g_hotkeyVk);
