@@ -158,8 +158,12 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
         break;
     }
+    case WM_CHAR:
     case WM_KEYDOWN: {
-        if (g_hotkeyWaiting) {
+        // 合法配置编辑框输入优先处理
+        if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
+            break;
+        if (g_hotkeyWaiting && m == WM_KEYDOWN) {
             UINT vk = (UINT)wp;
             if ((vk >= 'A' && vk <= 'Z') || (vk >= '0' && vk <= '9')) {
                 g_hotkeyVk = vk; g_hotkeyMod = 0;

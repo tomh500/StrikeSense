@@ -76,3 +76,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my);
 void CheckLegalCfgClick(HWND hw, int mx, int my);
 void CheckOverclockClick(HWND hw, int mx, int my);
 void CheckItemHelperClick(HWND hw, int mx, int my);
+
+// ===== 合法配置键盘输入 =====
+void InitLegalCfgPage();
+bool ProcessLegalCfgKeyInput(HWND hw, UINT msg, WPARAM wp, LPARAM lp);
