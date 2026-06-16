@@ -61,18 +61,20 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
-    config::EnsureDirectoriesExist(); config::Load(); LoadEvolutionParams();
+    config::EnsureDirectoriesExist(); config::Load();
     sound::Init(); sound::PreloadSounds();
     if (gsi::Initialize()) gsi::StartServer();
 
     LoadStringW(hI, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hI, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
+    // i18n 必须在任何绘制前初始化
+    i18n::Init();
+    LoadEvolutionParams();  // 这会加载 langCN 并填充 i18n 字典
+
     MyRegisterClass(hI);
     if (!InitInstance(hI, nSC)) return FALSE;
-
     // 页面初始化
     InitLegalCfgPage();
-    i18n::Init();
 
     // 热键
     UnregisterHotKey(nullptr, 1);
