@@ -3,6 +3,9 @@
   <PropertyGroup>
     <PreferredToolArchitecture>x64</PreferredToolArchitecture>
   </PropertyGroup>
+  <PropertyGroup>
+    <ResolveNugetPackages>false</ResolveNugetPackages>
+  </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -22,354 +25,87 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{072DA5B1-22D1-3FEB-821C-DED846B75D00}</ProjectGuid>
+    <ProjectGuid>{A1B98A06-B3CB-377B-A4CA-8DC828A0F288}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <VcpkgEnabled>false</VcpkgEnabled>
     <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
     <Platform>x64</Platform>
-    <ProjectName>StrikeSense</ProjectName>
+    <ProjectName>ALL_BUILD</ProjectName>
     <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
+    <ConfigurationType>Utility</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
   <ImportGroup Label="PropertySheets">
-    <Import Project="do_not_import_user.props" Condition="exists('do_not_import_user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\jingy\source\repos\StrikeSense\bin\Debug\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">StrikeSense.dir\Debug\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">StrikeSense</TargetName>
-    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\jingy\source\repos\StrikeSense\bin\Release\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StrikeSense.dir\Release\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">StrikeSense</TargetName>
-    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\jingy\source\repos\StrikeSense\bin\MinSizeRel\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">StrikeSense.dir\MinSizeRel\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">StrikeSense</TargetName>
-    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\jingy\source\repos\StrikeSense\bin\RelWithDebInfo\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">StrikeSense.dir\RelWithDebInfo\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">StrikeSense</TargetName>
-    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
-    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
-    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include" /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include/SDL2" /utf-8 /Zc:__cplusplus</AdditionalOptions>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
-      <ConformanceMode>true</ConformanceMode>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
-      <FloatingPointModel></FloatingPointModel>
-      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
-      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <MinimalRebuild></MinimalRebuild>
-      <Optimization>Disabled</Optimization>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
-      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <SupportJustMyCode></SupportJustMyCode>
-      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
-      <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
-    <PostBuildEvent>
-      <Message></Message>
-      <Command>setlocal
-C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/jingy/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/jingy/source/repos/StrikeSense/bin/Debug/StrikeSense.exe -installedDir C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/bin -OutVariable out
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-    </PostBuildEvent>
-    <Link>
-      <AdditionalDependencies>C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\yaml-cppd.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\SDL2-staticd.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\SDL2_mixer-staticd.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\SDL2_ttfd.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;ws2_32.lib;crypt32.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\brotlienc.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;imm32.lib;ole32.lib;oleaut32.lib;version.lib;uuid.lib;advapi32.lib;setupapi.lib;shell32.lib;dinput8.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\vorbisfile.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\vorbis.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\ogg.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\libwavpack.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\freetyped.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\bz2d.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\libpng16d.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\zlibd.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\bz2d.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\libpng16d.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\zlibd.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\debug\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
-      <DataExecutionPrevention></DataExecutionPrevention>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/jingy/source/repos/StrikeSense/lib/Debug/StrikeSense.lib</ImportLibrary>
-      <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/Debug/StrikeSense.pdb</ProgramDataBaseFile>
-      <RandomizedBaseAddress></RandomizedBaseAddress>
-      <SubSystem>Windows</SubSystem>
-    </Link>
-    <ProjectReference>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include" /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include/SDL2" /utf-8 /Zc:__cplusplus</AdditionalOptions>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
-      <ConformanceMode>true</ConformanceMode>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
-      <FloatingPointModel></FloatingPointModel>
-      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <MinimalRebuild></MinimalRebuild>
-      <Optimization>MaxSpeed</Optimization>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <SupportJustMyCode></SupportJustMyCode>
-      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
-      <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <DebugInformationFormat>
-      </DebugInformationFormat>
-      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
-    <PostBuildEvent>
-      <Message></Message>
-      <Command>setlocal
-C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/jingy/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/jingy/source/repos/StrikeSense/bin/Release/StrikeSense.exe -installedDir C:/Users/jingy/vcpkg/installed/x64-windows-static/bin -OutVariable out
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-    </PostBuildEvent>
-    <Link>
-      <AdditionalDependencies>C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\yaml-cpp.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_mixer-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_ttf.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;ws2_32.lib;crypt32.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlienc.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;imm32.lib;ole32.lib;oleaut32.lib;version.lib;uuid.lib;advapi32.lib;setupapi.lib;shell32.lib;dinput8.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbisfile.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbis.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\ogg.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libwavpack.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\freetype.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
-      <DataExecutionPrevention></DataExecutionPrevention>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/jingy/source/repos/StrikeSense/lib/Release/StrikeSense.lib</ImportLibrary>
-      <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/Release/StrikeSense.pdb</ProgramDataBaseFile>
-      <RandomizedBaseAddress></RandomizedBaseAddress>
-      <SubSystem>Windows</SubSystem>
-    </Link>
-    <ProjectReference>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include" /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include/SDL2" /utf-8 /Zc:__cplusplus</AdditionalOptions>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
-      <ConformanceMode>true</ConformanceMode>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
-      <FloatingPointModel></FloatingPointModel>
-      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <MinimalRebuild></MinimalRebuild>
-      <Optimization>MinSpace</Optimization>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <SupportJustMyCode></SupportJustMyCode>
-      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
-      <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <DebugInformationFormat>
-      </DebugInformationFormat>
-      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
-    <PostBuildEvent>
-      <Message></Message>
-      <Command>setlocal
-C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/jingy/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/jingy/source/repos/StrikeSense/bin/MinSizeRel/StrikeSense.exe -installedDir C:/Users/jingy/vcpkg/installed/x64-windows-static/bin -OutVariable out
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-    </PostBuildEvent>
-    <Link>
-      <AdditionalDependencies>C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\yaml-cpp.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_mixer-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_ttf.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;ws2_32.lib;crypt32.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlienc.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;imm32.lib;ole32.lib;oleaut32.lib;version.lib;uuid.lib;advapi32.lib;setupapi.lib;shell32.lib;dinput8.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbisfile.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbis.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\ogg.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libwavpack.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\freetype.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
-      <DataExecutionPrevention></DataExecutionPrevention>
-      <GenerateDebugInformation>false</GenerateDebugInformation>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/jingy/source/repos/StrikeSense/lib/MinSizeRel/StrikeSense.lib</ImportLibrary>
-      <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/MinSizeRel/StrikeSense.pdb</ProgramDataBaseFile>
-      <RandomizedBaseAddress></RandomizedBaseAddress>
-      <SubSystem>Windows</SubSystem>
-    </Link>
-    <ProjectReference>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
-    <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include" /external:I "C:/Users/jingy/vcpkg/installed/x64-windows-static/include/SDL2" /utf-8 /Zc:__cplusplus</AdditionalOptions>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
-      <BufferSecurityCheck></BufferSecurityCheck>
-      <CallingConvention></CallingConvention>
-      <ConformanceMode>true</ConformanceMode>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <ExceptionHandling>Sync</ExceptionHandling>
-      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
-      <FloatingPointModel></FloatingPointModel>
-      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
-      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
-      <LanguageStandard>stdcpp17</LanguageStandard>
-      <MinimalRebuild></MinimalRebuild>
-      <Optimization>MaxSpeed</Optimization>
-      <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <SupportJustMyCode></SupportJustMyCode>
-      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
-      <UseFullPaths>false</UseFullPaths>
-      <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
-    </ClCompile>
-    <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;UNICODE;_UNICODE;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ResourceCompile>
     <Midl>
-      <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
       <HeaderFileName>%(Filename).h</HeaderFileName>
       <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
       <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
       <ProxyFileName>%(Filename)_p.c</ProxyFileName>
     </Midl>
-    <PostBuildEvent>
-      <Message></Message>
-      <Command>setlocal
-C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -noprofile -executionpolicy Bypass -file C:/Users/jingy/vcpkg/scripts/buildsystems/msbuild/applocal.ps1 -targetBinary C:/Users/jingy/source/repos/StrikeSense/bin/RelWithDebInfo/StrikeSense.exe -installedDir C:/Users/jingy/vcpkg/installed/x64-windows-static/bin -OutVariable out
-if %errorlevel% neq 0 goto :cmEnd
-:cmEnd
-endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
-:cmErrorLevel
-exit /b %1
-:cmDone
-if %errorlevel% neq 0 goto :VCEnd</Command>
-    </PostBuildEvent>
-    <Link>
-      <AdditionalDependencies>C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\yaml-cpp.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_mixer-static.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\SDL2_ttf.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;ws2_32.lib;crypt32.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlienc.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winmm.lib;imm32.lib;ole32.lib;oleaut32.lib;version.lib;uuid.lib;advapi32.lib;setupapi.lib;shell32.lib;dinput8.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbisfile.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\vorbis.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\ogg.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libwavpack.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\freetype.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\bz2.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\libpng16.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\zlib.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlidec.lib;C:\Users\jingy\vcpkg\installed\x64-windows-static\lib\brotlicommon.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
-      <DataExecutionPrevention></DataExecutionPrevention>
-      <GenerateDebugInformation>true</GenerateDebugInformation>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
-      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
-      <ImportLibrary>C:/Users/jingy/source/repos/StrikeSense/lib/RelWithDebInfo/StrikeSense.lib</ImportLibrary>
-      <LinkErrorReporting></LinkErrorReporting>
-      <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/RelWithDebInfo/StrikeSense.pdb</ProgramDataBaseFile>
-      <RandomizedBaseAddress></RandomizedBaseAddress>
-      <SubSystem>Windows</SubSystem>
-    </Link>
-    <ProjectReference>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\jingy\source\repos\StrikeSense\CMakeLists.txt">
@@ -429,32 +165,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\console.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\config.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.cpp" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\config.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\framework.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\targetver.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h" />
-    <ResourceCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.rc" />
-    <Natvis Include="C:\Users\jingy\vcpkg\installed\x64-windows-static\share\nlohmann_json\nlohmann_json.natvis">
-    </Natvis>
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
@@ -463,6 +173,10 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <Name>ZERO_CHECK</Name>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.vcxproj">
+      <Project>{072DA5B1-22D1-3FEB-821C-DED846B75D00}</Project>
+      <Name>StrikeSense</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

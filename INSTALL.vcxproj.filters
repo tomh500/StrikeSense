@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\jingy\source\repos\StrikeSense\CMakeFiles\b8ed17c751f59e44ca7fc48375f4e4c3\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{5D6D23A0-6235-314D-A8F7-783EDA1E2992}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

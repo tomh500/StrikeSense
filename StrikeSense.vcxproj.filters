@@ -1,55 +1,95 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="framework.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="StrikeSense.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="console.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="StrikeSense.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="console.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\console.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="StrikeSense.rc">
-      <Filter>资源文件</Filter>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\framework.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\jingy\source\repos\StrikeSense\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="C:\Users\jingy\vcpkg\installed\x64-windows-static\share\nlohmann_json\nlohmann_json.natvis" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.rc">
+      <Filter>Source Files</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="StrikeSense.ico">
-      <Filter>资源文件</Filter>
-    </Image>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{1C383245-8EAE-33E3-A4D8-FEEE01EA7E94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{6B758FE3-E251-37EA-9441-AB0588C72D55}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

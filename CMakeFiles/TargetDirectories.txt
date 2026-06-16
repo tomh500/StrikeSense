@@ -1,0 +1,4 @@
+C:/Users/jingy/source/repos/StrikeSense/CMakeFiles/StrikeSense.dir
+C:/Users/jingy/source/repos/StrikeSense/CMakeFiles/INSTALL.dir
+C:/Users/jingy/source/repos/StrikeSense/CMakeFiles/ALL_BUILD.dir
+C:/Users/jingy/source/repos/StrikeSense/CMakeFiles/ZERO_CHECK.dir
