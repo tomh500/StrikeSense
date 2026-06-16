@@ -77,6 +77,10 @@ const wchar_t* i18n::T(const char* key) {
     return L"??";
 }
 
+void i18n::Switch() {
+    g_langCN = !g_langCN;
+}
+
 namespace i18n {
     namespace Keys {
         const char* SIDEBAR_FILE = "SIDEBAR_FILE";

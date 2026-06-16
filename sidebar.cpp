@@ -1,4 +1,5 @@
 #include "pages.h"
+#include "i18n.h"
 
 const int SIDEBAR_W = 140;
 
@@ -22,7 +23,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     SolidBrush tb(Color(255, 20, 80, 140));
     SolidBrush td(Color(255, 30, 60, 100));
     SolidBrush naB(Color(255, 160, 210, 245));
-    SolidBrush onBr(Color(255, 100, 200, 140));
+    SolidBrush onBr(Color(255, 80, 180, 240));  // 水蓝色
     SolidBrush offBr(Color(255, 180, 180, 190));
     SolidBrush kBr(Color(255, 255, 255, 255));
 
@@ -52,24 +53,24 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     g.FillEllipse(&kBr, kkx, langY + 2.f, 20.f, 20.f);
 }
 
-void CheckSidebarClick(int mx, int my) {
+// 传入 hw 的重载版本，由 WndProc 调用
+void CheckSidebarClick(HWND hw, int mx, int my) {
     for (auto& it : g_sidebarItems) {
         if (mx >= 8 && mx <= SIDEBAR_W && my >= it.y && my <= it.y + 24) {
             g_currentPage = it.page;
             g_styleDropdownOpen = false;
-            HWND hw = FindWindowW(szWindowClass, nullptr);
             if (hw) InvalidateRect(hw, nullptr, FALSE);
             return;
         }
     }
-    // 语言切换
-    HWND hw = FindWindowW(szWindowClass, nullptr);
+    // 语言切换 — 检测精确区域（开关 x=40~90, y=H-40~H-16）
     if (!hw) return;
     RECT rc;
     GetClientRect(hw, &rc);
     int langY = rc.bottom - rc.top - 40;
-    if (mx >= 8 && mx <= SIDEBAR_W && my >= langY && my <= langY + 24) {
-        g_langCN = !g_langCN;
+    int ltx = SIDEBAR_W / 2 - 30; // 40
+    if (mx >= ltx && mx <= ltx + 50 && my >= langY && my <= langY + 24) {
+        i18n::Switch(); // 切换语言（内部切换 g_langCN）
         InvalidateRect(hw, nullptr, FALSE);
     }
 }

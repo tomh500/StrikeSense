@@ -69,7 +69,7 @@ void PaintOverclockPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 
 // ===== 各页面 Click =====
-void CheckSidebarClick(int mx, int my);
+void CheckSidebarClick(HWND hw, int mx, int my);
 void CheckSoundsClick(HWND hw, int mx, int my);
 void CheckSettingsClick(HWND hw, int mx, int my);
 void CheckEvolutionClick(HWND hw, int mx, int my);

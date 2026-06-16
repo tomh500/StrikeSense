@@ -7,6 +7,7 @@
 #include "config.h"
 #include "sound_player.h"
 #include "antistupid.h"
+#include "i18n.h"
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
@@ -71,6 +72,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
 
     // 页面初始化
     InitLegalCfgPage();
+    i18n::Init();
 
     // 热键
     UnregisterHotKey(nullptr, 1);
@@ -147,7 +149,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     }
     case WM_LBUTTONDOWN: {
         int mx = LOWORD(lp), my = HIWORD(lp);
-        if (mx < SIDEBAR_W) { CheckSidebarClick(mx, my); break; }
+        if (mx < SIDEBAR_W) { CheckSidebarClick(hw, mx, my); break; }
         switch (g_currentPage) {
         case PAGE_SOUNDS:     CheckSoundsClick(hw, mx, my); break;
         case PAGE_SETTINGS:   CheckSettingsClick(hw, mx, my); break;

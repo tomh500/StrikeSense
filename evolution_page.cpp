@@ -15,6 +15,7 @@ static std::wstring GetEvolutionConfigPath() {
 void SaveEvolutionParams() {
     nlohmann::json j;
     j["death_vol"] = g_death_vol; j["death_mute"] = g_deathMute;
+    j["langCN"] = g_langCN;
     j["hotkey_mod"] = g_hotkeyMod; j["hotkey_vk"] = g_hotkeyVk;
     j["crosshair_enabled"] = g_crosshairEnabled;
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
@@ -38,6 +39,7 @@ void LoadEvolutionParams() {
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
+        gb("langCN", g_langCN);
     } catch (...) {}
 }
 

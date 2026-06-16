@@ -10,6 +10,7 @@ namespace i18n {
 
     // 获取翻译文本
     const wchar_t* T(const char* key);
+    void Switch();  // 切换语言后刷新
 
     // 常用字符串键名
     namespace Keys {

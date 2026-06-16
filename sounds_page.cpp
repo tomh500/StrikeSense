@@ -1,9 +1,12 @@
 #include "pages.h"
 #include "gsi_server.h"
+#include "i18n.h"
 #include <filesystem>
 #include <commdlg.h>
+#include <ShlObj.h>
 
 namespace fs = std::filesystem;
+static Gdiplus::RectF g_folderBtnRect;
 
 struct SoundRow {
     int id;
@@ -48,6 +51,8 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
                c.custom_musickit ? L"已启用" : L"已禁用",
                c.low_memory ? L"已启用" : L"已禁用", c.volume * 100.f);
     g.DrawString(st, -1, &sF, PointF(cx + 10, 48), &tmDim);
+
+    // 先画声音列表
     int y = 70; const int rh = 30;
     for (int i = 0; i < SND_COUNT; ++i) {
         auto& rw = s_sounds[i];
@@ -63,21 +68,38 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
         g.DrawString(nm.c_str(), -1, &rF, PointF(cx + 160, y + 5), df ? &tmDim : &tdCol);
         int bx = cx + cw - 100, by = y + 2, bw = 80, bh = 26;
         rw.btnRect = RectF((REAL)bx, (REAL)by, (REAL)bw, (REAL)bh);
-        GraphicsPath bp;
-        bp.AddArc(bx, by, 16, 16, 180, 90);
+        GraphicsPath bp; bp.AddArc(bx, by, 16, 16, 180, 90);
         bp.AddArc(bx + bw - 16, by, 16, 16, 270, 90);
         bp.AddArc(bx + bw - 16, by + bh - 16, 16, 16, 0, 90);
-        bp.AddArc(bx, by + bh - 16, 16, 16, 90, 90);
-        bp.CloseFigure();
+        bp.AddArc(bx, by + bh - 16, 16, 16, 90, 90); bp.CloseFigure();
         POINT pt; GetCursorPos(&pt); ScreenToClient(hw, &pt);
         bool hv = (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh);
         g.FillPath(hv ? &btnHB : &btnB, &bp); g.DrawPath(&btnP, &bp);
         g.DrawString(L"选择...", -1, &bF, PointF(bx + 12, by + 6), &btnT);
         y += rh + 2;
     }
+
+    // 底部打开默认音频文件夹按钮
+    int btnY = y + 10;
+    g_folderBtnRect = RectF((REAL)(cx + 10), (REAL)btnY, (REAL)150, (REAL)26);
+    GraphicsPath fp; fp.AddArc(cx + 10, btnY, 16, 16, 180, 90);
+    fp.AddArc(cx + 10 + 150 - 16, btnY, 16, 16, 270, 90);
+    fp.AddArc(cx + 10 + 150 - 16, btnY + 26 - 16, 16, 16, 0, 90);
+    fp.AddArc(cx + 10, btnY + 26 - 16, 16, 16, 90, 90); fp.CloseFigure();
+    g.FillPath(&btnB, &fp); g.DrawPath(&btnP, &fp);
+    g.DrawString(L"打开默认音频文件夹", -1, &bF, PointF(cx + 16, btnY + 6), &tbCol);
 }
 
 void CheckSoundsClick(HWND hw, int mx, int my) {
+    // 打开文件夹按钮
+    if (mx >= g_folderBtnRect.X && mx <= g_folderBtnRect.X + g_folderBtnRect.Width &&
+        my >= g_folderBtnRect.Y && my <= g_folderBtnRect.Y + g_folderBtnRect.Height) {
+        wchar_t path[MAX_PATH];
+        GetEnvironmentVariableW(L"USERPROFILE", path, MAX_PATH);
+        wcscat_s(path, L"\\StrikeSense\\snd");
+        ShellExecuteW(hw, L"explore", path, nullptr, nullptr, SW_SHOW);
+        return;
+    }
     for (int i = 0; i < SND_COUNT; ++i) {
         auto& r = s_sounds[i];
         if (mx < r.btnRect.X || mx > r.btnRect.X + r.btnRect.Width ||
