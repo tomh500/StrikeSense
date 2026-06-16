@@ -31,12 +31,15 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
     g.DrawString(L"StrikeSense", -1, &tF, PointF(10, 12), &tb);
 
+    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_OVERCLOCK), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER)};
+    int idx = 0;
     for (auto& it : g_sidebarItems) {
         if (g_currentPage == it.page)
             g.FillRectangle(&naB, 8, it.y, SIDEBAR_W - 16, 24);
         Font& f = (g_currentPage == it.page) ? nAF : nF;
-        g.DrawString(it.label, -1, &f, PointF(14, it.y + 3),
+        g.DrawString(labels[idx], -1, &f, PointF(14, it.y + 3),
                      g_currentPage == it.page ? &tb : &td);
+        idx++;
     }
 
     // 语言切换底部
