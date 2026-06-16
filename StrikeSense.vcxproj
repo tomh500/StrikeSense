@@ -448,6 +448,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Rage_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\i18n.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h" />

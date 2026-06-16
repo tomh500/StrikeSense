@@ -80,6 +80,65 @@ void SaveQuickStopConfig()
     }
 }
 
+// ===== 全局键盘钩子 =====
+static HHOOK g_quickStopHook = nullptr;
+static std::atomic<bool> g_hookRunning{ false };
+
+static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION)
+    {
+        auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+        if (kb)
+        {
+            WORD vk = (WORD)kb->vkCode;
+            // W/A/S/D 按键
+            const wchar_t* moveKey = nullptr;
+            char keyChar = 0;
+            if (vk == 'W') { moveKey = L"W"; keyChar = 'W'; }
+            else if (vk == 'A') { moveKey = L"A"; keyChar = 'A'; }
+            else if (vk == 'S') { moveKey = L"S"; keyChar = 'S'; }
+            else if (vk == 'D') { moveKey = L"D"; keyChar = 'D'; }
+
+            if (moveKey)
+            {
+                if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)
+                {
+                    ProcessQuickStop(std::string("quickstart_") + keyChar);
+                }
+                else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
+                {
+                    ProcessQuickStop(std::string("quickstop_") + keyChar);
+                }
+            }
+        }
+    }
+    return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
+
+void StartQuickStopHook()
+{
+    if (g_hookRunning) return;
+    g_hookRunning = true;
+    g_quickStopHook = SetWindowsHookExW(WH_KEYBOARD_LL, QuickStopLowLevelKeyboardProc,
+        GetModuleHandleW(nullptr), 0);
+    if (g_quickStopHook)
+        std::cout << "[急停] 键盘钩子已安装" << std::endl;
+    else
+        std::cout << "[急停] 键盘钩子安装失败" << std::endl;
+}
+
+void StopQuickStopHook()
+{
+    if (g_quickStopHook)
+    {
+        UnhookWindowsHookEx(g_quickStopHook);
+        g_quickStopHook = nullptr;
+    }
+    g_hookRunning = false;
+    std::cout << "[急停] 键盘钩子已卸载" << std::endl;
+}
+
 // ===== 急停逻辑（复刻 CS2MouseHook） =====
 
 // 记录上一次按下的移动方向键时间

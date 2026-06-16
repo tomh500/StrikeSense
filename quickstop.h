@@ -21,3 +21,5 @@ void LoadQuickStopConfig();
 void SaveQuickStopConfig();
 void ProcessQuickStop(const std::string& key);
 void HandleQuickStopGSI(const std::string& rawJson);
+void StartQuickStopHook();
+void StopQuickStopHook();

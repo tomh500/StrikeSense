@@ -1,6 +1,7 @@
 #include "pages.h"
 #include "i18n.h"
 #include "quickstop.h"
+#include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -42,30 +43,25 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::Rage_TITLE));
     Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9);
 
-    // 暗色主题颜色
-    SolidBrush rageTdDark(Color(255, 220, 80, 80));
-    SolidBrush tdColDark(Color(255, 200, 220, 240));
-    SolidBrush sBgDark(Color(255, 60, 60, 70));
-    SolidBrush sFillDark(Color(255, 220, 80, 80));
-    SolidBrush knBDark(Color(255, 240, 100, 100));
-    SolidBrush offBr(Color(255, 80, 80, 90));
-    SolidBrush onBr(Color(255, 220, 80, 80));
+    // 水蓝色主题
+    SolidBrush tdCol(Color(255, 30, 60, 100));
+    SolidBrush sBg(Color(255, 200, 220, 240));
+    SolidBrush sFill(Color(255, 80, 180, 240));
+    SolidBrush knB(Color(255, 60, 160, 230));
+    SolidBrush okTd(Color(255, 80, 180, 240));
 
     // 启用 Rage 模式开关
-    g.DrawString(L"启用 Rage 模式:", -1, &rF, PointF(cx + 10, 60), &rageTdDark);
+    g.DrawString(L"启用 Rage 模式:", -1, &rF, PointF(cx + 10, 60), &tdCol);
     g_RageToggleRect = RectF((REAL)(cx + 160), (REAL)56, 50.f, 24.f);
     ui::DrawToggle(g, cx + 160, 56, g_rageEnabled);
 
-    if (!g_rageEnabled) {
-        g.DrawString(_(i18n::Keys::Rage_PLACEHOLDER), -1, &rF, PointF(cx + 10, 100), &rageTdDark);
-        return;
-    }
+    if (!g_rageEnabled) return;
 
     // ===== 急停区域 =====
     int yBase = 100;
 
     // 标题和开关
-    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF(cx + 10, yBase), &rageTdDark);
+    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF(cx + 10, yBase), &tdCol);
     g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, yBase - 4, g_qsEnabled);
 
@@ -96,24 +92,20 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     for (int i = 0; i < 5; ++i) {
         int sy = yBase + 40 + i * 40;
         const wchar_t* wlabel = i18n::T(defs[i].label);
-        g.DrawString(wlabel, -1, &sF, PointF(cx + 10, sy), &tdColDark);
+        g.DrawString(wlabel, -1, &sF, PointF(cx + 10, sy), &tdCol);
 
         int barX = cx + 160;
         float norm = (float)(*defs[i].value - defs[i].minV) / (float)(defs[i].maxV - defs[i].minV);
         if (norm < 0) norm = 0;
         if (norm > 1) norm = 1;
 
-        // 自定义暗色滑块绘制
-        g.FillRectangle(&sBgDark, barX, sy, slW, 10);
-        int fw = (int)(slW * norm);
-        if (fw > slW) fw = slW;
-        g.FillRectangle(&sFillDark, barX, sy, fw, 10);
-        float kx2 = (REAL)(barX + fw - 8.f);
-        g.FillEllipse(&knBDark, kx2, (REAL)(sy - 6.f), 16.f, 16.f);
+        ui::DrawSlider(g, barX, sy, slW, norm);
+        float kx2 = (REAL)(barX + (int)(slW * norm) - 8.f);
+        g.FillEllipse(&knB, kx2, (REAL)(sy - 6.f), 16.f, 16.f);
 
         wchar_t valT[16];
         swprintf_s(valT, L"%d", *defs[i].value);
-        g.DrawString(valT, -1, &sF, PointF((REAL)(barX + slW + 8), (REAL)(sy - 2)), &tdColDark);
+        g.DrawString(valT, -1, &sF, PointF((REAL)(barX + slW + 8), (REAL)(sy - 2)), &tdCol);
 
         // 记录滑块区域用于点击检测
         g_sliders[i].value = defs[i].value;
@@ -122,13 +114,15 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         g_sliders[i].rect = RectF((REAL)barX, (REAL)(sy - 8), (REAL)slW, 24.f);
     }
 
-    // 说明文字
+    // 触发条件说明
     Font xsF(L"Microsoft YaHei", 8);
-    SolidBrush hintCol(Color(180, 160, 160, 170));
-    g.DrawString(L"提示：当按住W/A/S/D移动时松手，自动发送反向脉冲实现急停", -1, &xsF, PointF(cx + 10, yBase + 240), &hintCol);
+    SolidBrush hintCol(Color(180, 100, 130, 160));
+    g.DrawString(L"触发条件：按下 W / A / S / D 后松手 → 自动发送反向键（例如松W按S，松A按D）", -1, &xsF, PointF(cx + 10, yBase + 240), &hintCol);
+    g.DrawString(L"脉冲时长根据按住时长线性插值（起始→封顶），支持 Shift/Ctrl 静默跳过", -1, &xsF, PointF(cx + 10, yBase + 256), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
+    using namespace Gdiplus;
     RectF* tr = &g_RageToggleRect;
     if (mx >= tr->X && mx <= tr->X + tr->Width &&
         my >= tr->Y && my <= tr->Y + tr->Height) {
@@ -153,6 +147,10 @@ void CheckRageClick(HWND hw, int mx, int my) {
         g_qsEnabled = !g_qsEnabled;
         GetQSConfig().enabled = g_qsEnabled;
         SaveQuickStopConfig();
+        if (g_qsEnabled)
+            StartQuickStopHook();
+        else
+            StopQuickStopHook();
         std::cout << "[急停] 开关: " << (g_qsEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
