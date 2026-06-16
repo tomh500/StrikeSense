@@ -5,7 +5,7 @@
 #pragma once
 
 #include "targetver.h"
-#define WIN32_LEAN_AND_MEAN             // 从 Windows 头文件中排除极少使用的内容
+// 注意: 不能用 WIN32_LEAN_AND_MEAN，因为 Gdiplus 需要 COM 接口 (IStream)
 // Windows 头文件
 #include <windows.h>
 // C 运行时头文件
