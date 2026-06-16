@@ -12,7 +12,7 @@ namespace ui {
     }
 
     void DrawToggle(Graphics& g, int tx, int ty, bool state) {
-        SolidBrush onBr(Color(255, 100, 200, 140));
+        SolidBrush onBr(Color(255, 80, 180, 240));  // 水蓝色
         SolidBrush offBr(Color(255, 180, 180, 190));
         SolidBrush kBr(Color(255, 255, 255, 255));
         RectF tr((REAL)tx, (REAL)ty, 50.f, 24.f);
