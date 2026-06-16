@@ -23,8 +23,10 @@ Release/
 # vcpkg
 vcpkg_installed/
 
-# Legacy project
+# Legacy / reference projects
 legacy/
+CS2MouseHook/
+Everything-SDK/
 
 # IDE
 .vscode/
