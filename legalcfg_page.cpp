@@ -246,49 +246,50 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g.FillPath(&sFill, &rp); g.DrawPath(&btnP, &rp);
     g.DrawString(L"刷新", -1, &sF, PointF(rx + 20, btnY + 6), &tbCol);
 
-    // ===== 第二排按钮：功能按钮（保存下方） =====
-    int fnY = btnY + btnH + 8;
-    int fnW = 90, fnH = 26;
+    // 提示文字（在保存/刷新下方）
+    int promptY = btnY + btnH + 8;
+    g.DrawString(L"点击编辑框编辑 | PageUp/Down翻页 | 鼠标点击移动光标", -1, &sF, PointF(cx + 10, promptY), &tmDim);
+
+    // ===== 功能按钮（提示文字下方，分两组，每组一行） =====
+    int fnY = promptY + 18;
+    int fnW = 100, fnH = 26;
     SolidBrush fnFill(Color(255, 80, 180, 240));
 
-    // 写入SOCD
+    // 第一行：SOCD
     g_socdBtnRect = RectF((REAL)(cx + 10), (REAL)fnY, (REAL)fnW, (REAL)fnH);
     GraphicsPath socdP; socdP.AddArc(cx + 10, fnY, 16, 16, 180, 90);
     socdP.AddArc(cx + 10 + fnW - 16, fnY, 16, 16, 270, 90);
     socdP.AddArc(cx + 10 + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
     socdP.AddArc(cx + 10, fnY + fnH - 16, 16, 16, 90, 90); socdP.CloseFigure();
     g.FillPath(&fnFill, &socdP); g.DrawPath(&btnP, &socdP);
-    g.DrawString(L"写入SOCD", -1, &sF, PointF(cx + 14, fnY + 6), &tbCol);
+    g.DrawString(L"写入SOCD", -1, &sF, PointF(cx + 18, fnY + 6), &tbCol);
 
-    // 移除SOCD
-    g_removeSocdBtnRect = RectF((REAL)(cx + 10 + fnW + 8), (REAL)fnY, (REAL)fnW, (REAL)fnH);
-    GraphicsPath rsP; int rsx = cx + 10 + fnW + 8;
+    g_removeSocdBtnRect = RectF((REAL)(cx + 10 + fnW + 10), (REAL)fnY, (REAL)fnW, (REAL)fnH);
+    GraphicsPath rsP; int rsx = cx + 10 + fnW + 10;
     rsP.AddArc(rsx, fnY, 16, 16, 180, 90); rsP.AddArc(rsx + fnW - 16, fnY, 16, 16, 270, 90);
     rsP.AddArc(rsx + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
     rsP.AddArc(rsx, fnY + fnH - 16, 16, 16, 90, 90); rsP.CloseFigure();
     g.FillPath(&fnFill, &rsP); g.DrawPath(&btnP, &rsP);
-    g.DrawString(L"移除SOCD", -1, &sF, PointF(rsx + 8, fnY + 6), &tbCol);
+    g.DrawString(L"移除SOCD", -1, &sF, PointF(rsx + 12, fnY + 6), &tbCol);
 
-    // 写入滚轮跳
-    g_mwheelBtnRect = RectF((REAL)(rsx + fnW + 8), (REAL)fnY, (REAL)fnW, (REAL)fnH);
-    GraphicsPath mwP; int mwx = rsx + fnW + 8;
-    mwP.AddArc(mwx, fnY, 16, 16, 180, 90); mwP.AddArc(mwx + fnW - 16, fnY, 16, 16, 270, 90);
-    mwP.AddArc(mwx + fnW - 16, fnY + fnH - 16, 16, 16, 0, 90);
-    mwP.AddArc(mwx, fnY + fnH - 16, 16, 16, 90, 90); mwP.CloseFigure();
+    // 第二行：滚轮跳
+    int fnY2 = fnY + fnH + 6;
+
+    g_mwheelBtnRect = RectF((REAL)(cx + 10), (REAL)fnY2, (REAL)fnW, (REAL)fnH);
+    GraphicsPath mwP; mwP.AddArc(cx + 10, fnY2, 16, 16, 180, 90);
+    mwP.AddArc(cx + 10 + fnW - 16, fnY2, 16, 16, 270, 90);
+    mwP.AddArc(cx + 10 + fnW - 16, fnY2 + fnH - 16, 16, 16, 0, 90);
+    mwP.AddArc(cx + 10, fnY2 + fnH - 16, 16, 16, 90, 90); mwP.CloseFigure();
     g.FillPath(&fnFill, &mwP); g.DrawPath(&btnP, &mwP);
-    g.DrawString(L"写入滚轮跳", -1, &sF, PointF(mwx + 6, fnY + 6), &tbCol);
+    g.DrawString(L"写入滚轮跳", -1, &sF, PointF(cx + 12, fnY2 + 6), &tbCol);
 
-    // 移除滚轮跳
-    g_removeMwheelBtnRect = RectF((REAL)(mwx + fnW + 8), (REAL)fnY, (REAL)(fnW + 5), (REAL)fnH);
-    GraphicsPath rmP; int rmx = mwx + fnW + 8;
-    rmP.AddArc(rmx, fnY, 16, 16, 180, 90); rmP.AddArc(rmx + fnW + 5 - 16, fnY, 16, 16, 270, 90);
-    rmP.AddArc(rmx + fnW + 5 - 16, fnY + fnH - 16, 16, 16, 0, 90);
-    rmP.AddArc(rmx, fnY + fnH - 16, 16, 16, 90, 90); rmP.CloseFigure();
+    g_removeMwheelBtnRect = RectF((REAL)(cx + 10 + fnW + 10), (REAL)fnY2, (REAL)fnW, (REAL)fnH);
+    GraphicsPath rmP; int rmx = cx + 10 + fnW + 10;
+    rmP.AddArc(rmx, fnY2, 16, 16, 180, 90); rmP.AddArc(rmx + fnW - 16, fnY2, 16, 16, 270, 90);
+    rmP.AddArc(rmx + fnW - 16, fnY2 + fnH - 16, 16, 16, 0, 90);
+    rmP.AddArc(rmx, fnY2 + fnH - 16, 16, 16, 90, 90); rmP.CloseFigure();
     g.FillPath(&fnFill, &rmP); g.DrawPath(&btnP, &rmP);
-    g.DrawString(L"移除滚轮跳", -1, &sF, PointF(rmx + 4, fnY + 6), &tbCol);
-
-    int promptY = fnY + fnH + 8;
-    g.DrawString(L"点击编辑框编辑 | PageUp/Down翻页 | 鼠标点击移动光标", -1, &sF, PointF(cx + 10, promptY), &tmDim);
+    g.DrawString(L"移除滚轮跳", -1, &sF, PointF(rmx + 8, fnY2 + 6), &tbCol);
 }
 
 void CheckLegalCfgClick(HWND hw, int mx, int my) {
