@@ -30,12 +30,12 @@ set(SOURCES
     StrikeSense.cpp console.cpp steam_helper.cpp gsi_server.cpp
     config.cpp sound_player.cpp sound_ui.cpp kernelcore.cpp normalgen.cpp antistupid.cpp
     ui_common.cpp sidebar.cpp sounds_page.cpp settings_page.cpp evolution_page.cpp
-    legalcfg_page.cpp overclock_page.cpp itemhelper_page.cpp
+    legalcfg_page.cpp overclock_page.cpp itemhelper_page.cpp i18n.cpp
 )
 set(HEADERS
     StrikeSense.h console.h steam_helper.h gsi_server.h config.h
     sound_player.h sound_ui.h kernelcore.h normalgen.h antistupid.h
-    pages.h framework.h targetver.h Resource.h
+    pages.h i18n.h framework.h targetver.h Resource.h
 )
 set(RESOURCES StrikeSense.rc)
 
