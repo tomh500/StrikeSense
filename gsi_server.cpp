@@ -1,12 +1,16 @@
+// winsock2.h 必须放在任何 windows.h 之前（包括间接包含）
+#ifndef _WINSOCK2API_
+#include <winsock2.h>
+#endif
 #include "gsi_server.h"
 #include "config.h"
 #include "sound_player.h"
+#include "quickstop.h"
 #include <iostream>
 #include <thread>
 #include <atomic>
 #include <queue>
 #include <mutex>
-#include <winsock2.h>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
@@ -391,14 +395,17 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         }
 
         // ===== 调试输出 =====
-            std::cout << "[GSI] phase=" << phase
-                      << " act=" << activity
-                      << " kills=" << roundKills
-                      << " last=" << s_lastKills
-                      << " hp=" << health
-                      << " map=" << mapMode
-                      << std::endl;
-        
+        std::cout << "[GSI] phase=" << phase
+                  << " act=" << activity
+                  << " kills=" << roundKills
+                  << " last=" << s_lastKills
+                  << " hp=" << health
+                  << " map=" << mapMode
+                  << std::endl;
+
+        // ===== 急停武器状态检测（GSI JSON 内的武器信息） =====
+        if (GetQSConfig().enabled)
+            ProcessQuickStopCommand(rawJson);
     }
     catch (const std::exception& e)
     {
@@ -410,7 +417,6 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     ProcessEventQueue();
 }
-
 bool Initialize()
 {
     if (s_wsaInitialized) return true;

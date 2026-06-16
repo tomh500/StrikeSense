@@ -80,6 +80,90 @@ void SaveQuickStopConfig()
     }
 }
 
+// ===== 急停核心状态（完全复刻 CS2MouseHook/KICore） =====
+namespace {
+    std::atomic<bool> ws_blocking{ false }, ad_blocking{ false };
+    std::atomic<bool> ignore_w{ false }, ignore_s{ false }, ignore_a{ false }, ignore_d{ false };
+    bool is_holding_gun = true;
+    std::map<char, std::chrono::steady_clock::time_point> start_times;
+    bool jiting = false;
+    std::atomic<bool> pause_jiting{ false };
+
+    bool IsSilentKeyPressed()
+    {
+        for (int vk : s_qsConfig.silent_keys)
+        {
+            if (GetAsyncKeyState(vk) & 0x8000) return true;
+        }
+        return false;
+    }
+
+    void SendHardwareKey(WORD vKey, bool down)
+    {
+        INPUT input = { 0 };
+        input.type = INPUT_KEYBOARD;
+        input.ki.wVk = vKey;
+        input.ki.wScan = (WORD)MapVirtualKeyW(vKey, MAPVK_VK_TO_VSC);
+        input.ki.dwFlags = (down ? 0 : KEYEVENTF_KEYUP) | KEYEVENTF_SCANCODE;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+
+    void PerformDynamicStop(WORD vKey, int move_duration_ms, std::atomic<bool>* blocking_flag)
+    {
+        if (GetAsyncKeyState(vKey) & 0x8000)
+        {
+            blocking_flag->store(false);
+            return;
+        }
+
+        // 线性插值计算脉冲
+        const auto& cfg = s_qsConfig;
+        int stop_pulse = cfg.min_pulse;
+        if (move_duration_ms > cfg.move_start_at)
+        {
+            stop_pulse = cfg.min_pulse + (move_duration_ms - cfg.move_start_at) * (cfg.max_pulse - cfg.min_pulse) / (cfg.move_cap_at - cfg.move_start_at);
+        }
+        if (stop_pulse > cfg.cap_pulse) stop_pulse = cfg.cap_pulse;
+
+        // 执行模拟按键
+        SendHardwareKey(vKey, true);
+        std::this_thread::sleep_for(std::chrono::milliseconds(stop_pulse));
+
+        // 设置忽略旗标，防止反向按键触发自己的 start 事件
+        if (vKey == 'W') ignore_w = true;
+        else if (vKey == 'S') ignore_s = true;
+        else if (vKey == 'A') ignore_a = true;
+        else if (vKey == 'D') ignore_d = true;
+
+        SendHardwareKey(vKey, false);
+
+        // 阻塞保护期：防止连点抽风
+        std::this_thread::sleep_for(std::chrono::milliseconds(60));
+        blocking_flag->store(false);
+    }
+
+    void UpdateWeaponState(const std::string& json)
+    {
+        if (json.find("\"weapons\"") == std::string::npos) return;
+
+        size_t activePos = json.find("\"state\": \"active\"");
+        if (activePos == std::string::npos) return;
+
+        size_t searchStart = (activePos > 150) ? activePos - 150 : 0;
+        std::string weaponZone = json.substr(searchStart, 200);
+
+        bool active_is_knife = (weaponZone.find("\"type\": \"Knife\"") != std::string::npos);
+        bool active_is_nade = (weaponZone.find("\"type\": \"Grenade\"") != std::string::npos);
+        bool active_is_c4 = (weaponZone.find("\"type\": \"C4\"") != std::string::npos);
+
+        is_holding_gun = !(active_is_knife || active_is_nade || active_is_c4);
+    }
+}
+
+// ===== 暂停控制 =====
+void SetQuickStopPause(bool paused) { pause_jiting = paused; }
+bool IsQuickStopPaused() { return pause_jiting; }
+
 // ===== 全局键盘钩子 =====
 static HHOOK g_quickStopHook = nullptr;
 static std::atomic<bool> g_hookRunning{ false };
@@ -92,23 +176,21 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
         if (kb)
         {
             WORD vk = (WORD)kb->vkCode;
-            // W/A/S/D 按键
-            const wchar_t* moveKey = nullptr;
             char keyChar = 0;
-            if (vk == 'W') { moveKey = L"W"; keyChar = 'W'; }
-            else if (vk == 'A') { moveKey = L"A"; keyChar = 'A'; }
-            else if (vk == 'S') { moveKey = L"S"; keyChar = 'S'; }
-            else if (vk == 'D') { moveKey = L"D"; keyChar = 'D'; }
+            if (vk == 'W') keyChar = 'W';
+            else if (vk == 'A') keyChar = 'A';
+            else if (vk == 'S') keyChar = 'S';
+            else if (vk == 'D') keyChar = 'D';
 
-            if (moveKey)
+            if (keyChar)
             {
                 if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)
                 {
-                    ProcessQuickStop(std::string("quickstart_") + keyChar);
+                    ProcessQuickStopCommand(std::string("quickstart_") + keyChar);
                 }
                 else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
                 {
-                    ProcessQuickStop(std::string("quickstop_") + keyChar);
+                    ProcessQuickStopCommand(std::string("quickstop_") + keyChar);
                 }
             }
         }
@@ -139,112 +221,46 @@ void StopQuickStopHook()
     std::cout << "[急停] 键盘钩子已卸载" << std::endl;
 }
 
-// ===== 急停逻辑（复刻 CS2MouseHook） =====
-
-// 记录上一次按下的移动方向键时间
-static std::chrono::steady_clock::time_point g_lastKeyPressTime;
-static std::string g_lastMoveKey; // "W","A","S","D" 或空
-
-static void SendHardwareKey(WORD vk, bool down)
+// ===== 核心处理 =====
+void ProcessQuickStopCommand(const std::string& cmd)
 {
-    INPUT inp = {};
-    inp.type = INPUT_KEYBOARD;
-    inp.ki.wVk = vk;
-    inp.ki.dwFlags = down ? 0 : KEYEVENTF_KEYUP;
-    inp.ki.dwExtraInfo = 0xB00B1E5; // OpenDear 签名
-    SendInput(1, &inp, sizeof(INPUT));
-}
-
-static int CalcPulseDuration(int holdMs, const QuickStopConfig& cfg)
-{
-    // 线性插值: holdMs 在 [move_start_at, move_cap_at] 映射到 [min_pulse, max_pulse]
-    // 超过 cap 的使用 cap_pulse
-    if (holdMs >= cfg.move_cap_at)
-        return cfg.cap_pulse;
-
-    if (holdMs <= cfg.move_start_at)
-        return cfg.min_pulse;
-
-    float t = (float)(holdMs - cfg.move_start_at) / (float)(cfg.move_cap_at - cfg.move_start_at);
-    if (t < 0.f) t = 0.f;
-    if (t > 1.f) t = 1.f;
-    int pulse = cfg.min_pulse + (int)((cfg.max_pulse - cfg.min_pulse) * t);
-    return pulse;
-}
-
-void HandleQuickStopGSI(const std::string& rawJson)
-{
-    // 未启用则忽略
-    if (!s_qsConfig.enabled) return;
-
-    // GSI 有携带 player state，但我们暂不实现完整的 GSI 解析，
-    // 这里留作扩展：当 GSI 中武器状态变化时，可以触发急停重置
-    // 暂时只做日志
-    (void)rawJson;
-}
-
-void ProcessQuickStop(const std::string& key)
-{
-    if (!s_qsConfig.enabled) return;
-
-    // 过滤：如果按下的是 Shift/Ctrl 等静默键，不做急停
-    for (int vk : s_qsConfig.silent_keys)
+    // A. 如果是 GSI JSON 数据
+    if (cmd.find('{') != std::string::npos)
     {
-        // key 格式如 "quickstop_W", "quickstart_W"
-        if (key.find("W") != std::string::npos)
-        {
-            if (GetAsyncKeyState(vk) & 0x8000)
-            {
-                std::cout << "[急停] 静默键按下，跳过急停" << std::endl;
-                return;
-            }
-        }
+        UpdateWeaponState(cmd);
+        return;
     }
 
-    if (key.find("quickstop_") == 0)
+    // B. 处理移动起点的计时
+    if (cmd.find("quickstart_") != std::string::npos)
     {
-        // 按键抬起 - 执行急停
-        char moveKey = key.back(); // W/A/S/D
-        std::string oppositeKey;
-        switch (moveKey)
-        {
-        case 'W': oppositeKey = "S"; break;
-        case 'S': oppositeKey = "W"; break;
-        case 'A': oppositeKey = "D"; break;
-        case 'D': oppositeKey = "A"; break;
-        default: return;
-        }
-
-        auto now = std::chrono::steady_clock::now();
-        int holdMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - g_lastKeyPressTime).count();
-
-        // 只有按住时间 < 5000ms 才触发（防止按住太久后松手误触发）
-        if (holdMs > 0 && holdMs < 5000)
-        {
-            int pulse = CalcPulseDuration(holdMs, s_qsConfig);
-            std::cout << "[急停] " << moveKey << " 松手, 按住 " << holdMs << "ms, 反向脉冲 " << oppositeKey << " " << pulse << "ms" << std::endl;
-
-            // 发送反向键
-            WORD vk = 0;
-            if (oppositeKey == "W") vk = 'W';
-            else if (oppositeKey == "S") vk = 'S';
-            else if (oppositeKey == "A") vk = 'A';
-            else if (oppositeKey == "D") vk = 'D';
-
-            if (vk)
-            {
-                SendHardwareKey(vk, true);   // 按下
-                std::this_thread::sleep_for(std::chrono::milliseconds(pulse));
-                SendHardwareKey(vk, false);  // 抬起
-            }
-        }
-
-        g_lastMoveKey.clear();
+        char key = toupper(cmd.back());
+        start_times[key] = std::chrono::steady_clock::now();
+        return;
     }
-    else if (key.find("quickstart_") == 0)
+
+    // C. 执行急停
+    if (cmd.find("quickstop_") != std::string::npos)
     {
-        // 按键按下 - 记录时间
-        g_lastKeyPressTime = std::chrono::steady_clock::now();
-        g_lastMoveKey = key.substr(key.find_last_of('_') + 1);
+        if (pause_jiting) return;           // pause键控制的全局急停开关
+        if (!s_qsConfig.enabled) return;    // 总开关
+        if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
+        if (!is_holding_gun) return;        // 刀/雷 拦截
+
+        char key = toupper(cmd.back());
+        WORD counterKey = 0;
+        std::atomic<bool>* flag = nullptr;
+
+        if (key == 'W') { if (ignore_w.exchange(false)) return; counterKey = 'S'; flag = &ws_blocking; }
+        else if (key == 'S') { if (ignore_s.exchange(false)) return; counterKey = 'W'; flag = &ws_blocking; }
+        else if (key == 'A') { if (ignore_a.exchange(false)) return; counterKey = 'D'; flag = &ad_blocking; }
+        else if (key == 'D') { if (ignore_d.exchange(false)) return; counterKey = 'A'; flag = &ad_blocking; }
+
+        if (counterKey && flag && !flag->exchange(true))
+        {
+            auto now = std::chrono::steady_clock::now();
+            int duration = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - start_times[key]).count();
+            std::thread(PerformDynamicStop, counterKey, duration, flag).detach();
+        }
     }
 }

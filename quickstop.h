@@ -4,6 +4,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <map>
 #include <Windows.h>
 
 struct QuickStopConfig {
@@ -19,7 +20,8 @@ struct QuickStopConfig {
 QuickStopConfig& GetQSConfig();
 void LoadQuickStopConfig();
 void SaveQuickStopConfig();
-void ProcessQuickStop(const std::string& key);
-void HandleQuickStopGSI(const std::string& rawJson);
+void ProcessQuickStopCommand(const std::string& cmd);
 void StartQuickStopHook();
 void StopQuickStopHook();
+void SetQuickStopPause(bool paused);
+bool IsQuickStopPaused();

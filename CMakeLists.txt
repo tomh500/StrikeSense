@@ -52,4 +52,9 @@ set_target_properties(StrikeSense PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
+# 以管理员权限运行（UIPI 绕过：CS2 运行在管理员权限）
+target_link_options(StrikeSense PRIVATE
+    "/MANIFEST:EMBED" "/MANIFESTUAC:requireAdministrator"
+)
+install(TARGETS StrikeSense RUNTIME DESTINATION bin)
 install(TARGETS StrikeSense RUNTIME DESTINATION bin)
