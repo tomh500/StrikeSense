@@ -112,12 +112,14 @@ void StartCS2VolumeControl(float reduction)
     }
 
     // 2. 启动系统控制线程
-    g_volThread = std::thread([]() {
+g_volThread = std::thread([]() {
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
         ISimpleAudioVolume* pVol = nullptr;
         float savedVolume = -1.0f;
-        bool printedLowered = false; // 用于控制前台打印只触发一次
+        
+        // 核心优化：记录当前是否处于“已降低”状态，避免每 200ms 重复发送系统指令
+        bool isLoweredState = false; 
 
         while (g_volRunning)
         {
@@ -125,49 +127,43 @@ void StartCS2VolumeControl(float reduction)
 
             if (cs2Active)
             {
+                // 如果没有找到 CS2 会话，尝试查找
                 if (!pVol)
                 {
                     savedVolume = GetCS2VolumeAndSession(&pVol);
                     if (pVol) {
                         std::cout << "[音量] 捕捉到 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
-                        printedLowered = false; // 重新捕捉后允许打印
                     }
                 }
 
-                if (pVol && savedVolume >= 0)
+                // 只有当获取到了 pVol，并且当前不是“已降低”状态时，才去设置音量
+                if (pVol && savedVolume >= 0 && !isLoweredState)
                 {
                     float target = savedVolume * g_targetFactor;
                     pVol->SetMasterVolume(target, nullptr);
-                    
-                    if (!printedLowered)
-                    {
-                        std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
-                        printedLowered = true;
-                    }
+                    isLoweredState = true; // 锁定状态，下次循环不再重复设置
+                    std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
                 }
             }
             else
             {
-                // CS2 不在前台 → 临时恢复原始系统音量（不要释放 pVol，防止来回切窗口重新获取导致 savedVolume 错乱）
-                if (pVol && savedVolume >= 0)
+                // CS2 不在前台 → 只有当前处于“已降低”状态时，才需要恢复
+                if (pVol && savedVolume >= 0 && isLoweredState)
                 {
                     pVol->SetMasterVolume(savedVolume, nullptr);
-                    if (printedLowered) {
-                        std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
-                        printedLowered = false;
-                    }
+                    isLoweredState = false; // 解除锁定
+                    std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(200)); // 缩短至200ms提高响应速度
+            std::this_thread::sleep_for(std::chrono::milliseconds(200)); 
         }
 
-        // ========================================================
-        // ======= 核心修正：当用户彻底关闭功能时，在此处安全恢复 =======
-        // ========================================================
+        // 彻底关闭功能时，安全恢复
         if (pVol)
         {
-            if (savedVolume >= 0)
+            // 只有当功能退出时，CS2 还处于被降低的状态，才需要再恢复一次
+            if (savedVolume >= 0 && isLoweredState)
             {
                 pVol->SetMasterVolume(savedVolume, nullptr);
                 std::cout << "[音量] 线程退出 → 已恢复 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
@@ -177,7 +173,6 @@ void StartCS2VolumeControl(float reduction)
         }
         CoUninitialize();
     });
-    g_volThread.detach();
 }
 
 void StopCS2VolumeControl()
