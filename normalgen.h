@@ -8,5 +8,6 @@ namespace normalgen {
 
 void Init();
 void Shutdown();
+bool CheckAdminPermission();
 
 } // namespace normalgen

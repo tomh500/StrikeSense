@@ -31,7 +31,7 @@ void i18n::Init() {
 
     cn[Keys::EVO_TITLE] = L"进化分支"; en[Keys::EVO_TITLE] = L"Evolution";
     cn[Keys::EVO_VOL_ADJ] = L"即时音量调整器"; en[Keys::EVO_VOL_ADJ] = L"Instant Volume";
-    cn[Keys::EVO_HOTKEY] = L"快捷键"; en[Keys::EVO_HOTKEY] = L"Hotkey";
+    cn[Keys::EVO_HOTKEY] = L"即时音量调整器快捷键"; en[Keys::EVO_HOTKEY] = L"Instant Volume Hotkey";
     cn[Keys::EVO_CROSSHAIR] = L"狙击准星设置"; en[Keys::EVO_CROSSHAIR] = L"Crosshair Settings";
     cn[Keys::EVO_THICKNESS] = L"粗细"; en[Keys::EVO_THICKNESS] = L"Thickness";
     cn[Keys::EVO_SCALE] = L"缩放"; en[Keys::EVO_SCALE] = L"Scale";
@@ -44,7 +44,7 @@ void i18n::Init() {
     cn[Keys::EVO_CLICK_MODIFY] = L"点击修改快捷键"; en[Keys::EVO_CLICK_MODIFY] = L"Click to rebind";
     cn[Keys::EVO_STATUS_NORMAL] = L"正常"; en[Keys::EVO_STATUS_NORMAL] = L"Normal";
     cn[Keys::EVO_STATUS_MUTED] = L"启用调整"; en[Keys::EVO_STATUS_MUTED] = L"Enable";
-    cn[Keys::EVO_HINT_MUTE] = L"此开关开启后，仅降低CS2进程的音量，不影响其他程序";en[Keys::EVO_HINT_MUTE] = L"When enabled, only lowers CS2 volume without affecting other apps.";
+    cn[Keys::EVO_HINT_MUTE] = L"此开关开启后，仅降低CS2进程的音量，不影响其他程序，本功能需要管理员权限";en[Keys::EVO_HINT_MUTE] = L"When enabled, only lowers CS2 volume without affecting other apps.Requires admin privileges.";
     cn[Keys::EVO_STATUS_DISABLED] = L"(已禁用)";en[Keys::EVO_STATUS_DISABLED] = L"(Disabled)";
     cn[Keys::EVO_LOCK_VIEW] = L"已封锁（仅查看）";en[Keys::EVO_LOCK_VIEW] = L"Blocked (View Only)";
 

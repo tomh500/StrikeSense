@@ -141,8 +141,19 @@ void CheckRageClick(HWND hw, int mx, int my) {
                     if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
                     wchar_t exePath[MAX_PATH] = {};
                     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-                    ShellExecuteW(nullptr, L"runas", exePath, nullptr, nullptr, SW_SHOWNORMAL);
-                    PostQuitMessage(0);
+                    SHELLEXECUTEINFOW sei{};
+                    sei.cbSize = sizeof(sei);
+                    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+                    sei.lpVerb = L"runas";
+                    sei.lpFile = exePath;
+                    sei.nShow = SW_SHOWNORMAL;
+
+                    if (ShellExecuteExW(&sei))
+                    {
+                        WaitForInputIdle(sei.hProcess, 5000);
+
+                         DestroyWindow(hw);
+                    }
                 }
                 return;
             }

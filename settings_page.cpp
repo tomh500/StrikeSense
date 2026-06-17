@@ -10,7 +10,7 @@ void PaintSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     // 1. 标题国际化
     ui::DrawHeader(g, cx, cw, T(Keys::SETTINGS_TITLE));
-    
+    SolidBrush knB(Color(255, 60, 160, 230));
     Font tF(L"Microsoft YaHei", 12);
     SolidBrush tdCol(Color(255, 30, 60, 100));
 
@@ -39,12 +39,25 @@ void PaintSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
     y += 10; int sw = cw - 80;
 
-    // 2. 音量文本国际化
-    g.DrawString(T(Keys::SETTINGS_VOL), -1, &tF, PointF(cx + 10, (float)y), &tdCol);
-    ui::DrawSlider(g, cx + 80, y, sw, c.volume);
-    
-    wchar_t vt[32]; swprintf_s(vt, L"%.0f%%", c.volume * 100.f);
-    g.DrawString(vt, -1, &tF, PointF((float)(cx + 80 + sw + 8), (float)(y - 4)), &tdCol);
+// 音量文本国际化
+g.DrawString(T(Keys::SETTINGS_VOL), -1, &tF,
+    PointF((float)(cx + 10), (float)y), &tdCol);
+
+// 滑条
+ui::DrawSlider(g, cx + 80, y, sw, c.volume);
+
+// 手动绘制圆形滑块（与 Evolution 页面一致）
+float kx = cx + 80 + (int)(sw * c.volume) - 8.f;
+g.FillEllipse(&knB, kx, y - 6.f, 16.f, 16.f);
+
+// 百分比文本
+wchar_t vt[32];
+swprintf_s(vt, L"%.0f%%", c.volume * 100.f);
+
+g.DrawString(vt, -1, &tF,
+    PointF((float)(cx + 80 + sw + 8),
+           (float)(y - 4)),
+    &tdCol);
 }
 
 void CheckSettingsClick(HWND hw, int mx, int my) {

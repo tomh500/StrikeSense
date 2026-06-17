@@ -18,6 +18,7 @@
 #include <nlohmann/json.hpp>
 #include <exception>
 #include "flashoverlay.h"
+#include "normalgen.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -51,16 +52,18 @@ int   g_crosshairStyle = 0;
 int   g_crosshairThickness = 2;
 float g_crosshairScale = 0.2f;
 
+bool g_itemHelperEnabled = false;   //道具助手开关
+
 // ===== 前向声明 =====
 ATOM MyRegisterClass(HINSTANCE);
-BOOL InitInstance(HINSTANCE, int);
+HWND InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
 static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND);
 static void PaintAll(HWND, HDC);
-
+void UpdateGlobalHotkey(HWND hw);
 
 
 static void LogTerminate()
@@ -80,6 +83,7 @@ static void LogTerminate()
 }
 
 // ===== WinMain =====
+// ===== 修正后的 wWinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     // 互斥锁：防止多个实例同时运行
     std::set_terminate(LogTerminate);
@@ -119,12 +123,21 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     LoadStringW(hI, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
     // i18n 必须在任何绘制前初始化
     i18n::Init();
-    LoadEvolutionParams();  // 这会加载 langCN 并填充 i18n 字典
 
+    // ----------------------------------------------------
+    // 【核心修复区域】仅创建一次窗口，并将唯一句柄交给热键注册
     MyRegisterClass(hI);
-    if (!InitInstance(hI, nSC)) return FALSE;
+    
+    HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
+    if (!hwMain) return FALSE;
+
     // 页面初始化
     InitLegalCfgPage();
+    
+    // 加载本地配置并让动态全局热键生效
+    LoadEvolutionParams();  
+    UpdateGlobalHotkey(hwMain); 
+    // ----------------------------------------------------
 
     // ===== 自动检测 GSI 配置文件 =====
     {
@@ -134,15 +147,13 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
         {
             std::cout << "[GSI] 未发现 GSI 配置文件，准备安装..." << std::endl;
             // 用消息循环延迟调用，确保窗口已经创建
-            PostMessageW(GetActiveWindow(), WM_COMMAND, IDM_CREATE_GSI_CFG, 0);
+            PostMessageW(hwMain, WM_COMMAND, IDM_CREATE_GSI_CFG, 0);
         }
         else
         {
             std::cout << "[GSI] GSI 配置文件已存在: " << gsiCfg.string() << std::endl;
         }
     }
-
-    // 热键功能已禁用（仅显示UI，不可用）
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;
@@ -171,12 +182,13 @@ ATOM MyRegisterClass(HINSTANCE hI) {
     return RegisterClassExW(&wc);
 }
 
-BOOL InitInstance(HINSTANCE hI, int nSC) {
+HWND InitInstance(HINSTANCE hI, int nSC) {
     hInst = hI;
     HWND w = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, 820, 740, nullptr, nullptr, hI, nullptr);
-    if (!w) return FALSE;
-    ShowWindow(w, nSC); UpdateWindow(w); return TRUE;
+    if (!w) return nullptr;
+    ShowWindow(w, nSC); UpdateWindow(w); 
+    return w; //返回窗口句柄
 }
 
 static void PaintAll(HWND hw, HDC hdc) {
@@ -226,12 +238,104 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
         break;
     }
-    case WM_CHAR:
-    case WM_KEYDOWN: {
-        // 合法配置编辑框输入优先处理
+    // 【修改后】完全独立的两个 case
+    case WM_CHAR: {
+        return DefWindowProc(hw, m, wp, lp);
+    }
+
+    case WM_HOTKEY: {
+        if (wp == 1001) { // 捕获到全局动态热键触发
+            
+            // 权限拦截：未以管理员身份运行则直接静默阻止，不弹窗，不切换状态
+            if (!normalgen::CheckAdminPermission()) {
+                std::cout << "[全局热键阻止] 游戏内尝试切换失败：无管理员权限。" << std::endl;
+                break; 
+            }
+
+            // 权限通过，允许切换状态
+            g_deathMute = !g_deathMute;
+            SaveEvolutionParams();
+            
+            // 执行具体的音频控制逻辑
+            if (g_deathMute) {
+                StartCS2VolumeControl(g_death_vol);
+            } else {
+                StopCS2VolumeControl();
+            }
+            
+            // 通知主窗口重绘
+            InvalidateRect(hw, nullptr, FALSE); 
+        }
+        return 0;
+    }
+case WM_KEYDOWN: {
+        // 1. 如果当前在合法配置页面，优先处理该页面的输入逻辑
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
             break;
-        // 热键功能已禁用
+
+        // 2. 如果正在 Evolution 页面录入热键，处理录入逻辑
+        extern bool g_isBindingHotkey;
+        if (g_isBindingHotkey) {
+            int vk = (int)wp;
+            // 排除修饰键本身
+            if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
+                g_hotkeyVk = vk;
+                
+                // 顺便录入当前的修饰键状态
+                g_hotkeyMod = 0;
+                if (GetKeyState(VK_CONTROL) & 0x8000) g_hotkeyMod |= MOD_CONTROL;
+                if (GetKeyState(VK_MENU)    & 0x8000) g_hotkeyMod |= MOD_ALT;
+                if (GetKeyState(VK_SHIFT)   & 0x8000) g_hotkeyMod |= MOD_SHIFT;
+
+                g_isBindingHotkey = false; // 录入完成
+                SaveEvolutionParams();     // 保存配置到文件
+                UpdateGlobalHotkey(hw);
+                InvalidateRect(hw, nullptr, FALSE); // 刷新界面
+            }
+            break;
+        }
+
+        // 3. 处理快捷键触发逻辑（当辅助程序在前台时）
+        if (g_hotkeyVk != 0 && (int)wp == g_hotkeyVk) {
+            
+            // --- 核心修改：权限拦截（不弹窗，直接阻止切换） ---
+            if (!normalgen::CheckAdminPermission()) {
+                // 如果没有管理员权限，直接打破逻辑，不改变任何状态，不写 JSON，不弹窗
+                std::cout << "[权限阻止] 尝试快捷键切换失败：未以管理员身份运行" << std::endl;
+                break; 
+            }
+            // ------------------------------------------------
+
+            // 检查修饰键是否匹配
+            bool ctrlPressed  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+            bool altPressed   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
+            bool shiftPressed = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
+
+            bool targetCtrl  = (g_hotkeyMod & MOD_CONTROL) != 0;
+            bool targetAlt   = (g_hotkeyMod & MOD_ALT) != 0;
+            bool targetShift = (g_hotkeyMod & MOD_SHIFT) != 0;
+
+            // 如果修饰键对不上，不触发
+            if (ctrlPressed != targetCtrl || altPressed != targetAlt || shiftPressed != targetShift) {
+                break;
+            }
+
+            // 权限和按键都通过，允许改变状态
+            g_deathMute = !g_deathMute; // 切换开关状态
+            SaveEvolutionParams();      // 保存状态
+            
+            // 执行音频控制逻辑
+            if (g_deathMute) {
+                StartCS2VolumeControl(g_death_vol);
+            } else {
+                StopCS2VolumeControl();
+            }
+            
+            // 关键：通知主窗口重绘
+            InvalidateRect(hw, nullptr, FALSE); 
+            break;
+        }
+
         return DefWindowProc(hw, m, wp, lp);
     }
     case WM_COMMAND: {
@@ -250,7 +354,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     case WM_DESTROY:
 {
     flashoverlay::Shutdown();
-
+    UnregisterHotKey(hw, 1001);
     PostQuitMessage(0);
     return 0;
 }
@@ -333,4 +437,19 @@ INT_PTR CALLBACK About(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
         return (INT_PTR)TRUE;
     }
     return (INT_PTR)FALSE;
+}
+
+// ===== 在 StrikeSense.cpp 最底部添加此函数实现 =====
+void UpdateGlobalHotkey(HWND hw) {
+    UnregisterHotKey(hw, 1001);
+
+    if (g_hotkeyVk != 0) {
+        if (!RegisterHotKey(hw, 1001, g_hotkeyMod, g_hotkeyVk)) {
+            DWORD err = GetLastError();
+            std::cout << "[热键注册失败] err=" << err << std::endl;
+        } else {
+            std::cout << "[热键注册成功] mod=" << g_hotkeyMod
+                      << " vk=" << g_hotkeyVk << std::endl;
+        }
+    }
 }

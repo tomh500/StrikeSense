@@ -5,21 +5,26 @@
 #include <nlohmann/json.hpp>
 #include <thread>
 #include <atomic>
+#include "normalgen.h"
 
 namespace fs = std::filesystem;
 
 // 假设这些是来自全局或其他头文件的外部声明，保持你原有的逻辑不变
 extern HINSTANCE hInst; 
 extern HANDLE g_hMutex;
-
+extern bool g_itemHelperEnabled;
 static void StartCrosshair(HINSTANCE hInst) ;
 static void StopCrosshair() ;
 extern bool g_crossThreadRunning;
+bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷键
+void UpdateGlobalHotkey(HWND hw);
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
     GetEnvironmentVariableW(L"USERPROFILE", p, MAX_PATH);
     return fs::path(p) / L"StrikeSense" / L"setting" / L"evolution.json";
 }
+
+
 
 void SaveEvolutionParams() {
     nlohmann::json j;
@@ -30,6 +35,7 @@ void SaveEvolutionParams() {
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
     j["crosshair_style"] = g_crosshairStyle;
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
+    j["item_helper_enabled"] = g_itemHelperEnabled;
     std::ofstream out(GetEvolutionConfigPath());
     if (out.is_open()) { out << j.dump(2); out.close(); }
 }
@@ -52,6 +58,7 @@ void LoadEvolutionParams() {
 
         gv("hotkey_mod", g_hotkeyMod); gv("hotkey_vk", g_hotkeyVk);
         gb("crosshair_enabled", g_crosshairEnabled);
+        gb("item_helper_enabled", g_itemHelperEnabled);
         // --- 核心修复：加载后同步触发准星启动 ---
         if (g_crosshairEnabled) {
             // 如果已在加载，先确保线程状态正确
@@ -67,6 +74,7 @@ void LoadEvolutionParams() {
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
         gb("langCN", g_langCN);
+        
     } catch (...) {
         // 异常捕获时也保险起见重置
         g_deathMute = false;
@@ -176,6 +184,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g.DrawString(_(Keys::EVO_HINT_MUTE), -1, &sF, PointF((float)(cx + 140), 115.f), &tmDim);
 
     // 4. 快捷键区域（组合国际化）
+    /*
     std::wstring keyName;
     if (g_hotkeyMod & MOD_CONTROL) keyName += L"Ctrl+";
     if (g_hotkeyMod & MOD_ALT)     keyName += L"Alt+";
@@ -193,6 +202,32 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         Gdiplus::RectF keyRect((REAL)(cx + 10), 172.f, 200.f, 20.f);
         g.DrawRectangle(&kp, keyRect);
         g.DrawString(_(Keys::EVO_LOCK_VIEW), -1, &sF, PointF((float)(cx + 14), 174.f), &disabledCol);
+    }*/
+
+    // 4. 快捷键区域（组合国际化）【已解封】
+    std::wstring keyName;
+    if (g_hotkeyVk == 0) {
+        keyName = L"None";
+    } else {
+        if (g_hotkeyMod & MOD_CONTROL) keyName += L"Ctrl+";
+        if (g_hotkeyMod & MOD_ALT)     keyName += L"Alt+";
+        if (g_hotkeyMod & MOD_SHIFT)   keyName += L"Shift+";
+        if (g_hotkeyVk >= 'A' && g_hotkeyVk <= 'Z')     keyName += (wchar_t)g_hotkeyVk;
+        else if (g_hotkeyVk >= '0' && g_hotkeyVk <= '9') keyName += (wchar_t)g_hotkeyVk;
+        else { wchar_t b[16]; swprintf_s(b, L"Vk=%d", g_hotkeyVk); keyName += b; }
+    }
+
+    wchar_t hs[128];
+    swprintf_s(hs, L"%s: %s", _(Keys::EVO_HOTKEY), keyName.c_str());
+    g.DrawString(hs, -1, &rF, PointF((float)(cx + 10), 150.f), &tdCol); // 恢复高亮色
+    {
+        Gdiplus::Pen kp(Color(255, 30, 60, 100)); // 恢复高亮色边框
+        Gdiplus::RectF keyRect((REAL)(cx + 10), 172.f, 200.f, 20.f);
+        g.DrawRectangle(&kp, keyRect);
+        
+        // 如果在录入状态就显示“按下任意键...”，否则显示“点击修改快捷键”
+        const wchar_t* hintStr = g_isBindingHotkey ? _(Keys::EVO_WAITING_KEY) : _(Keys::EVO_CLICK_MODIFY);
+        g.DrawString(hintStr, -1, &sF, PointF((float)(cx + 14), 174.f), &tdCol);
     }
 
     // 5. 准星设置区域
@@ -263,9 +298,21 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
 // ===== UI 点击事件层 =====
 void CheckEvolutionClick(HWND hw, int mx, int my) {
+
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
     int yVolSlider = 80, yRgb = 235, yRow2 = 270; int slW = cw - 100; float val;
+        // 检测是否点击了快捷键录入框区域 (X: cx+10 ~ cx+210, Y: 172 ~ 192)
+    if (mx >= cx + 10 && mx <= cx + 210 && my >= 172 && my <= 192) {
+        g_isBindingHotkey = !g_isBindingHotkey;
+        SetFocus(hw); // 让窗口拿到键盘焦点
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    } else if (g_isBindingHotkey) {
+        // 点击了框以外的其他地方，直接取消录入状态
+        g_isBindingHotkey = false;
+        InvalidateRect(hw, nullptr, FALSE);
+    }
     if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) {
         g_death_vol = val;
         SaveEvolutionParams();
@@ -277,13 +324,8 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
         return;
     }
     if (ui::CheckToggleClick(mx, my, (int)g_deathMuteToggleRect.X, (int)g_deathMuteToggleRect.Y)) {
-        BOOL isElevated = FALSE; HANDLE hToken = nullptr;
-        if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
-            TOKEN_ELEVATION te; DWORD size = sizeof(te);
-            if (GetTokenInformation(hToken, TokenElevation, &te, size, &size)) isElevated = te.TokenIsElevated;
-            CloseHandle(hToken);
-        }
-        if (!isElevated) {
+
+        if (!normalgen::CheckAdminPermission()) {
             int ret = MessageBoxW(hw,
                 L"音量降低器需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？",
                 L"⚠️ 权限不足",
@@ -292,8 +334,19 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
                 if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
                 wchar_t exePath[MAX_PATH] = {};
                 GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-                ShellExecuteW(nullptr, L"runas", exePath, nullptr, nullptr, SW_SHOWNORMAL);
-                PostQuitMessage(0);
+                    SHELLEXECUTEINFOW sei{};
+                    sei.cbSize = sizeof(sei);
+                    sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+                    sei.lpVerb = L"runas";
+                    sei.lpFile = exePath;
+                    sei.nShow = SW_SHOWNORMAL;
+
+                    if (ShellExecuteExW(&sei))
+                    {
+                        WaitForInputIdle(sei.hProcess, 5000);
+
+                         DestroyWindow(hw);
+                    }
             }
             return;
         }
