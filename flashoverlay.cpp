@@ -18,10 +18,17 @@ namespace flashoverlay
 
     static std::atomic<int> s_alpha(0);
     static std::atomic<bool> s_visible(false);
+    static ULONGLONG s_lastShowTick = 0;
 
     // =====================================================
     // 绘制窗口
     // =====================================================
+
+    static void ReleaseImage()
+{
+    s_image.reset();
+    s_loadedPath.clear();
+}
 
     static void LoadImageIfNeeded()
 {
@@ -137,6 +144,35 @@ case WM_PAINT:
         );
 
         LoadImageIfNeeded();
+        std::thread([]()
+            {
+                while (true)
+                {
+                    Sleep(1000);
+
+                    if (!s_visible)
+                        continue;
+
+                    ULONGLONG now = GetTickCount64();
+
+                    if (now - s_lastShowTick > 6000)
+                    {
+                        s_visible = false;
+
+                        SetLayeredWindowAttributes(
+                            s_hwnd,
+                            0,
+                            0,
+                            LWA_ALPHA
+                        );
+
+                        ShowWindow(
+                            s_hwnd,
+                            SW_HIDE
+                        );
+                    }
+                }
+            }).detach();
     }
 
     // =====================================================
@@ -147,7 +183,11 @@ case WM_PAINT:
     {
         if (!s_hwnd)
             return;
+
         LoadImageIfNeeded();
+
+        s_lastShowTick = GetTickCount64();
+
         s_visible = true;
 
     ShowWindow(
@@ -186,34 +226,41 @@ case WM_PAINT:
     // 淡出
     // =====================================================
 
-    void Hide()
+void Hide()
+{
+    if (!s_hwnd)
+        return;
+
+    s_visible = false;
+
+    std::thread([]()
     {
-        if (!s_hwnd)
-            return;
-
-        s_visible = false;
-
-        std::thread([]()
+        for (int a = 255; a >= 0; a -= 15)
         {
-            for (int a = 255; a >= 0; a -= 15)
-            {
-                SetLayeredWindowAttributes(
-                    s_hwnd,
-                    0,
-                    (BYTE)a,
-                    LWA_ALPHA
-                );
-
-                Sleep(10);
-            }
-
-            ShowWindow(
+            SetLayeredWindowAttributes(
                 s_hwnd,
-                SW_HIDE
+                0,
+                (BYTE)a,
+                LWA_ALPHA
             );
 
-        }).detach();
-    }
+            Sleep(10);
+        }
+
+        ShowWindow(
+            s_hwnd,
+            SW_HIDE
+        );
+
+        config::Settings cfg = config::Load();
+
+        if (cfg.low_memory)
+        {
+            ReleaseImage();
+        }
+
+    }).detach();
+}
 
     // =====================================================
     // 销毁

@@ -30,7 +30,7 @@ static SoundRow s_sounds[] = {
     {-18, L"死亡", L"death.wav", &config::Settings::snd_death},
     {-19, L"游戏结束", L"gameover.wav", &config::Settings::snd_gameover},
     {-21, L"菜单", L"menu.wav", &config::Settings::snd_menu},
-    {-99, L"闪光(可能) ", L"flash.bmp", nullptr},
+    {-99, L"闪光(可能) ", L"flash.jpg", &config::Settings::flash_image},
 };
 static constexpr int SND_COUNT = sizeof(s_sounds) / sizeof(s_sounds[0]);
 
@@ -60,12 +60,33 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
         SolidBrush* bg = (i % 2 == 0) ? &r0 : &r1;
         g.FillRectangle(bg, cx, y, cw, rh);
         g.DrawString(rw.label, -1, &rF, PointF(cx + 8, y + 5), &tdCol);
-        std::wstring nm = rw.defName; bool df = true;
-        if (rw.id == -99) nm = L"img/flash.bmp";
-        else if (rw.cfgPtr) {
-            std::wstring pp = c.*(rw.cfgPtr);
-            if (!pp.empty()) { fs::path p(pp); nm = p.filename().wstring(); df = false; }
-        }
+        std::wstring nm = rw.defName;
+bool df = true;
+
+if (rw.id == -99)
+{
+    if (!c.flash_image.empty())
+    {
+        fs::path p(c.flash_image);
+        nm = p.filename().wstring();
+        df = false;
+    }
+    else
+    {
+        nm = L"flash.jpg";
+    }
+}
+else if (rw.cfgPtr)
+{
+    std::wstring pp = c.*(rw.cfgPtr);
+
+    if (!pp.empty())
+    {
+        fs::path p(pp);
+        nm = p.filename().wstring();
+        df = false;
+    }
+}
         g.DrawString(nm.c_str(), -1, &rF, PointF(cx + 160, y + 5), df ? &tmDim : &tdCol);
         int bx = cx + cw - 100, by = y + 2, bw = 80, bh = 26;
         rw.btnRect = RectF((REAL)bx, (REAL)by, (REAL)bw, (REAL)bh);
