@@ -16,6 +16,7 @@
 #include <gdiplus.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <exception>
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -59,9 +60,28 @@ static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND);
 static void PaintAll(HWND, HDC);
 
+
+
+static void LogTerminate()
+{
+    try
+    {
+        if (auto ep = std::current_exception()) {
+            try { std::rethrow_exception(ep); }
+            catch (const std::exception& e) { std::cerr << "[terminate] std::exception: " << e.what() << std::endl; }
+            catch (...) { std::cerr << "[terminate] unknown exception" << std::endl; }
+        } else {
+            std::cerr << "[terminate] called without current_exception" << std::endl;
+        }
+    }
+    catch (...) {}
+    abort();
+}
+
 // ===== WinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     // 互斥锁：防止多个实例同时运行
+    std::set_terminate(LogTerminate);
     g_hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {

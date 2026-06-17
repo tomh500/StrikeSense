@@ -96,98 +96,118 @@ namespace {
     }
 }
 
+void StopCS2VolumeControl()
+{
+    // 请求线程退出
+    g_volRunning = false;
+
+    // 如果线程可 join，则等待其结束以避免 std::terminate 在赋值/析构时被触发
+    if (g_volThread.joinable())
+    {
+        try
+        {
+            g_volThread.join();
+        }
+        catch (...)
+        {
+            // 极端情况下尝试 detach 以避免 terminate，但应记录日志
+            try { g_volThread.detach(); }
+            catch (...) {}
+        }
+    }
+}
+
 void StartCS2VolumeControl(float reduction)
 {
+    // 如果已在运行，直接返回
     if (g_volRunning) return;
+
+    // 如果已有未 join 的线程残留，先请求其结束并 join，避免后续赋值触发 terminate
+    if (g_volThread.joinable())
+    {
+        g_volRunning = false;
+        try { g_volThread.join(); }
+        catch (...) { try { g_volThread.detach(); } catch (...) {} }
+    }
+
     g_targetFactor = reduction;
     g_volRunning = true;
 
-    // 1. 同步降低 GSI 内存音量
+    // 1. 同步降低 GSI 内存音量（可能抛异常的边界应在调用方或这里捕获）
     config::Settings& c = gsi::GetConfig();
-    if (s_savedGsiOriginalVolume < 0.0f) 
+    if (s_savedGsiOriginalVolume < 0.0f)
     {
-        s_savedGsiOriginalVolume = c.volume; 
-        c.volume = s_savedGsiOriginalVolume * reduction; 
+        s_savedGsiOriginalVolume = c.volume;
+        c.volume = s_savedGsiOriginalVolume * reduction;
         std::cout << "[音量] GSI 辅助音量已同步降低至: " << (int)(c.volume * 100) << "%" << std::endl;
     }
 
-    // 2. 启动系统控制线程
-g_volThread = std::thread([]() {
-        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-
-        ISimpleAudioVolume* pVol = nullptr;
-        float savedVolume = -1.0f;
-        
-        // 核心优化：记录当前是否处于“已降低”状态，避免每 200ms 重复发送系统指令
-        bool isLoweredState = false; 
-
-        while (g_volRunning)
+    // 2. 启动系统控制线程（线程内捕获所有异常，防止异常逃逸）
+    g_volThread = std::thread([]() {
+        try
         {
-            bool cs2Active = IsCS2WindowActive();
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-            if (cs2Active)
+            ISimpleAudioVolume* pVol = nullptr;
+            float savedVolume = -1.0f;
+            bool isLoweredState = false;
+
+            while (g_volRunning)
             {
-                // 如果没有找到 CS2 会话，尝试查找
-                if (!pVol)
+                bool cs2Active = IsCS2WindowActive();
+
+                if (cs2Active)
                 {
-                    savedVolume = GetCS2VolumeAndSession(&pVol);
-                    if (pVol) {
-                        std::cout << "[音量] 捕捉到 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
+                    if (!pVol)
+                    {
+                        savedVolume = GetCS2VolumeAndSession(&pVol);
+                        if (pVol) {
+                            std::cout << "[音量] 捕捉到 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
+                        }
+                    }
+
+                    if (pVol && savedVolume >= 0 && !isLoweredState)
+                    {
+                        float target = savedVolume * g_targetFactor;
+                        pVol->SetMasterVolume(target, nullptr);
+                        isLoweredState = true;
+                        std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
+                    }
+                }
+                else
+                {
+                    if (pVol && savedVolume >= 0 && isLoweredState)
+                    {
+                        pVol->SetMasterVolume(savedVolume, nullptr);
+                        isLoweredState = false;
+                        std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
                     }
                 }
 
-                // 只有当获取到了 pVol，并且当前不是“已降低”状态时，才去设置音量
-                if (pVol && savedVolume >= 0 && !isLoweredState)
-                {
-                    float target = savedVolume * g_targetFactor;
-                    pVol->SetMasterVolume(target, nullptr);
-                    isLoweredState = true; // 锁定状态，下次循环不再重复设置
-                    std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
-                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));
             }
-            else
+
+            if (pVol)
             {
-                // CS2 不在前台 → 只有当前处于“已降低”状态时，才需要恢复
-                if (pVol && savedVolume >= 0 && isLoweredState)
+                if (savedVolume >= 0 && isLoweredState)
                 {
                     pVol->SetMasterVolume(savedVolume, nullptr);
-                    isLoweredState = false; // 解除锁定
-                    std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
+                    std::cout << "[音量] 线程退出 → 已恢复 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
                 }
+                pVol->Release();
+                pVol = nullptr;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(200)); 
+            CoUninitialize();
         }
-
-        // 彻底关闭功能时，安全恢复
-        if (pVol)
+        catch (const std::exception& e)
         {
-            // 只有当功能退出时，CS2 还处于被降低的状态，才需要再恢复一次
-            if (savedVolume >= 0 && isLoweredState)
-            {
-                pVol->SetMasterVolume(savedVolume, nullptr);
-                std::cout << "[音量] 线程退出 → 已恢复 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
-            }
-            pVol->Release();
-            pVol = nullptr;
+            std::cerr << "[音量线程] 捕获异常: " << e.what() << std::endl;
         }
-        CoUninitialize();
-    });
-}
-
-void StopCS2VolumeControl()
-{
-    if (!g_volRunning) return;
-    g_volRunning = false; // 仅仅下发退出指令，让异步线程自己去恢复系统音频，防止竞争
-
-    // 完美同步：在此处恢复 GSI 工具自身的音量
-    if (s_savedGsiOriginalVolume >= 0.0f)
-    {
-        config::Settings& c = gsi::GetConfig();
-        c.volume = s_savedGsiOriginalVolume; 
-        std::cout << "[音量] GSI 辅助音量已恢复至原始大小: " << (int)(c.volume * 100) << "%" << std::endl;
-        s_savedGsiOriginalVolume = -1.0f; 
-    }
+        catch (...)
+        {
+            std::cerr << "[音量线程] 捕获未知异常" << std::endl;
+        }
+        });
 }
 
 void SetCS2VolumeReduction(float factor)

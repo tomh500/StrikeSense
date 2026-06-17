@@ -152,6 +152,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/Debug/StrikeSense.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem>Windows</SubSystem>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <UACUIAccess>false</UACUIAccess>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -225,6 +227,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/Release/StrikeSense.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem>Windows</SubSystem>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <UACUIAccess>false</UACUIAccess>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -298,6 +302,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/MinSizeRel/StrikeSense.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem>Windows</SubSystem>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <UACUIAccess>false</UACUIAccess>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
@@ -370,6 +376,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ProgramDataBaseFile>C:/Users/jingy/source/repos/StrikeSense/bin/RelWithDebInfo/StrikeSense.pdb</ProgramDataBaseFile>
       <RandomizedBaseAddress></RandomizedBaseAddress>
       <SubSystem>Windows</SubSystem>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <UACUIAccess>false</UACUIAccess>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>

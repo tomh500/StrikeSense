@@ -39,14 +39,25 @@ void LoadEvolutionParams() {
         nlohmann::json j; in >> j; in.close();
         auto gv = [&](const char* k, auto& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<std::remove_reference_t<decltype(v)>>(); };
         auto gb = [&](const char* k, bool& v) { if (j.contains(k) && j[k].is_boolean()) v = j[k]; };
-        gv("death_vol", g_death_vol); gb("death_mute", g_deathMute);
+        
+        gv("death_vol", g_death_vol); 
+        
+        // --- 核心修改：无论配置里是什么，强制设为关闭 ---
+        g_deathMute = false; 
+        StopCS2VolumeControl(); // 确保钩子处于停止状态
+        // ----------------------------------------------
+
         gv("hotkey_mod", g_hotkeyMod); gv("hotkey_vk", g_hotkeyVk);
         gb("crosshair_enabled", g_crosshairEnabled);
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
         gb("langCN", g_langCN);
-    } catch (...) {}
+    } catch (...) {
+        // 异常捕获时也保险起见重置
+        g_deathMute = false;
+        StopCS2VolumeControl();
+    }
 }
 
 // ===== 准星线程 =====
