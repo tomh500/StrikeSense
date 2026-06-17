@@ -111,7 +111,17 @@ void CheckSoundsClick(HWND hw, int mx, int my) {
         o.lpstrFilter = (r.id == -99) ? L"图片\0*.bmp;*.png;*.jpg\0All\0*.*\0" : L"音频\0*.wav;*.ogg\0All\0*.*\0";
         o.lpstrFile = p; o.nMaxFile = MAX_PATH; o.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
         if (!GetOpenFileNameW(&o)) return;
-        if (r.id == -99) { InvalidateRect(hw, nullptr, FALSE); return; }
+        if (r.id == -99)
+{
+    config::Settings c = config::Load();
+
+    c.flash_image = p;
+
+    config::Save(c);
+
+    InvalidateRect(hw, nullptr, FALSE);
+    return;
+}
         config::Settings c = config::Load();
         switch (r.id) {
         case 1: c.snd_1 = p; break; case 2: c.snd_2 = p; break;

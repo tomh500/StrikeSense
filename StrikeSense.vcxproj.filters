@@ -64,6 +64,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h">
@@ -115,6 +118,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

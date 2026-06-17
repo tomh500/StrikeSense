@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include "flashoverlay.h"
 
 // =========================
 
@@ -416,10 +417,19 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                     }
                 }
             }
-            if (flashedNow > 0 && flashedBefore == 0)
-                std::cout << "[FLASH] 玩家被闪光弹击中" << std::endl;
-            else if (flashedNow == 0 && flashedBefore > 0)
-                std::cout << "[FLASH] 闪光效果结束" << std::endl;
+if (flashedNow > 0 && flashedBefore == 0)
+{
+    std::cout << "[FLASH] 玩家被闪光弹击中" << std::endl;
+
+    flashoverlay::Show();
+}
+
+else if (flashedNow == 0 && flashedBefore > 0)
+{
+    std::cout << "[FLASH] 闪光效果结束" << std::endl;
+
+    flashoverlay::Hide();
+}
         }
 
         // ===== 调试输出 =====

@@ -17,6 +17,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <exception>
+#include "flashoverlay.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -95,7 +96,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
-
+    flashoverlay::Initialize(hInst);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
     std::cout << "  StrikeSense 测试发布版 202606171506" << std::endl;
@@ -246,7 +247,13 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         break;
     }
     case WM_CLOSE: DestroyWindow(hw); break;
-    case WM_DESTROY: PostQuitMessage(0); break;
+    case WM_DESTROY:
+{
+    flashoverlay::Shutdown();
+
+    PostQuitMessage(0);
+    return 0;
+}
     default: return DefWindowProc(hw, m, wp, lp);
     }
     return 0;

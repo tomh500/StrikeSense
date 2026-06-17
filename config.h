@@ -17,11 +17,12 @@ struct Settings {
     bool show_mvp = false;
     bool enable_kill_sound = true;
 
-    // 音效路径（存储在 sound_config.json，不污染 gsi.json）
     std::wstring snd_1, snd_2, snd_3, snd_4, snd_5;
     std::wstring snd_extra;
     std::wstring snd_mvp, snd_win, snd_lose, snd_bomb;
     std::wstring snd_round, snd_buy, snd_death, snd_gameover, snd_menu;
+    std::wstring flash_image;
+    
 };
 
 void EnsureDirectoriesExist();
@@ -40,5 +41,8 @@ void SaveSoundConfig(const Settings& s);
 
 extern Settings g_cache;
 void InvalidateCache();
+
+std::wstring GetDefaultImgDir();
+std::wstring GetDefaultFlashPath();
 
 } // namespace config

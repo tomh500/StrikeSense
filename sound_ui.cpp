@@ -5,6 +5,7 @@
 #include <commdlg.h>
 #include <iostream>
 #include <string>
+#include "flashoverlay.h"
 
 #pragma comment(lib, "gdiplus.lib")
 
