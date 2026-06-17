@@ -36,11 +36,11 @@ void PaintItemHelperPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND)
     wchar_t hs[128];
     swprintf_s(hs,L"快捷键: %s",keyName.c_str());
 
-    g.DrawString(hs,-1,&rF,PointF((float)(cx+10),95.f),&tdCol);
+    g.DrawString(hs,-1,&rF,PointF((float)(cx+10),92.f),&tdCol);
 
     Pen kp(Color(255,30,60,100));
 
-    g_itemHelperHotkeyRect=RectF((REAL)(cx+10),112.f,200.f,20.f);
+    g_itemHelperHotkeyRect=RectF((REAL)(cx+10),118.f,200.f,20.f);
 
     g.DrawRectangle(&kp,
         g_itemHelperHotkeyRect.X,
@@ -50,7 +50,7 @@ void PaintItemHelperPage(Gdiplus::Graphics& g,int cx,int cw,int H,HWND)
 
     const wchar_t* hintStr=g_isBindingItemHelperHotkey?L"按下任意键...":L"点击修改快捷键";
 
-    g.DrawString(hintStr,-1,&sF,PointF((float)(cx+14),114.f),&tdCol);
+    g.DrawString(hintStr,-1,&sF,PointF((float)(cx+14),118.f),&tdCol);
 }
 
 void CheckItemHelperClick(HWND hw,int mx,int my)

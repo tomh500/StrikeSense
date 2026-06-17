@@ -64,4 +64,6 @@ void RefreshConfig();
 // ----------------------------------------------------------
 config::Settings& GetConfig();
 
+extern std::string gamemap;
+
 } // namespace gsi

@@ -274,13 +274,13 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
 
         if (wp == 1002)
-{
+    {
     std::cout
         << "[道具助手] HOME PRESSED"
         << std::endl;
 
-    return 0;
-}
+        return 0;
+    }
         return 0;
     }
 case WM_KEYDOWN: {

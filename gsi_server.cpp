@@ -22,7 +22,7 @@
 
 namespace gsi {
 
-int g_debug = 0;
+int g_debug = 1;
 
 static httplib::Server* s_server = nullptr;
 static std::thread s_serverThread;
@@ -176,7 +176,8 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
     try {
         nlohmann::json j = nlohmann::json::parse(rawJson);
         //config::Settings cfg = config::Load();
-
+        
+        std::string gamemap;
         std::string phase;
         std::string activity;
         int roundKills = 0, mvps = 0, health = 100;
@@ -215,6 +216,9 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
             auto& m = j["map"];
             if (m.contains("mode") && m["mode"].is_string())
                 mapMode = m["mode"].get<std::string>();
+
+            if (m.contains("name") && m["name"].is_string())
+                gamemap = m["name"].get<std::string>();
         }
 
         if (j.contains("round") && j["round"].is_object())
@@ -440,6 +444,7 @@ else if (flashedNow == 0 && flashedBefore > 0)
                       << " last=" << s_lastKills
                       << " hp=" << health
                       << " map=" << mapMode
+                      << " gamemap=" << gamemap
                       << std::endl;
         }
 
