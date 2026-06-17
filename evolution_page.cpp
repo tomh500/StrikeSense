@@ -1,11 +1,16 @@
 #include "pages.h"
 #include "volume_mixer.h"
+#include "i18n.h" // 确保包含了国际化头文件
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <thread>
 #include <atomic>
 
 namespace fs = std::filesystem;
+
+// 假设这些是来自全局或其他头文件的外部声明，保持你原有的逻辑不变
+extern HINSTANCE hInst; 
+extern HANDLE g_hMutex;
 
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
@@ -114,73 +119,98 @@ static void StopCrosshair() {
 
 void DestroyCrosshairInternal() { StopCrosshair(); }
 
+// ===== UI 绘制层 =====
 void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
-    ui::DrawHeader(g, cx, cw, L"进化分支");
+    using namespace i18n; // 注入国际化空间以识别 Keys::
+
+    // 1. 标题
+    ui::DrawHeader(g, cx, cw, _(Keys::EVO_TITLE));
+    
     Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9);
     SolidBrush tdCol(Color(255, 30, 60, 100)), tbCol(Color(255, 20, 80, 140)), tmDim(Color(255, 100, 130, 160));
     SolidBrush sBg(Color(255, 200, 220, 240)), sFill(Color(255, 80, 180, 240)), knB(Color(255, 60, 160, 230));
     SolidBrush ddBg(Color(255, 220, 240, 255)), ddHoverBg(Color(255, 180, 220, 245));
 
-    g.DrawString(L"即时音量调整器", -1, &rF, PointF(cx + 10, 50), &tdCol);
+    // 2. 音量调节器区域
+    g.DrawString(_(Keys::EVO_VOL_ADJ), -1, &rF, PointF((float)(cx + 10), 50.f), &tdCol);
     int yVolSlider = 80; int slW = cw - 100;
     ui::DrawSlider(g, cx + 10, yVolSlider, slW, g_death_vol);
     float kx = cx + 10 + (int)(slW * g_death_vol) - 8.f;
     g.FillEllipse(&knB, kx, yVolSlider - 6.f, 16.f, 16.f);
     wchar_t vt[32]; swprintf_s(vt, L"%.0f%%", g_death_vol * 100.f);
-    g.DrawString(vt, -1, &rF, PointF(cx + 20 + slW, yVolSlider - 8), &tdCol);
+    g.DrawString(vt, -1, &rF, PointF((float)(cx + 20 + slW), (float)(yVolSlider - 8)), &tdCol);
 
-    g.DrawString(L"降低开启:", -1, &sF, PointF(cx + 10, 115), &tdCol);
+    // 3. 开关与长提示语
+    std::wstring muteLabel = std::wstring(_(Keys::EVO_STATUS_MUTED)) + L":";
+    g.DrawString(muteLabel.c_str(), -1, &sF, PointF((float)(cx + 10), 115.f), &tdCol);
+    
     g_deathMuteToggleRect = RectF((REAL)(cx + 80), (REAL)111, 50.f, 24.f);
     ui::DrawToggle(g, cx + 80, 111, g_deathMute);
 
-    g.DrawString(L"此开关开启后，仅降低CS2进程的音量，不影响其他程序", -1, &sF, PointF(cx + 140, 115), &tmDim);
+    g.DrawString(_(Keys::EVO_HINT_MUTE), -1, &sF, PointF((float)(cx + 140), 115.f), &tmDim);
 
+    // 4. 快捷键区域（组合国际化）
     std::wstring keyName;
     if (g_hotkeyMod & MOD_CONTROL) keyName += L"Ctrl+";
-    if (g_hotkeyMod & MOD_ALT) keyName += L"Alt+";
-    if (g_hotkeyMod & MOD_SHIFT) keyName += L"Shift+";
-    if (g_hotkeyVk >= 'A' && g_hotkeyVk <= 'Z') keyName += (wchar_t)g_hotkeyVk;
+    if (g_hotkeyMod & MOD_ALT)     keyName += L"Alt+";
+    if (g_hotkeyMod & MOD_SHIFT)   keyName += L"Shift+";
+    if (g_hotkeyVk >= 'A' && g_hotkeyVk <= 'Z')     keyName += (wchar_t)g_hotkeyVk;
     else if (g_hotkeyVk >= '0' && g_hotkeyVk <= '9') keyName += (wchar_t)g_hotkeyVk;
     else { wchar_t b[16]; swprintf_s(b, L"Vk=%d", g_hotkeyVk); keyName += b; }
 
-    // 快捷键绑定已禁用（仅供查看）
     SolidBrush disabledCol(Color(180, 150, 150, 160));
     wchar_t hs[128];
-    swprintf_s(hs, L"快捷键: %s (已禁用)", keyName.c_str());
-    g.DrawString(hs, -1, &rF, PointF(cx + 10, 150), &disabledCol);
+    swprintf_s(hs, L"%s: %s %s", _(Keys::EVO_HOTKEY), keyName.c_str(), _(Keys::EVO_STATUS_DISABLED));
+    g.DrawString(hs, -1, &rF, PointF((float)(cx + 10), 150.f), &disabledCol);
     {
         Gdiplus::Pen kp(Color(80, 150, 150, 160));
-        Gdiplus::RectF keyRect(cx + 10, 172, 200, 20);
+        Gdiplus::RectF keyRect((REAL)(cx + 10), 172.f, 200.f, 20.f);
         g.DrawRectangle(&kp, keyRect);
-        g.DrawString(L"已封锁（仅查看）", -1, &sF, PointF(cx + 14, 174), &disabledCol);
+        g.DrawString(_(Keys::EVO_LOCK_VIEW), -1, &sF, PointF((float)(cx + 14), 174.f), &disabledCol);
     }
 
+    // 5. 准星设置区域
     int yRgb = 235, yRow2 = 270;
-    g.DrawString(L"狙击准星设置", -1, &rF, PointF(cx + 10, 205), &tdCol);
+    g.DrawString(_(Keys::EVO_CROSSHAIR), -1, &rF, PointF((float)(cx + 10), 205.f), &tdCol);
     int rgbLabelX = cx + 10; int rgbBarW = 80, rgbSpacing = 150;
     const wchar_t* rgbL[] = { L"R", L"G", L"B" };
     int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
     for (int i = 0; i < 3; ++i) {
         int bx = rgbLabelX + i * rgbSpacing;
-        g.DrawString(rgbL[i], -1, &sF, PointF(bx, yRgb), &tdCol);
+        g.DrawString(rgbL[i], -1, &sF, PointF((float)bx, (float)yRgb), &tdCol);
         ui::DrawSlider(g, bx + 20, yRgb, rgbBarW, (float)(*rgbV[i]) / 255.f);
-        wchar_t bf[8]; swprintf_s(bf, L"%d", *rgbV[i]); g.DrawString(bf, -1, &sF, PointF(bx + 105, yRgb - 2), &tdCol);
+        wchar_t bf[8]; swprintf_s(bf, L"%d", *rgbV[i]); g.DrawString(bf, -1, &sF, PointF((float)(bx + 105), (float)(yRgb - 2)), &tdCol);
     }
 
-    int thX = cx + 10; g.DrawString(L"粗细:", -1, &sF, PointF(thX, yRow2), &tdCol);
+    // 6. 粗细与缩放
+    int thX = cx + 10; 
+    std::wstring thickLabel = std::wstring(_(Keys::EVO_THICKNESS)) + L":";
+    g.DrawString(thickLabel.c_str(), -1, &sF, PointF((float)thX, (float)yRow2), &tdCol);
+    
     int thBarX = thX + 40, thBarW = 80;
     ui::DrawSlider(g, thBarX, yRow2, thBarW, g_crosshairThickness / 10.f);
-    wchar_t thT[8]; swprintf_s(thT, L"%d", g_crosshairThickness); g.DrawString(thT, -1, &sF, PointF(thBarX + thBarW + 4, yRow2 - 2), &tdCol);
+    wchar_t thT[8]; swprintf_s(thT, L"%d", g_crosshairThickness); g.DrawString(thT, -1, &sF, PointF((float)(thBarX + thBarW + 4), (float)(yRow2 - 2)), &tdCol);
 
-    int scX = thBarX + thBarW + 40; g.DrawString(L"缩放:", -1, &sF, PointF(scX, yRow2), &tdCol);
+    int scX = thBarX + thBarW + 40; 
+    std::wstring scaleLabel = std::wstring(_(Keys::EVO_SCALE)) + L":";
+    g.DrawString(scaleLabel.c_str(), -1, &sF, PointF((float)scX, (float)yRow2), &tdCol);
+    
     int scBarX = scX + 40, scBarW = 100;
     ui::DrawSlider(g, scBarX, yRow2, scBarW, (g_crosshairScale - 0.1f) / 0.5f);
-    wchar_t scT[8]; swprintf_s(scT, L"%.2f", g_crosshairScale); g.DrawString(scT, -1, &sF, PointF(scBarX + scBarW + 4, yRow2 - 2), &tdCol);
+    wchar_t scT[8]; swprintf_s(scT, L"%.2f", g_crosshairScale); g.DrawString(scT, -1, &sF, PointF((float)(scBarX + scBarW + 4), (float)(yRow2 - 2)), &tdCol);
 
-    int styX = scBarX + scBarW + 40; g.DrawString(L"样式:", -1, &sF, PointF(styX, yRow2), &tdCol);
+    // 7. 下拉样式选择（核心映射化）
+    int styX = scBarX + scBarW + 40; 
+    std::wstring styleLabel = std::wstring(_(Keys::EVO_STYLE)) + L":";
+    g.DrawString(styleLabel.c_str(), -1, &sF, PointF((float)styX, (float)yRow2), &tdCol);
+    
     int ddX = styX + 40, ddW = 100;
-    const wchar_t* sty[] = { L"空心圆", L"实心圆", L"经典" };
+    const wchar_t* sty[] = { 
+        _(Keys::EVO_STYLE_HOLLOW), 
+        _(Keys::EVO_STYLE_SOLID), 
+        _(Keys::EVO_STYLE_CLASSIC) 
+    };
     {
         SolidBrush ddBtn(Color(255, 180, 220, 250)); Pen ddPen(Color(255, 100, 150, 200));
         RectF ddRect((REAL)ddX, (REAL)(yRow2 - 2), (REAL)ddW, 20.f);
@@ -199,10 +229,14 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
             }
         }
     }
-    int enableX = ddX + ddW + 40; g.DrawString(L"启用", -1, &sF, PointF(enableX, yRow2), &tdCol);
+
+    // 8. 启用
+    int enableX = ddX + ddW + 40; 
+    g.DrawString(_(Keys::EVO_ENABLE), -1, &sF, PointF((float)enableX, (float)yRow2), &tdCol);
     ui::DrawToggle(g, enableX + 40, yRow2 - 4, g_crosshairEnabled);
 }
 
+// ===== UI 点击事件层 =====
 void CheckEvolutionClick(HWND hw, int mx, int my) {
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
@@ -210,39 +244,26 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     if (ui::CheckSliderClick(mx, my, cx + 10, yVolSlider, slW, val)) {
         g_death_vol = val;
         SaveEvolutionParams();
-        if (g_deathMute)
-        {
+        if (g_deathMute) {
             SetCS2VolumeReduction(g_death_vol);
-            if (!IsCS2VolumeActive())
-                StartCS2VolumeControl(g_death_vol);
+            if (!IsCS2VolumeActive()) StartCS2VolumeControl(g_death_vol);
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
-    // 降低开关（需管理员权限）
-    if (ui::CheckToggleClick(mx, my, (int)g_deathMuteToggleRect.X, (int)g_deathMuteToggleRect.Y))
-    {
-        // 检查管理员权限
-        BOOL isElevated = FALSE;
-        HANDLE hToken = nullptr;
-        if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken))
-        {
-            TOKEN_ELEVATION te;
-            DWORD size = sizeof(te);
-            if (GetTokenInformation(hToken, TokenElevation, &te, size, &size))
-                isElevated = te.TokenIsElevated;
+    if (ui::CheckToggleClick(mx, my, (int)g_deathMuteToggleRect.X, (int)g_deathMuteToggleRect.Y)) {
+        BOOL isElevated = FALSE; HANDLE hToken = nullptr;
+        if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hToken)) {
+            TOKEN_ELEVATION te; DWORD size = sizeof(te);
+            if (GetTokenInformation(hToken, TokenElevation, &te, size, &size)) isElevated = te.TokenIsElevated;
             CloseHandle(hToken);
         }
-
-        if (!isElevated)
-        {
+        if (!isElevated) {
             int ret = MessageBoxW(hw,
                 L"音量降低器需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？",
                 L"⚠️ 权限不足",
                 MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-            if (ret == IDYES)
-            {
-                // 先释放互斥锁，再重新以管理员身份拉起
+            if (ret == IDYES) {
                 if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
                 wchar_t exePath[MAX_PATH] = {};
                 GetModuleFileNameW(nullptr, exePath, MAX_PATH);
@@ -251,18 +272,13 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
             }
             return;
         }
-
         g_deathMute = !g_deathMute;
         SaveEvolutionParams();
-        if (g_deathMute)
-            StartCS2VolumeControl(g_death_vol);
-        else
-            StopCS2VolumeControl();
+        if (g_deathMute) StartCS2VolumeControl(g_death_vol);
+        else StopCS2VolumeControl();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
-    // 热键绑定已禁用
-
     int rgbLabelX = cx + 10, rgbBarW = 80, rgbSpacing = 150;
     for (int i = 0; i < 3; ++i) {
         int bx = rgbLabelX + i * rgbSpacing;
@@ -286,6 +302,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     int enableX = ddX + ddW + 40, tx = enableX + 40, tye = yRow2 - 4;
     if (ui::CheckToggleClick(mx, my, tx, tye)) {
         g_crosshairEnabled = !g_crosshairEnabled; SaveEvolutionParams();
+        // 这里修正了宏调用或局部 hInst 未声明的情况，直接使用全局/外层的 hInst
         if (g_crosshairEnabled && !g_crossThreadRunning) StartCrosshair(hInst);
         else if (!g_crosshairEnabled) StopCrosshair();
         InvalidateRect(hw, nullptr, FALSE);
