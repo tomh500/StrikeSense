@@ -19,6 +19,7 @@ void i18n::Init() {
     cn[Keys::SOUNDS_DISABLED] = L"已禁用"; en[Keys::SOUNDS_DISABLED] = L"Disabled";
     cn[Keys::SOUNDS_SELECT] = L"选择..."; en[Keys::SOUNDS_SELECT] = L"Browse...";
     cn[Keys::SOUNDS_FOLDER_BTN] = L"打开默认音频文件夹"; en[Keys::SOUNDS_FOLDER_BTN] = L"Open Audio Folder";
+    cn[Keys::SOUNDS_IMAGE_BTN] = L"打开默认图片文件夹"; en[Keys::SOUNDS_IMAGE_BTN] = L"Open Image Folder";
 
     cn[Keys::SETTINGS_TITLE] = L"遗产核心"; en[Keys::SETTINGS_TITLE] = L"Legacy Core";
     cn[Keys::SETTINGS_VOL] = L"音量"; en[Keys::SETTINGS_VOL] = L"Volume";
@@ -102,6 +103,23 @@ void i18n::Init() {
     
     cn[Keys::Rage_RISK_WARNING_MSG] = L"本页面的配置来自DearMacro，需要谨慎使用。\n我们不对它的安全性做保证。\n使用本页面造成的虚拟财产损失后果自负。\n\n您还要开启吗？";
     en[Keys::Rage_RISK_WARNING_MSG] = L"Configs are from DearMacro. Use with caution.\nWe DO NOT guarantee account safety.\nUse at your own risk.\n\nDo you still want to enable?";
+
+    // ======  道具助手新增国际化文本  ======
+    cn["ITEM_ENABLE"] = L"启用道具助手";     en["ITEM_ENABLE"] = L"Enable Items Helper";
+    cn["ITEM_HOTKEY"] = L"快捷键: %s";       en["ITEM_HOTKEY"] = L"Hotkey: %s";
+    cn["ITEM_BINDING"] = L"按下任意键...";    en["ITEM_BINDING"] = L"Press any key...";
+    cn["ITEM_CLICK_MOD"] = L"点击修改快捷键"; en["ITEM_CLICK_MOD"] = L"Click to change hotkey";
+    
+    cn["ITEM_BTN_OPEN_DIR"] = L"打开道具目录"; en["ITEM_BTN_OPEN_DIR"] = L"Open Items Directory";
+    cn["ITEM_USAGE_TITLE"] = L"使用说明:";     en["ITEM_USAGE_TITLE"] = L"How to Use:";
+    cn["ITEM_USAGE_LINE1"] = L"1. 将图片文件放入对应的地图文件夹内。"; 
+    en["ITEM_USAGE_LINE1"] = L"1. Place image files into the corresponding map folders.";
+    cn["ITEM_USAGE_LINE2"] = L"2. 在游戏中按下设置的快捷键呼出菜单。";
+    en["ITEM_USAGE_LINE2"] = L"2. Press the hotkey in-game to bring up the menu.";
+    cn["ITEM_USAGE_LINE3"] = L"3. 使用上下方向键 [↑] [↓] 切换选择道具。";
+    en["ITEM_USAGE_LINE3"] = L"3. Use Up/Down arrows [↑] [↓] to switch selection.";
+    cn["ITEM_USAGE_LINE4"] = L"4. 按下 [Enter] 键查看/关闭道具高清大图。";
+    en["ITEM_USAGE_LINE4"] = L"4. Press [Enter] to view or close full-screen images.";
 }
 
 const wchar_t* i18n::T(const char* key) {
@@ -135,4 +153,5 @@ namespace i18n { namespace Keys {
     const char* Rage_REQ_ADMIN_MSG = "Rage_REQ_ADMIN_MSG";
     const char* Rage_RISK_WARNING_TITLE = "Rage_RISK_WARNING_TITLE";
     const char* Rage_RISK_WARNING_MSG = "Rage_RISK_WARNING_MSG";
+    const char* SOUNDS_IMAGE_BTN = "SOUNDS_IMAGE_BTN";
 }}

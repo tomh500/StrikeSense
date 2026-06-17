@@ -5,10 +5,9 @@
 #include <commdlg.h>
 #include <ShlObj.h>
 
-
-
 namespace fs = std::filesystem;
 static Gdiplus::RectF g_folderBtnRect;
+extern Gdiplus::RectF g_itemHelperDirBtnRect; // 全局按钮点击判定区
 
 struct SoundRow {
     int id;
@@ -40,6 +39,8 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
     using namespace Gdiplus;
     using namespace i18n;
     ui::DrawHeader(g, cx, cw, _(Keys::SOUNDS_TITLE));
+    
+    // 💎 核心修复：在此处统一声明基础字体，防止下方闭包内发生 sF 局部重定义
     Font rF(L"Microsoft YaHei", 11), bF(L"Microsoft YaHei", 9), sF(L"Microsoft YaHei", 9);
     SolidBrush tdCol(Color(255, 30, 60, 100)), tmDim(Color(255, 100, 130, 160)), tbCol(Color(255, 20, 80, 140));
     SolidBrush r0(Color(255, 220, 240, 255)), r1(Color(255, 240, 248, 255));
@@ -55,47 +56,42 @@ void PaintSoundsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw) {
                c.low_memory ? L"已启用" : L"已禁用", c.volume * 100.f);
     g.DrawString(st, -1, &sF, PointF(cx + 10, 48), &tmDim);
 
-    // 先画声音列表
+    // 绘制滚动列表区域
     int y = 70; const int rh = 30;
     for (int i = 0; i < SND_COUNT; ++i) {
         auto& rw = s_sounds[i];
         SolidBrush* bg = (i % 2 == 0) ? &r0 : &r1;
         g.FillRectangle(bg, cx, y, cw, rh);
         g.DrawString(rw.label, -1, &rF, PointF(cx + 8, y + 5), &tdCol);
+        
         std::wstring nm = rw.defName;
-bool df = true;
+        bool df = true;
 
-if (rw.id == -99)
-{
-    if (!c.flash_image.empty())
-    {
-        fs::path p(c.flash_image);
-        nm = p.filename().wstring();
-        df = false;
-    }
-    else
-    {
-        nm = L"flash.jpg";
-    }
-}
-else if (rw.cfgPtr)
-{
-    std::wstring pp = c.*(rw.cfgPtr);
-
-    if (!pp.empty())
-    {
-        fs::path p(pp);
-        nm = p.filename().wstring();
-        df = false;
-    }
-}
+        if (rw.id == -99) {
+            if (!c.flash_image.empty()) {
+                fs::path p(c.flash_image);
+                nm = p.filename().wstring();
+                df = false;
+            } else {
+                nm = L"flash.jpg";
+            }
+        } else if (rw.cfgPtr) {
+            std::wstring pp = c.*(rw.cfgPtr);
+            if (!pp.empty()) {
+                fs::path p(pp);
+                nm = p.filename().wstring();
+                df = false;
+            }
+        }
         g.DrawString(nm.c_str(), -1, &rF, PointF(cx + 160, y + 5), df ? &tmDim : &tdCol);
+        
         int bx = cx + cw - 100, by = y + 2, bw = 80, bh = 26;
         rw.btnRect = RectF((REAL)bx, (REAL)by, (REAL)bw, (REAL)bh);
         GraphicsPath bp; bp.AddArc(bx, by, 16, 16, 180, 90);
         bp.AddArc(bx + bw - 16, by, 16, 16, 270, 90);
         bp.AddArc(bx + bw - 16, by + bh - 16, 16, 16, 0, 90);
         bp.AddArc(bx, by + bh - 16, 16, 16, 90, 90); bp.CloseFigure();
+        
         POINT pt; GetCursorPos(&pt); ScreenToClient(hw, &pt);
         bool hv = (pt.x >= bx && pt.x <= bx + bw && pt.y >= by && pt.y <= by + bh);
         g.FillPath(hv ? &btnHB : &btnB, &bp); g.DrawPath(&btnP, &bp);
@@ -103,59 +99,114 @@ else if (rw.cfgPtr)
         y += rh + 2;
     }
 
-    // 底部打开默认音频文件夹按钮
-    int btnY = y + 10;
-    g_folderBtnRect = RectF((REAL)(cx + 10), (REAL)btnY, (REAL)150, (REAL)26);
-    GraphicsPath fp; fp.AddArc(cx + 10, btnY, 16, 16, 180, 90);
-    fp.AddArc(cx + 10 + 150 - 16, btnY, 16, 16, 270, 90);
-    fp.AddArc(cx + 10 + 150 - 16, btnY + 26 - 16, 16, 16, 0, 90);
-    fp.AddArc(cx + 10, btnY + 26 - 16, 16, 16, 90, 90); fp.CloseFigure();
-    g.FillPath(&btnB, &fp); g.DrawPath(&btnP, &fp);
-    g.DrawString(L"打开默认音频文件夹", -1, &bF, PointF(cx + 16, btnY + 6), &tbCol);
+    // ====== 💎 4. 并排创建：打开音频文件夹 & 打开图片文件夹 💎 ======
+    // 同步 Legal 页面的标准样式画刷与高光配色彩盘
+    SolidBrush tb(Color(255, 20, 80, 140));    // 激活态蓝色（按钮文字）
+    SolidBrush bb(Color(255, 200, 230, 250));  // 按钮浅蓝填充底色
+    Pen bp(Color(255, 150, 190, 220));         // 按钮高光细外包线
+
+    const int BW = 125, BH = 26; // 宽度控制在 125 确保并排紧凑不拥挤
+    int bx1 = cx + 10;
+    int bx2 = cx + 10 + BW + 10; // 黄金比例 10px 间距
+    int by = H - 45;             // 固定靠在主页面最下沿
+
+    // 绑定更新全局交互矩形
+    extern Gdiplus::RectF g_folderBtnRect;       
+    extern Gdiplus::RectF g_itemHelperDirBtnRect; 
+    
+    g_folderBtnRect = RectF((REAL)bx1, (REAL)by, (REAL)BW, (REAL)BH);
+    g_itemHelperDirBtnRect = RectF((REAL)bx2, (REAL)by, (REAL)BW, (REAL)BH);
+
+    // Lambda 闭包：像素级复刻 Legal 页面的极致圆角渲染风格
+    auto DrawRoundButton = [&](const RectF& r, const wchar_t* text) {
+        GraphicsPath p;
+        p.AddArc(r.X, r.Y, 16.f, 16.f, 180.f, 90.f);
+        p.AddArc((REAL)(r.X + r.Width - 16), r.Y, 16.f, 16.f, 270.f, 90.f);
+        p.AddArc((REAL)(r.X + r.Width - 16), (REAL)(r.Y + r.Height - 16), 16.f, 16.f, 0.f, 90.f);
+        p.AddArc(r.X, (REAL)(r.Y + r.Height - 16), 16.f, 16.f, 90.f, 90.f);
+        p.CloseFigure();
+
+        g.FillPath(&bb, &p); // 浅蓝圆角质感平铺
+        g.DrawPath(&bp, &p); // 高光描边
+        g.DrawString(text, -1, &sF, PointF((REAL)(r.X + 6), (REAL)(r.Y + 5)), &tb);
+    };
+
+    // 绘制并排双组合按钮
+    DrawRoundButton(g_folderBtnRect, i18n::T("SOUNDS_FOLDER_BTN"));
+    DrawRoundButton(g_itemHelperDirBtnRect, i18n::T("SOUNDS_IMAGE_BTN"));
 }
 
 void CheckSoundsClick(HWND hw, int mx, int my) {
-    // 打开文件夹按钮
+    // 1. 响应“打开音频文件夹”按钮点击
     if (mx >= g_folderBtnRect.X && mx <= g_folderBtnRect.X + g_folderBtnRect.Width &&
-        my >= g_folderBtnRect.Y && my <= g_folderBtnRect.Y + g_folderBtnRect.Height) {
-        wchar_t path[MAX_PATH];
-        GetEnvironmentVariableW(L"USERPROFILE", path, MAX_PATH);
-        wcscat_s(path, L"\\StrikeSense\\snd");
-        ShellExecuteW(hw, L"explore", path, nullptr, nullptr, SW_SHOW);
+        my >= g_folderBtnRect.Y && my <= g_folderBtnRect.Y + g_folderBtnRect.Height)
+    {
+        wchar_t userProfile[MAX_PATH] = {};
+        if (GetEnvironmentVariableW(L"USERPROFILE", userProfile, MAX_PATH) > 0) {
+            fs::path audioPath = fs::path(userProfile) / L"StrikeSense" / L"snd";
+            std::error_code ec;
+            fs::create_directories(audioPath, ec);
+            ShellExecuteW(nullptr, L"open", audioPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
         return;
     }
+
+    // 2. 响应“打开图片文件夹”按钮点击
+    if (mx >= g_itemHelperDirBtnRect.X && mx <= g_itemHelperDirBtnRect.X + g_itemHelperDirBtnRect.Width &&
+        my >= g_itemHelperDirBtnRect.Y && my <= g_itemHelperDirBtnRect.Y + g_itemHelperDirBtnRect.Height)
+    {
+        wchar_t userProfile[MAX_PATH] = {};
+        if (GetEnvironmentVariableW(L"USERPROFILE", userProfile, MAX_PATH) > 0) {
+            fs::path imagePath = fs::path(userProfile) / L"StrikeSense" / L"img";
+            std::error_code ec;
+            fs::create_directories(imagePath, ec);
+            ShellExecuteW(nullptr, L"open", imagePath.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        return;
+    }
+
+    // 配置项点击处理循环
     for (int i = 0; i < SND_COUNT; ++i) {
         auto& r = s_sounds[i];
         if (mx < r.btnRect.X || mx > r.btnRect.X + r.btnRect.Width ||
             my < r.btnRect.Y || my > r.btnRect.Y + r.btnRect.Height) continue;
+        
         wchar_t p[MAX_PATH] = {};
         OPENFILENAMEW o = {};
         o.lStructSize = sizeof(o); o.hwndOwner = hw;
         o.lpstrFilter = (r.id == -99) ? L"图片\0*.bmp;*.png;*.jpg\0All\0*.*\0" : L"音频\0*.wav;*.ogg\0All\0*.*\0";
         o.lpstrFile = p; o.nMaxFile = MAX_PATH; o.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+        
         if (!GetOpenFileNameW(&o)) return;
-        if (r.id == -99)
-{
-    config::Settings c = config::Load();
-
-    c.flash_image = p;
-
-    config::Save(c);
-
-    InvalidateRect(hw, nullptr, FALSE);
-    return;
-}
+        
+        if (r.id == -99) {
+            config::Settings c = config::Load();
+            c.flash_image = p;
+            config::Save(c);
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+        
         config::Settings c = config::Load();
         switch (r.id) {
-        case 1: c.snd_1 = p; break; case 2: c.snd_2 = p; break;
-        case 3: c.snd_3 = p; break; case 4: c.snd_4 = p; break;
-        case 5: c.snd_5 = p; break; case -1: c.snd_extra = p; break;
-        case -2: c.snd_mvp = p; break; case -3: c.snd_win = p; break;
-        case -4: c.snd_lose = p; break; case -12: c.snd_bomb = p; break;
-        case -13: c.snd_round = p; break; case -14: c.snd_buy = p; break;
-        case -18: c.snd_death = p; break; case -19: c.snd_gameover = p; break;
-        case -21: c.snd_menu = p; break;
+            case 1: c.snd_1 = p; break; 
+            case 2: c.snd_2 = p; break;
+            case 3: c.snd_3 = p; break; 
+            case 4: c.snd_4 = p; break;
+            case 5: c.snd_5 = p; break; 
+            case -1: c.snd_extra = p; break;
+            case -2: c.snd_mvp = p; break; 
+            case -3: c.snd_win = p; break;
+            case -4: c.snd_lose = p; break; 
+            case -12: c.snd_bomb = p; break;
+            case -13: c.snd_round = p; break; 
+            case -14: c.snd_buy = p; break;
+            case -18: c.snd_death = p; break; 
+            case -19: c.snd_gameover = p; break;
+            case -21: c.snd_menu = p; break;
         }
-        config::Save(c); InvalidateRect(hw, nullptr, FALSE); return;
+        config::Save(c); 
+        InvalidateRect(hw, nullptr, FALSE); 
+        return;
     }
 }

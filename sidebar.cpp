@@ -29,7 +29,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
 
     g.FillRectangle(&bg, 0, 0, SIDEBAR_W, H);
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
-    g.DrawString(L"StrikeSense", -1, &tF, PointF(10, 12), &tb);
+    g.DrawString(L"StrikeSense", -1, &tF, PointF(4, 12), &tb);
 
     const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER)};
     int idx = 0;
