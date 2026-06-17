@@ -12,6 +12,9 @@ namespace fs = std::filesystem;
 extern HINSTANCE hInst; 
 extern HANDLE g_hMutex;
 
+static void StartCrosshair(HINSTANCE hInst) ;
+static void StopCrosshair() ;
+extern bool g_crossThreadRunning;
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
     GetEnvironmentVariableW(L"USERPROFILE", p, MAX_PATH);
@@ -49,6 +52,17 @@ void LoadEvolutionParams() {
 
         gv("hotkey_mod", g_hotkeyMod); gv("hotkey_vk", g_hotkeyVk);
         gb("crosshair_enabled", g_crosshairEnabled);
+        // --- 核心修复：加载后同步触发准星启动 ---
+        if (g_crosshairEnabled) {
+            // 如果已在加载，先确保线程状态正确
+            if (!g_crossThreadRunning) {
+                StartCrosshair(hInst); 
+            }
+        } else {
+            // 确保如果配置是关闭，线程处于停止状态
+            StopCrosshair();
+        }
+        // ------------------------------------
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
@@ -63,7 +77,7 @@ void LoadEvolutionParams() {
 // ===== 准星线程 =====
 static HWND g_crossHWnd = nullptr;
 static std::thread g_crossThread;
-static bool g_crossThreadRunning = false;
+bool g_crossThreadRunning = false;
 
 static LRESULT CALLBACK CrosshairWndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     switch (m) {
