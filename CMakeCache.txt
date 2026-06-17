@@ -324,6 +324,9 @@ httplib_DIR:PATH=C:/Users/jingy/vcpkg/installed/x64-windows-static/share/httplib
 //The directory containing a CMake configuration file for nlohmann_json.
 nlohmann_json_DIR:PATH=C:/Users/jingy/vcpkg/installed/x64-windows-static/share/nlohmann_json
 
+//The directory containing a CMake configuration file for simdjson.
+simdjson_DIR:PATH=C:/Users/jingy/vcpkg/installed/x64-windows-static/share/simdjson
+
 //The directory containing a CMake configuration file for unofficial-brotli.
 unofficial-brotli_DIR:PATH=C:/Users/jingy/vcpkg/installed/x64-windows-static/share/unofficial-brotli
 

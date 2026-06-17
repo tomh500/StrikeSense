@@ -9104,3 +9104,149 @@ events:
         - "C:/Program Files/StrikeSense"
       CMAKE_FIND_ROOT_PATH: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug;C:/Users/jingy/vcpkg/installed/x64-windows-static"
 ...
+
+---
+events:
+  -
+    kind: "find_package-v1"
+    backtrace:
+      - "C:/Users/jingy/vcpkg/scripts/buildsystems/vcpkg.cmake:908 (_find_package)"
+      - "CMakeLists.txt:28 (find_package)"
+    name: "simdjson"
+    configs:
+      -
+        filename: "simdjson.cps"
+        kind: "cps"
+      -
+        filename: "simdjsonConfig.cmake"
+        kind: "cmake"
+      -
+        filename: "simdjson-config.cmake"
+        kind: "cmake"
+    version_request:
+      exact: false
+    settings:
+      required: "required_explicit"
+      quiet: false
+      global: false
+      policy_scope: true
+      bypass_provider: false
+      names:
+        - "simdjson"
+      path_suffixes:
+        - ""
+      paths:
+        CMAKE_FIND_USE_CMAKE_PATH: true
+        CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+        CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+        CMAKE_FIND_USE_INSTALL_PREFIX: true
+        CMAKE_FIND_USE_PACKAGE_ROOT_PATH: true
+        CMAKE_FIND_USE_CMAKE_PACKAGE_REGISTRY: true
+        CMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY: true
+        CMAKE_FIND_ROOT_PATH_MODE: "BOTH"
+    candidates:
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/simdjsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/simdjson-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/lib/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/share/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/simdjsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/simdjson-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/lib/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug/share/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/simdjsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/simdjson-config.cmake"
+        mode: "config"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/lib/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/share/cps/simdjson.cps"
+        mode: "cps"
+        reason: "no_exist"
+      -
+        path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/share/simdjson/simdjsonConfig.cmake"
+        mode: "config"
+        reason: "no_exist"
+    found:
+      path: "C:/Users/jingy/vcpkg/installed/x64-windows-static/share/simdjson/simdjson-config.cmake"
+      mode: "config"
+      version: "4.2.4"
+    search_context:
+      CMAKE_PREFIX_PATH:
+        - "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug"
+        - "C:/Users/jingy/vcpkg/installed/x64-windows-static"
+      ENV{PATH}:
+        - "c:\\Users\\jingy\\AppData\\Roaming\\Code\\User\\globalStorage\\github.copilot-chat\\debugCommand"
+        - "c:\\Users\\jingy\\AppData\\Roaming\\Code\\User\\globalStorage\\github.copilot-chat\\copilotCli"
+        - "c:\\Users\\jingy\\.vscode\\extensions\\vadimcn.vscode-lldb-1.12.0\\bin"
+        - "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\bin"
+        - "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.8\\libnvvp"
+        - "C:\\Program Files (x86)\\VMware\\VMware Workstation\\bin\\"
+        - "C:\\Program Files\\Common Files\\Oracle\\Java\\javapath"
+        - "C:\\Windows\\system32"
+        - "C:\\Windows"
+        - "C:\\Windows\\System32\\Wbem"
+        - "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\"
+        - "C:\\Windows\\System32\\OpenSSH\\"
+        - "C:\\Program Files\\dotnet\\"
+        - "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NvDLISR"
+        - "C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common"
+        - "C:\\Program Files\\usbipd-win\\"
+        - "C:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
+        - "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\Muse Hub\\lib"
+        - "C:\\Program Files\\Sunshine"
+        - "C:\\Program Files\\Sunshine\\tools"
+        - "C:\\Program Files\\NVIDIA Corporation\\Nsight Compute 2025.1.0\\"
+        - "C:\\Program Files\\CMake\\bin"
+        - "C:\\Users\\jingy\\Desktop\\GalSMP\\Lib\\JDK8\\bin"
+        - "C:\\Users\\jingy\\Desktop\\GalSMP\\Lib\\JDK25\\bin"
+        - "C:\\Program Files\\maven-mvnd-1.0.3-windows-amd64\\bin"
+        - "C:\\Users\\jingy\\AppData\\Local\\Programs\\Python\\Python314"
+        - "C:\\Users\\jingy\\AppData\\Local\\Programs\\Microsoft VS Code\\bin"
+        - "C:\\Program Files\\ffmpeg-2025-11-17-git-e94439e49b-full_build\\bin"
+        - "C:\\Users\\jingy\\AppData\\Local\\Programs\\Python\\Python314\\Scripts\\"
+        - "C:\\Users\\jingy\\AppData\\Local\\PowerToys\\DSCModules\\"
+        - "C:\\Windows\\SysWOW64\\platform-tools"
+        - "C:\\Program Files\\apache-maven-3.9.12\\bin"
+        - "C:\\Users\\jingy\\AppData\\Local\\Muse Hub\\lib"
+        - "C:\\Users\\jingy\\vcpkg"
+      CMAKE_INSTALL_PREFIX: "C:/Program Files/StrikeSense"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "C:/Program Files"
+        - "C:/Program Files (x86)"
+        - "C:/Program Files/CMake"
+        - "C:/Program Files/StrikeSense"
+      CMAKE_FIND_ROOT_PATH: "C:/Users/jingy/vcpkg/installed/x64-windows-static/debug;C:/Users/jingy/vcpkg/installed/x64-windows-static"
+...

@@ -25,6 +25,8 @@ find_package(yaml-cpp CONFIG REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_mixer CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
+find_package(simdjson CONFIG REQUIRED)
+
 
 set(SOURCES
     StrikeSense.cpp console.cpp steam_helper.cpp gsi_server.cpp
@@ -48,6 +50,7 @@ target_link_libraries(StrikeSense PRIVATE
     kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib
     advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib
 )
+target_link_libraries(StrikeSense PRIVATE simdjson::simdjson)
 
 set_target_properties(StrikeSense PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"

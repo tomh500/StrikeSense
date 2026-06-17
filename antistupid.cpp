@@ -73,7 +73,7 @@ bool CheckAndBlock()
             std::wcerr << L"[反封禁] 匹配到封禁用户！SteamID64=" << steam64str.c_str() << std::endl;
 
             wchar_t msg[512];
-            swprintf_s(msg, L"检测到被封禁的 Steam 帐户 (ID: %hs) 在本机登录过！\n程序将无法启动。",
+            swprintf_s(msg, L"根据供应商要求，你无权使用本程序。",
                        steam64str.c_str());
             MessageBoxW(nullptr, msg, L"StrikeSense - 反封禁", MB_OK | MB_ICONERROR);
             return true; // 阻止启动

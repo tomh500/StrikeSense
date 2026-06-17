@@ -11,8 +11,12 @@
 #include <atomic>
 #include <queue>
 #include <mutex>
+#include <chrono>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
+#include <SDL.h>
+#include <SDL_mixer.h>
+// =========================
 
 namespace gsi {
 
@@ -37,10 +41,21 @@ static bool s_gameoverPushed = false;
 static bool s_bombPlantedThisRound = false;
 static std::atomic<bool> s_bombSoundPlaying{ false };
 static std::string s_playerTeam;
+// ======= 在内存中缓存配置的变量 =============
+static config::Settings s_cachedCfg;
+// ===========================================
 
 // ===== 事件队列 =====
 static std::queue<int> s_eventQueue;
 static std::mutex s_queueMutex;
+
+void StopBombSound() {
+    // 1. 停止 SDL_mixer 对应的炸弹声道（CH_BOMB 在 Global.h 中定义为 3）
+    Mix_HaltChannel(3); 
+    
+    // 2. 必须将原子布尔值标志置为 false，防止其他线程的播放逻辑发生冲突
+    s_bombSoundPlaying = false;
+}
 
 void QueueEvent(int id)
 {
@@ -50,7 +65,7 @@ void QueueEvent(int id)
 
 void ProcessEventQueue()
 {
-    config::Settings cfg = config::Load();
+    //config::Settings cfg = config::Load();
     std::queue<int> q;
     {
         std::lock_guard<std::mutex> lock(s_queueMutex);
@@ -64,61 +79,61 @@ void ProcessEventQueue()
         if (id >= 1 && id <= 5)
         {
             std::cout << "[音效] " << id << "杀!" << std::endl;
-            if (cfg.enable_kill_sound)
-                sound::Play(id, cfg.volume);
+            if (s_cachedCfg.enable_kill_sound)
+                sound::Play(id, s_cachedCfg.volume);
         }
         else if (id == -1)
         {
             std::cout << "[音效] 多杀/死斗" << std::endl;
-            if (cfg.enable_kill_sound)
-                sound::Play(-1, cfg.volume);
+            if (s_cachedCfg.enable_kill_sound)
+                sound::Play(-1, s_cachedCfg.volume);
         }
         else if (id == -13) // 回合开始—音乐包
         {
             std::cout << "[音效] 回合开始" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-13, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-13, s_cachedCfg.volume);
         }
         else if (id == -14) // 购买—音乐包
         {
             std::cout << "[音效] 购买阶段" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-14, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-14, s_cachedCfg.volume);
         }
         else if (id == -12) // 炸弹—音乐包
         {
             std::cout << "[音效] 炸弹" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-12, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-12, s_cachedCfg.volume);
         }
         else if (id == -2) // MVP—音乐包
         {
             std::cout << "[音效] MVP" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-2, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-2, s_cachedCfg.volume);
         }
         else if (id == -3) // 胜利—音乐包
         {
             std::cout << "[音效] 胜利!" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-3, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-3, s_cachedCfg.volume);
         }
         else if (id == -4) // 失败—音乐包
         {
             std::cout << "[音效] 失败" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-4, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-4, s_cachedCfg.volume);
         }
         else if (id == -18) // 死亡—始终播放（不受 enable_kill_sound 控制）
         {
             std::cout << "[音效] 玩家死亡" << std::endl;
-            sound::Play(-18, cfg.volume);
+            sound::Play(-18, s_cachedCfg.volume);
         }
         else if (id == -19) // 游戏结束
         {
             std::cout << "[音效] 游戏结束" << std::endl;
-            if (cfg.custom_musickit)
-                sound::Play(-19, cfg.volume);
+            if (s_cachedCfg.custom_musickit)
+                sound::Play(-19, s_cachedCfg.volume);
         }
     }
 }
@@ -145,7 +160,7 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     try {
         nlohmann::json j = nlohmann::json::parse(rawJson);
-        config::Settings cfg = config::Load();
+        //config::Settings cfg = config::Load();
 
         std::string phase;
         std::string activity;
@@ -198,20 +213,23 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         if (roundKills < s_lastKills)
             s_lastKills = roundKills;
 
-        // ===== 阶段切换（legacy 核心逻辑） =====
+        // ===== 阶段切换（完全还原 legacy 核心逻辑） =====
         if (phase != s_lastPhase)
         {
             // freezetime → buy 音效
             if (phase == "freezetime" && s_lastPhase != "freezetime")
             {
+                // 还原原版等待炸弹音效逻辑：如果安放了炸弹，给爆炸/拆除留出音效播放时间，防止被-14打断
+                if (s_bombPlantedThisRound) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                }
                 QueueEvent(-14);
                 s_bombPlantedThisRound = false;
             }
 
             // live 阶段 → 回合开始
-            if (phase == "live" && s_waitingForLive )
+            if (phase == "live" && s_waitingForLive)
             {
-
                 s_lastKills = 0;
                 s_mvpsAtRoundStart = mvps;
                 s_mvpCandidateKills = 0;
@@ -220,31 +238,29 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 s_bombPlantedThisRound = false;
                 s_waitingForLive = false;
                 s_roundStarted = true;
-                if (mapMode == "deathmatch")
-                {
-                    QueueEvent(-13);
-                }
+                s_gameoverPushed = false;
                 
+                QueueEvent(-13); // 原版无条件推送回合开始音效
             }
 
-            // over → 检查是否刚刚从 live 过来了
+            // over/gameover 判定
             if (s_lastPhase == "live" && (phase == "over" || phase == "gameover"))
             {
-                // 回合结束时处理尾刀
-                if (roundKills > s_lastKills)
+                std::cout << "[GSI] Round ended or new round started, stopping bomb sound.\n";
+                StopBombSound();
+                // 回合结束时处理尾刀（修复：增加 !s_deadMuted 判定，防止死后跨回合推击杀）
+                if (!s_deadMuted && roundKills > s_lastKills)
                 {
                     for (int k = s_lastKills + 1; k <= roundKills; ++k)
                     {
-                        if (mapMode == "deathmatch")
-                            QueueEvent(-1);
-                        else
-                            QueueEvent(k > 5 ? -1 : k);
+                        if (mapMode == "deathmatch") QueueEvent(-1);
+                        else QueueEvent(k > 5 ? -1 : k);
                     }
-                    s_mvpCandidateKills += (roundKills - s_lastKills);
+                    if (roundKills > s_mvpCandidateKills) s_mvpCandidateKills = roundKills;
                     s_lastKills = roundKills;
                 }
 
-                // 胜负判定
+                // 获取胜负信息
                 bool hasWinTeam = false;
                 std::string winTeam;
                 if (j.contains("round") && j["round"].is_object())
@@ -270,10 +286,12 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                     }
                 }
 
-                // MVP 判定
-                bool isMvp = (mvps > s_mvpsAtRoundStart) ||
-                    (!s_mvpPushedThisRound && s_mvpCandidateKills > 0);
-                if (isMvp)
+                // MVP 判定 (还原原版严谨判定：要么MVP数增加，要么击杀>=3且获胜)
+                bool isMvp = false;
+                if (mvps > s_mvpsAtRoundStart) isMvp = true;
+                if (hasWinTeam && winTeam == s_playerTeam && s_mvpCandidateKills >= 3) isMvp = true;
+
+                if (!s_mvpPushedThisRound && isMvp)
                 {
                     QueueEvent(-2);
                     s_mvpPushedThisRound = true;
@@ -282,10 +300,8 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 // 胜负音效
                 if (!s_mvpPushedThisRound && hasWinTeam)
                 {
-                    if (winTeam == s_playerTeam)
-                        QueueEvent(-3); // 胜利
-                    else
-                        QueueEvent(-4); // 失败
+                    if (winTeam == s_playerTeam) QueueEvent(-3); // 胜利
+                    else QueueEvent(-4); // 失败
                 }
 
                 if (phase == "gameover" && !s_gameoverPushed)
@@ -307,41 +323,38 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
             s_lastPhase = phase;
         }
 
-        // ===== live 阶段击杀判定（稳态） =====
-        if (phase == "live" && activity == "playing")
+        // ===== live 阶段击杀判定（还原原版，去除 activity == "playing" 限制） =====
+        if (phase == "live")
         {
-            // 死亡判定
-            if (health <= 0)
+            if (mapMode == "deathmatch") 
             {
-                if (!s_deadMuted)
+                if (roundKills > s_lastKills)
+                {
+                    QueueEvent(-1);
+                    s_lastKills = roundKills;
+                }
+            } 
+            else 
+            {
+                // 死亡判定
+                if (health <= 0 && !s_deadMuted)
                 {
                     QueueEvent(-18);
                     s_deadMuted = true;
+                    // BUG 修复：千万不能在这里加 s_mvpPushedThisRound = true，否则死后拿不到MVP！
                 }
-                s_mvpPushedThisRound = true; // 死亡后本回合不再触发 MVP
-            }
 
-            // 击杀判定
-            if (!s_deadMuted && roundKills > s_lastKills)
-            {
-                for (int k = s_lastKills + 1; k <= roundKills; ++k)
+                // 击杀判定
+                if (!s_deadMuted && roundKills > s_lastKills)
                 {
-                    if (mapMode == "deathmatch")
-                        QueueEvent(-1);
-                    else
+                    for (int k = s_lastKills + 1; k <= roundKills; ++k)
+                    {
                         QueueEvent(k > 5 ? -1 : k);
+                    }
+                    if (roundKills > s_mvpCandidateKills) s_mvpCandidateKills = roundKills;
+                    s_lastKills = roundKills;
                 }
-                if (roundKills > s_mvpCandidateKills)
-                    s_mvpCandidateKills = roundKills;
-                s_lastKills = roundKills;
             }
-        }
-
-        // ===== 死斗模式 =====
-        if (mapMode == "deathmatch" && roundKills > s_lastKills)
-        {
-            QueueEvent(-1);
-            s_lastKills = roundKills;
         }
 
         // ===== 炸弹（音乐包） =====
@@ -354,14 +367,15 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
                 if (bs == "planted" && !s_bombPlantedThisRound)
                 {
                     s_bombPlantedThisRound = true;
-                    if (cfg.custom_musickit && cfg.enable_kill_sound)
+                    // 原版只判定 custom_musickit，这里一并还原
+                    if (s_cachedCfg.custom_musickit)
                         QueueEvent(-12);
                 }
             }
         }
 
         // ===== 闪光弹（custom_flashbang） =====
-        if (cfg.custom_flashbang)
+        if (s_cachedCfg.custom_flashbang)
         {
             int flashedNow = 0, flashedBefore = 0;
             if (j.contains("player") && j["player"].is_object())
@@ -395,15 +409,17 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         }
 
         // ===== 调试输出 =====
-        std::cout << "[GSI] phase=" << phase
-                  << " act=" << activity
-                  << " kills=" << roundKills
-                  << " last=" << s_lastKills
-                  << " hp=" << health
-                  << " map=" << mapMode
-                  << std::endl;
+        if (g_debug) {
+            std::cout << "[GSI] phase=" << phase
+                      << " act=" << activity
+                      << " kills=" << roundKills
+                      << " last=" << s_lastKills
+                      << " hp=" << health
+                      << " map=" << mapMode
+                      << std::endl;
+        }
 
-        // ===== 急停武器状态检测（GSI JSON 内的武器信息） =====
+        // ===== 急停武器状态检测 =====
         if (GetQSConfig().enabled)
             ProcessQuickStopCommand(rawJson);
     }
@@ -417,6 +433,7 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 
     ProcessEventQueue();
 }
+
 bool Initialize()
 {
     if (s_wsaInitialized) return true;
@@ -431,10 +448,8 @@ void Cleanup()
     if (s_wsaInitialized) { WSACleanup(); s_wsaInitialized = false; }
 }
 
-// 检查端口 1009 是否被占用，返回占用进程的 exe 名称（空表示空闲）
 std::wstring CheckPortInUse()
 {
-    // 用 Raw Sockets 检查端口监听
     SOCKET testSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (testSock == INVALID_SOCKET) return L"";
 
@@ -443,14 +458,11 @@ std::wstring CheckPortInUse()
     addr.sin_port = htons(1009);
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    // connect 成功说明端口已被占用
     int ret = connect(testSock, (sockaddr*)&addr, sizeof(addr));
     closesocket(testSock);
 
     if (ret == 0)
     {
-        // 端口在用，用 netstat 查占用程序
-        // 创建一个临时文件
         std::string result;
         FILE* pipe = _popen("netstat -ano | findstr :1009 | findstr LISTENING", "r");
         if (pipe)
@@ -461,13 +473,10 @@ std::wstring CheckPortInUse()
             _pclose(pipe);
         }
 
-        // 从 netstat 输出提取 PID
-        // 格式: TCP 127.0.0.1:1009 0.0.0.0:0 LISTENING 1234
         auto pos = result.find("LISTENING");
         if (pos != std::string::npos)
         {
             std::string pidStr = result.substr(pos + 10);
-            // 去掉空格
             pidStr.erase(0, pidStr.find_first_not_of(" \t\r\n"));
             int pid = atoi(pidStr.c_str());
             if (pid > 0)
@@ -480,7 +489,6 @@ std::wstring CheckPortInUse()
                     if (QueryFullProcessImageNameW(hProc, 0, exeName, &sz))
                     {
                         std::wstring exePath(exeName);
-                        closesocket(testSock);
                         CloseHandle(hProc);
                         return exePath;
                     }
@@ -491,13 +499,18 @@ std::wstring CheckPortInUse()
         return L"未知进程";
     }
 
-    return L""; // 端口空闲
+    return L"";
 }
 
 bool StartServer()
 {
     if (s_running) return true;
     if (!s_wsaInitialized && !Initialize()) return false;
+
+    // ======= 新增：在软件打开/启动服务器时，只读取一次磁盘配置 =======
+    s_cachedCfg = config::Load();
+    std::cout << "[GSI] 配置已成功加载至内存 (音量: " << s_cachedCfg.volume << ")" << std::endl;
+    // ============================================================
 
     s_server = new httplib::Server();
     s_server->Post("/", OnGSIRequest);
