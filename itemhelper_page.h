@@ -6,7 +6,7 @@ extern bool g_isBindingItemHelperHotkey;
 
 extern int g_itemHelperHotkeyMod;
 extern int g_itemHelperHotkeyVk;
-
+extern bool g_itemHelperEnabled;  
 enum ItemHelperState
 {
     IH_IDLE = 0,

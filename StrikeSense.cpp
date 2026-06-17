@@ -20,7 +20,9 @@
 #include "flashoverlay.h"
 #include "normalgen.h"
 #include "Hotkey.h"
-#include "itemhelper_overlay.h" // 新增导入遮罩渲染命名空间
+#include "itemhelper_overlay.h"
+#include "itemhelper_page.h"   
+
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -176,6 +178,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusShutdown(g_gdiToken);
     if (g_hMutex) CloseHandle(g_hMutex);
     return (int)m.wParam;
+
+
 }
 
 ATOM MyRegisterClass(HINSTANCE hI) {

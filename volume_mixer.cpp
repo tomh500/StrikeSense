@@ -9,13 +9,7 @@
 
 #pragma comment(lib, "ole32.lib")
 
-namespace {
-    std::thread g_volThread;
-    std::atomic<bool> g_volRunning{ false };
-    float g_targetFactor = 0.5f;
-    static float s_savedGsiOriginalVolume = -1.0f;
-
-    static bool IsCS2WindowActive()
+bool IsCS2WindowActive()
     {
         HWND fg = GetForegroundWindow();
         if (!fg) return false;
@@ -25,6 +19,14 @@ namespace {
         return (wt.find(L"Counter-Strike 2") != std::string::npos ||
                 wt.find(L"反恐精英：全球攻势") != std::string::npos);
     }
+
+namespace {
+    std::thread g_volThread;
+    std::atomic<bool> g_volRunning{ false };
+    float g_targetFactor = 0.5f;
+    static float s_savedGsiOriginalVolume = -1.0f;
+
+
 
     // 找到 CS2 的音频会话并保存接口引用，返回原始音量
     static float GetCS2VolumeAndSession(ISimpleAudioVolume** outVol)

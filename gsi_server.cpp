@@ -17,8 +17,12 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
 #include "flashoverlay.h"
-
+#include "itemhelper_overlay.h"
+#include "itemhelper_page.h"   
+#include <windows.h>
 // =========================
+extern HINSTANCE hInst;
+bool IsCS2WindowActive();
 
 namespace gsi {
 
@@ -159,6 +163,10 @@ void ProcessEventQueue()
 // ============================================================
 static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
 {
+
+        // 在 StrikeSense.cpp 的 wWinMain 消息循环中，或者定时器中加入：
+
+
     std::string rawJson = req.body;
     if (rawJson.empty())
     {

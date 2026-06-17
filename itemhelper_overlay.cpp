@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <unordered_set>
 #include "gsi_server.h"
+#include "itemhelper_page.h"
 namespace fs = std::filesystem;
 
 // 引用外部 GSI 导出的当前游戏地图变量
@@ -19,6 +20,8 @@ namespace gsi {
 
 // 实例化在 itemhelper_page.h 中声明的全局 UI 状态
 ItemHelperUI g_itemUI;
+
+bool IsCS2WindowActive();
 
 namespace itemhelper_overlay
 {
@@ -56,6 +59,14 @@ namespace itemhelper_overlay
         );
 
         std::cout << "[道具助手] 全屏层叠遮罩窗口初始化成功，句柄: " << s_hwnd << std::endl;
+
+        if (!s_hwnd) return;
+
+    // ====== 💎 加上这行：启动一个 ID 为 999 且每 200ms 触发一次的定时器 💎 ======
+    SetTimer(s_hwnd, 999, 200, nullptr);
+    // ====================================================================
+
+    ShowWindow(s_hwnd, SW_HIDE); // 初始隐藏
     }
 
 static void ScanMapFiles()
@@ -369,7 +380,26 @@ static void ScanMapFiles()
     static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     {
         switch (msg) {
+            // ====== 💎 核心修复：处理定时器消息，自适应隐藏 💎 ======
+            case WM_TIMER:{
+                if (wp == 999) {
+                    // 如果当前道具助手遮罩正显示在屏幕上，但检测到游戏已经不再活跃（切回桌面了）
+                    if (g_itemUI.showOverlay && !IsCS2WindowActive()) {
+                        // 动态获取当前的实例句柄
+                        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hwnd, GWLP_HINSTANCE);
+                        // 强制安全隐藏遮罩，并卸载键盘钩子
+                        Toggle(hInst); 
+                        std::cout << "[道具助手] 检测到失去CS2游戏焦点，窗口自动隐退。" << std::endl;
+                    }
+                }
+                break;}
+            // =====================================================
             case WM_ERASEBKGND: return TRUE;
+            case WM_DESTROY:
+               { 
+                KillTimer(hwnd, 999);
+                break;
+               }
             default: break;
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
