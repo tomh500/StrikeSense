@@ -70,6 +70,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h">
@@ -130,6 +133,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

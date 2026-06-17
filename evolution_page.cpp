@@ -7,11 +7,12 @@
 #include <atomic>
 #include "normalgen.h"
 #include "StrikeSense.h"
+#include "Hotkey.h"
 
 namespace fs = std::filesystem;
 
 // 假设这些是来自全局或其他头文件的外部声明，保持你原有的逻辑不变
-
+extern HWND g_hwnd;
 static void StartCrosshair(HINSTANCE hInst) ;
 static void StopCrosshair() ;
 extern bool g_crossThreadRunning;
@@ -39,6 +40,10 @@ void SaveEvolutionParams() {
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
     j["item_helper_hotkey_vk"] = g_itemHelperHotkeyVk;
+    if (g_itemHelperEnabled) {
+    // 这里的 g_hwnd 是你的全局主窗口句柄（HWND），确保它在这个函数可用
+    Hotkey::UpdateItemHelperHotkey(g_hwnd); 
+}
 
     std::ofstream out(GetEvolutionConfigPath());
     if (out.is_open()) { out << j.dump(2); out.close(); }

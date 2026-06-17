@@ -67,7 +67,7 @@ void EnsureDirectory(const fs::path& p)
         EnsureDirectory(base / L"itemhelper" / L"de_ancient");
         EnsureDirectory(base / L"itemhelper" / L"de_train");
         EnsureDirectory(base / L"itemhelper" / L"de_cache");
-        EnsureDirectory(base / L"itemhelper" / L"de_office");
+        EnsureDirectory(base / L"itemhelper" / L"cs_office");
         EnsureDirectory(base / L"itemhelper" / L"othermaps");
         std::cout << "[配置] 目录已创建: " << base.string() << std::endl;
     }

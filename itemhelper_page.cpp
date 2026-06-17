@@ -4,6 +4,13 @@
 #include "itemhelper_page.h"
 #include "Hotkey.h"
 
+// ====== 💎 在 itemhelper_page.cpp 顶部的引用区加上这几行声明 💎 ======
+extern HINSTANCE hInst; // 引入全局实例句柄
+namespace itemhelper_overlay {
+    void Toggle(HINSTANCE hInst); // 引入遮罩切换函数
+}
+// ==================================================================
+
 Gdiplus::RectF g_itemHelperToggleRect;
 Gdiplus::RectF g_itemHelperHotkeyRect;
 
@@ -57,7 +64,14 @@ void CheckItemHelperClick(HWND hw,int mx,int my)
 {
     if(ui::CheckToggleClick(mx,my,(int)g_itemHelperToggleRect.X,(int)g_itemHelperToggleRect.Y))
     {
+
         g_itemHelperEnabled=!g_itemHelperEnabled;
+        // 如果用户在主界面手动关闭了道具助手总开关，且此时游戏内遮罩正开着
+        // 强制调用 Toggle 将游戏内的全屏遮罩隐藏，并安全卸载低级键盘钩子
+        if (!g_itemHelperEnabled && g_itemUI.showOverlay) {
+            itemhelper_overlay::Toggle(hInst);
+        }
+        // =====================================
         SaveEvolutionParams();
         Hotkey::UpdateItemHelperHotkey(hw);
         InvalidateRect(hw,nullptr,FALSE);

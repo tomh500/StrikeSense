@@ -43,6 +43,7 @@ static bool s_gameoverPushed = false;
 static bool s_bombPlantedThisRound = false;
 static std::atomic<bool> s_bombSoundPlaying{ false };
 static std::string s_playerTeam;
+ std::string gamemap;
 // ======= 在内存中缓存配置的变量 =============
 static config::Settings s_cachedCfg;
 // ===========================================
@@ -177,7 +178,7 @@ static void OnGSIRequest(const httplib::Request& req, httplib::Response& res)
         nlohmann::json j = nlohmann::json::parse(rawJson);
         //config::Settings cfg = config::Load();
         
-        std::string gamemap;
+       
         std::string phase;
         std::string activity;
         int roundKills = 0, mvps = 0, health = 100;

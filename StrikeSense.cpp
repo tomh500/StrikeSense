@@ -20,6 +20,7 @@
 #include "flashoverlay.h"
 #include "normalgen.h"
 #include "Hotkey.h"
+#include "itemhelper_overlay.h" // 新增导入遮罩渲染命名空间
 
 #pragma comment(lib, "gdiplus.lib")
 
@@ -27,6 +28,7 @@ namespace fs = std::filesystem;
 #define MAX_LOADSTRING 100
 
 // ===== 全局变量定义 =====
+HWND g_hwnd = nullptr;
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
 Console g_Console;
@@ -135,6 +137,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     
     HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
     if (!hwMain) return FALSE;
+    g_hwnd = hwMain;
 
     // 页面初始化
     InitLegalCfgPage();
@@ -274,13 +277,16 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
 
         if (wp == 1002)
-    {
-    std::cout
-        << "[道具助手] HOME PRESSED"
-        << std::endl;
-
-        return 0;
-    }
+        {
+            std::cout << "[道具助手] 检测到游戏内快捷键触发信号" << std::endl;
+            if (g_itemHelperEnabled) {
+                // 执行切换显示或隐藏的动作
+                itemhelper_overlay::Toggle(hInst);
+            } else {
+                std::cout << "[道具助手] 全局功能已被关闭，忽略外部按键事件" << std::endl;
+            }
+            return 0;
+        }
         return 0;
     }
 case WM_KEYDOWN: {
@@ -405,6 +411,7 @@ case WM_KEYDOWN: {
     case WM_DESTROY:
 {
     flashoverlay::Shutdown();
+    itemhelper_overlay::Shutdown();
     UnregisterHotKey(hw, 1001);
     UnregisterHotKey(hw, 1002);
     PostQuitMessage(0);
