@@ -15,6 +15,7 @@ extern HANDLE g_hMutex;
 extern bool g_itemHelperEnabled;
 extern int g_itemHelperHotkeyMod;
 extern int g_itemHelperHotkeyVk;
+extern bool g_isBindingItemHelperHotkey;
 
 extern bool g_itemHelperEnabled;
 
@@ -30,7 +31,3 @@ extern float g_crosshairScale;
 
 void DestroyCrosshairInternal();
 void InitLegalCfgPage();
-namespace UpdateHotkey {
-    void UpdateGlobalHotkey(HWND hw);
-    void UpdateItemHelperHotkey(HWND hw);
-}

@@ -16,6 +16,7 @@ static void StartCrosshair(HINSTANCE hInst) ;
 static void StopCrosshair() ;
 extern bool g_crossThreadRunning;
 bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷键
+bool g_isBindingItemHelperHotkey = false; // 添加这行：标记是否正在录入道具助手快捷键
 
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};

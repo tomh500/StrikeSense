@@ -451,6 +451,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h" />
@@ -469,6 +470,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\targetver.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.h" />
     <ResourceCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.rc" />
     <Natvis Include="C:\Users\jingy\vcpkg\installed\x64-windows-static\share\nlohmann_json\nlohmann_json.natvis">
     </Natvis>
