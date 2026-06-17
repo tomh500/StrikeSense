@@ -22,13 +22,23 @@
         / L"img"
     ).wstring();
 }
+void EnsureDirectory(const fs::path& p)
+{
+    std::error_code ec;
 
-    static void EnsureDirectory(const fs::path& dir)
+    if (fs::create_directories(p, ec))
     {
-        std::error_code ec;
-        if (!fs::exists(dir))
-            fs::create_directories(dir, ec);
+        std::wcout << L"[创建目录] " << p.wstring() << std::endl;
     }
+    else if (ec)
+    {
+        std::wcout << L"[创建失败] "
+                   << p.wstring()
+                   << L" err="
+                   << ec.message().c_str()
+                   << std::endl;
+    }
+}
 
     std::wstring GetDefaultFlashPath()
 {
@@ -47,6 +57,18 @@
         EnsureDirectory(base / L"setting");
         EnsureDirectory(base / L"snd");
         EnsureDirectory(base / L"img");
+        EnsureDirectory(base / L"itemhelper");
+        EnsureDirectory(base / L"itemhelper" / L"dust2");
+        EnsureDirectory(base / L"itemhelper" / L"inferno");
+        EnsureDirectory(base / L"itemhelper" / L"mirage");
+        EnsureDirectory(base / L"itemhelper" / L"nuke");
+        EnsureDirectory(base / L"itemhelper" / L"overpass");
+        EnsureDirectory(base / L"itemhelper" / L"vertigo");
+        EnsureDirectory(base / L"itemhelper" / L"ancient");
+        EnsureDirectory(base / L"itemhelper" / L"train");
+        EnsureDirectory(base / L"itemhelper" / L"cache");
+        EnsureDirectory(base / L"itemhelper" / L"office");
+        EnsureDirectory(base / L"itemhelper" / L"tuscan");
         std::cout << "[配置] 目录已创建: " << base.string() << std::endl;
     }
 

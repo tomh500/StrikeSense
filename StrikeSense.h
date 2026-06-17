@@ -11,6 +11,12 @@ extern bool g_styleDropdownOpen;
 extern int g_dropdownSelection;
 extern Gdiplus::RectF g_dropdownRects[3];
 extern WCHAR szWindowClass[];
+extern HANDLE g_hMutex;
+extern bool g_itemHelperEnabled;
+extern int g_itemHelperHotkeyMod;
+extern int g_itemHelperHotkeyVk;
+
+extern bool g_itemHelperEnabled;
 
 // 准星 / 快捷键
 extern float g_death_vol;
@@ -24,3 +30,7 @@ extern float g_crosshairScale;
 
 void DestroyCrosshairInternal();
 void InitLegalCfgPage();
+namespace UpdateHotkey {
+    void UpdateGlobalHotkey(HWND hw);
+    void UpdateItemHelperHotkey(HWND hw);
+}

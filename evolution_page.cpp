@@ -6,18 +6,17 @@
 #include <thread>
 #include <atomic>
 #include "normalgen.h"
+#include "StrikeSense.h"
 
 namespace fs = std::filesystem;
 
 // 假设这些是来自全局或其他头文件的外部声明，保持你原有的逻辑不变
-extern HINSTANCE hInst; 
-extern HANDLE g_hMutex;
-extern bool g_itemHelperEnabled;
+
 static void StartCrosshair(HINSTANCE hInst) ;
 static void StopCrosshair() ;
 extern bool g_crossThreadRunning;
 bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷键
-void UpdateGlobalHotkey(HWND hw);
+
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
     GetEnvironmentVariableW(L"USERPROFILE", p, MAX_PATH);
@@ -35,7 +34,11 @@ void SaveEvolutionParams() {
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
     j["crosshair_style"] = g_crosshairStyle;
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
+    
     j["item_helper_enabled"] = g_itemHelperEnabled;
+    j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
+    j["item_helper_hotkey_vk"] = g_itemHelperHotkeyVk;
+
     std::ofstream out(GetEvolutionConfigPath());
     if (out.is_open()) { out << j.dump(2); out.close(); }
 }
@@ -73,6 +76,12 @@ void LoadEvolutionParams() {
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
+
+        gb("item_helper_enabled", g_itemHelperEnabled);
+
+        gv("item_helper_hotkey_mod", g_itemHelperHotkeyMod);
+        gv("item_helper_hotkey_vk", g_itemHelperHotkeyVk);
+
         gb("langCN", g_langCN);
         
     } catch (...) {

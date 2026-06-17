@@ -53,6 +53,9 @@ int   g_crosshairThickness = 2;
 float g_crosshairScale = 0.2f;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
+int  g_itemHelperHotkeyMod = 0;
+int  g_itemHelperHotkeyVk  = VK_HOME;
+bool g_isBindingItemHelperHotkey = false;
 
 // ===== 前向声明 =====
 ATOM MyRegisterClass(HINSTANCE);
@@ -63,7 +66,7 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
 static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND);
 static void PaintAll(HWND, HDC);
-void UpdateGlobalHotkey(HWND hw);
+
 
 
 static void LogTerminate()
@@ -136,7 +139,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     
     // 加载本地配置并让动态全局热键生效
     LoadEvolutionParams();  
-    UpdateGlobalHotkey(hwMain); 
+    UpdateHotkey::UpdateGlobalHotkey(hwMain); 
+    UpdateHotkey::UpdateItemHelperHotkey(hwMain);
     // ----------------------------------------------------
 
     // ===== 自动检测 GSI 配置文件 =====
@@ -266,6 +270,15 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
             // 通知主窗口重绘
             InvalidateRect(hw, nullptr, FALSE); 
         }
+
+        if (wp == 1002)
+{
+    std::cout
+        << "[道具助手] HOME PRESSED"
+        << std::endl;
+
+    return 0;
+}
         return 0;
     }
 case WM_KEYDOWN: {
@@ -289,7 +302,7 @@ case WM_KEYDOWN: {
 
                 g_isBindingHotkey = false; // 录入完成
                 SaveEvolutionParams();     // 保存配置到文件
-                UpdateGlobalHotkey(hw);
+                UpdateHotkey::UpdateGlobalHotkey(hw);
                 InvalidateRect(hw, nullptr, FALSE); // 刷新界面
             }
             break;
@@ -355,6 +368,7 @@ case WM_KEYDOWN: {
 {
     flashoverlay::Shutdown();
     UnregisterHotKey(hw, 1001);
+    UnregisterHotKey(hw, 1002);
     PostQuitMessage(0);
     return 0;
 }
@@ -438,7 +452,7 @@ INT_PTR CALLBACK About(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
     }
     return (INT_PTR)FALSE;
 }
-
+namespace UpdateHotkey {
 // ===== 在 StrikeSense.cpp 最底部添加此函数实现 =====
 void UpdateGlobalHotkey(HWND hw) {
     UnregisterHotKey(hw, 1001);
@@ -452,4 +466,34 @@ void UpdateGlobalHotkey(HWND hw) {
                       << " vk=" << g_hotkeyVk << std::endl;
         }
     }
+}
+
+void UpdateItemHelperHotkey(HWND hw)
+{
+    UnregisterHotKey(hw, 1002);
+
+    if (!g_itemHelperEnabled)
+        return;
+
+    if (g_itemHelperHotkeyVk == 0)
+        return;
+
+    if (!RegisterHotKey(
+        hw,
+        1002,
+        g_itemHelperHotkeyMod,
+        g_itemHelperHotkeyVk))
+    {
+        std::cout
+            << "[道具助手] 热键注册失败 "
+            << GetLastError()
+            << std::endl;
+    }
+    else
+    {
+        std::cout
+            << "[道具助手] 热键注册成功"
+            << std::endl;
+    }
+}
 }
