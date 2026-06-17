@@ -16,6 +16,7 @@
 #include <nlohmann/json.hpp>
 #include <SDL.h>
 #include <SDL_mixer.h>
+
 // =========================
 
 namespace gsi {
@@ -48,6 +49,19 @@ static config::Settings s_cachedCfg;
 // ===== 事件队列 =====
 static std::queue<int> s_eventQueue;
 static std::mutex s_queueMutex;
+
+// 实现刷新：让内存缓存重新加载一次磁盘文件
+void RefreshConfig()
+{
+    s_cachedCfg = config::Load();
+    std::cout << "[GSI] 收到外部通知，配置已刷新。当前音量: " << s_cachedCfg.volume << std::endl;
+}
+
+// 实现获取：直接把内存里的配置引用丢给 UI 层去读写
+config::Settings& GetConfig()
+{
+    return s_cachedCfg;
+}
 
 void StopBombSound() {
     // 1. 停止 SDL_mixer 对应的炸弹声道（CH_BOMB 在 Global.h 中定义为 3）
