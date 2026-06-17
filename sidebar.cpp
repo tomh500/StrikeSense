@@ -45,7 +45,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     // 语言切换底部
     int langY = H - 40;
     int ltx = SIDEBAR_W / 2 - 30;
-    g.DrawString(g_langCN ? L"中文" : L"English", -1, &sF, PointF(10, langY + 2), &td);
+    g.DrawString(g_langCN ? L"中文" : L"EN(BETA)", -1, &sF, PointF(10, langY + 2), &td);
     RectF tr((REAL)ltx, (REAL)langY, 50.f, 24.f);
     GraphicsPath tp;
     tp.AddArc(ltx, langY, 24, 24, 90, 180);

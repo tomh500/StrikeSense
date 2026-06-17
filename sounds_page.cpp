@@ -30,7 +30,7 @@ static SoundRow s_sounds[] = {
     {-18, L"死亡", L"death.wav", &config::Settings::snd_death},
     {-19, L"游戏结束", L"gameover.wav", &config::Settings::snd_gameover},
     {-21, L"菜单", L"menu.wav", &config::Settings::snd_menu},
-    {-99, L"闪光(可能)", L"flash.bmp", nullptr},
+    {-99, L"闪光(可能) ", L"flash.bmp", nullptr},
 };
 static constexpr int SND_COUNT = sizeof(s_sounds) / sizeof(s_sounds[0]);
 

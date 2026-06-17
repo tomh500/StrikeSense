@@ -21,5 +21,15 @@ namespace Keys {
         extern const char* LEGAL_STATUS_PREFIX, *LEGAL_SAVED, *LEGAL_NOT_FOUND;
         extern const char* Rage_TITLE, *Rage_PLACEHOLDER, *Rage_QUICKSTOP, *Rage_MIN_PULSE, *Rage_MAX_PULSE, *Rage_CAP_PULSE, *Rage_MOVE_START, *Rage_MOVE_CAP;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
+
+        // ===== 修复：改成符合项目结构的 const char* 外部声明 =====
+        extern const char* Rage_WARN_NOSAVE;
+        extern const char* Rage_ENABLE_TEXT;
+        extern const char* Rage_HINT_LINE1;
+        extern const char* Rage_HINT_LINE2;
+        extern const char* Rage_REQ_ADMIN_TITLE;
+        extern const char* Rage_REQ_ADMIN_MSG;
+        extern const char* Rage_RISK_WARNING_TITLE;
+        extern const char* Rage_RISK_WARNING_MSG;
     }
 }

@@ -5,6 +5,9 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
+// 如果 g_hMutex 声明在其他文件，必须在此处引出
+extern HANDLE g_hMutex; 
+
 bool g_rageEnabled = false;
 static Gdiplus::RectF g_RageToggleRect;
 
@@ -41,10 +44,10 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     SolidBrush hintCol(Color(180, 100, 130, 160));
 
     // 警告：Rage 模式不保存
-    g.DrawString(L"⚠ 由于供应商要求，Rage 模式启用状态不保存，每次启动程序必须手动启用", -1, &xsF, PointF(cx + 10, 38), &warnCol);
+    g.DrawString(_(i18n::Keys::Rage_WARN_NOSAVE), -1, &xsF, PointF((REAL)(cx + 10), 38.f), &warnCol);
 
     // 启用 Rage 模式开关
-    g.DrawString(L"启用 Rage 模式:", -1, &rF, PointF(cx + 10, 60), &tdCol);
+    g.DrawString(_(i18n::Keys::Rage_ENABLE_TEXT), -1, &rF, PointF((REAL)(cx + 10), 60.f), &tdCol);
     g_RageToggleRect = RectF((REAL)(cx + 160), (REAL)56, 50.f, 24.f);
     ui::DrawToggle(g, cx + 160, 56, g_rageEnabled);
 
@@ -54,7 +57,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int yBase = 100;
 
     // 标题和开关
-    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF(cx + 10, yBase), &tdCol);
+    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF((REAL)(cx + 10), (REAL)yBase), &tdCol);
     g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, yBase - 4, g_qsEnabled);
 
@@ -64,18 +67,18 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     SyncQSParams();
     auto& cfg = GetQSConfig();
 
-    // 5个滑块: min_pulse, max_pulse, cap_pulse, move_start_at, move_cap_at
+    // 修复：类型完全统一为项目的底层核心 const char*
     struct SliderDef {
-        const char* label;
+        const char* nameKey; 
         int* value;
         int minV, maxV;
     };
     SliderDef defs[] = {
-        { "Rage_MIN_PULSE", &cfg.min_pulse, 1, 300 },
-        { "Rage_MAX_PULSE", &cfg.max_pulse, 1, 300 },
-        { "Rage_CAP_PULSE", &cfg.cap_pulse, 1, 300 },
-        { "Rage_MOVE_START", &cfg.move_start_at, 1, 3000 },
-        { "Rage_MOVE_CAP", &cfg.move_cap_at, 1, 3000 },
+        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, 1, 300 },
+        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, 1, 300 },
+        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, 1, 300 },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 3000 },
+        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 1, 3000 },
     };
 
     int slW = cw - 280;
@@ -84,8 +87,8 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     for (int i = 0; i < 5; ++i) {
         int sy = yBase + 40 + i * 40;
-        const wchar_t* wlabel = i18n::T(defs[i].label);
-        g.DrawString(wlabel, -1, &sF, PointF(cx + 10, sy), &tdCol);
+        const wchar_t* wlabel = _(defs[i].nameKey); 
+        g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
         int barX = cx + 160;
         float norm = (float)(*defs[i].value - defs[i].minV) / (float)(defs[i].maxV - defs[i].minV);
@@ -105,8 +108,8 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     // 触发条件说明
-    g.DrawString(L"触发条件：按下 W / A / S / D 后松手 → 自动发送反向键（例如松W按S，松A按D）", -1, &xsF, PointF(cx + 10, yBase + 240), &hintCol);
-    g.DrawString(L"脉冲时长根据按住时长线性插值（起始→封顶），支持 Shift/Ctrl 静默跳过", -1, &xsF, PointF(cx + 10, yBase + 256), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(yBase + 240)), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(yBase + 256)), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
@@ -130,12 +133,11 @@ void CheckRageClick(HWND hw, int mx, int my) {
             if (!isElevated)
             {
                 int ret = MessageBoxW(hw,
-                    L"Rage 模式需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？",
-                    L"⚠️ 权限不足",
+                    _(i18n::Keys::Rage_REQ_ADMIN_MSG),
+                    _(i18n::Keys::Rage_REQ_ADMIN_TITLE),
                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
                 if (ret == IDYES)
                 {
-                    // 先释放互斥锁，再重新以管理员身份拉起
                     if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
                     wchar_t exePath[MAX_PATH] = {};
                     GetModuleFileNameW(nullptr, exePath, MAX_PATH);
@@ -146,8 +148,8 @@ void CheckRageClick(HWND hw, int mx, int my) {
             }
 
             int ret = MessageBoxW(hw, 
-                L"本页面的配置来自DearMacro，需要谨慎使用。\n我们不对它的安全性做保证。\n使用本页面造成的虚拟财产损失后果自负。\n\n您还要开启吗？",
-                L"⚠️ 警告：Rage 模式",
+                _(i18n::Keys::Rage_RISK_WARNING_MSG),
+                _(i18n::Keys::Rage_RISK_WARNING_TITLE),
                 MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
             if (ret != IDYES) return;
         }
@@ -176,7 +178,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
 
     if (!g_qsEnabled) return;
 
-    // 滑块检测 - 直接修改 cfg 并即时保存
+    // 滑块检测
     auto& cfg = GetQSConfig();
     struct { int* v; int min, max; } targets[] = {
         { &cfg.min_pulse, 1, 300 },

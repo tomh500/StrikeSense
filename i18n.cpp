@@ -7,10 +7,10 @@ void i18n::Init() {
     auto& cn = s_cn; auto& en = s_en;
     cn[Keys::SIDEBAR_FILE] = L"文件位置"; en[Keys::SIDEBAR_FILE] = L"File Location";
     cn[Keys::SIDEBAR_SETTINGS] = L"遗产核心"; en[Keys::SIDEBAR_SETTINGS] = L"Legacy Core";
-    cn[Keys::SIDEBAR_EVOLUTION] = L"进化分支"; en[Keys::SIDEBAR_EVOLUTION] = L"Evolution";
+    cn[Keys::SIDEBAR_EVOLUTION] = L"进化分支"; en[Keys::SIDEBAR_EVOLUTION] = L"Nextgen Mods";
     cn[Keys::SIDEBAR_LEGAL] = L"合法配置"; en[Keys::SIDEBAR_LEGAL] = L"Legit Config";
-    cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Rage";
-    cn[Keys::SIDEBAR_ITEMHELPER] = L"道具助手"; en[Keys::SIDEBAR_ITEMHELPER] = L"Item Helper";
+    cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Rage Config";
+    cn[Keys::SIDEBAR_ITEMHELPER] = L"道具助手"; en[Keys::SIDEBAR_ITEMHELPER] = L"Items Helper";
     
     cn[Keys::SOUNDS_TITLE] = L"文件位置"; en[Keys::SOUNDS_TITLE] = L"File Location";
     cn[Keys::SOUNDS_GSI_RUNNING] = L"运行中"; en[Keys::SOUNDS_GSI_RUNNING] = L"Running";
@@ -43,7 +43,7 @@ void i18n::Init() {
     cn[Keys::EVO_WAITING_KEY] = L"按下任何字母键或数字键..."; en[Keys::EVO_WAITING_KEY] = L"Press any letter or number...";
     cn[Keys::EVO_CLICK_MODIFY] = L"点击修改快捷键"; en[Keys::EVO_CLICK_MODIFY] = L"Click to rebind";
     cn[Keys::EVO_STATUS_NORMAL] = L"正常"; en[Keys::EVO_STATUS_NORMAL] = L"Normal";
-    cn[Keys::EVO_STATUS_MUTED] = L"即时音量调整开启"; en[Keys::EVO_STATUS_MUTED] = L"Muted";
+    cn[Keys::EVO_STATUS_MUTED] = L"启用调整"; en[Keys::EVO_STATUS_MUTED] = L"Enable";
     cn[Keys::EVO_HINT_MUTE] = L"此开关开启后，仅降低CS2进程的音量，不影响其他程序";en[Keys::EVO_HINT_MUTE] = L"When enabled, only lowers CS2 volume without affecting other apps.";
     cn[Keys::EVO_STATUS_DISABLED] = L"(已禁用)";en[Keys::EVO_STATUS_DISABLED] = L"(Disabled)";
     cn[Keys::EVO_LOCK_VIEW] = L"已封锁（仅查看）";en[Keys::EVO_LOCK_VIEW] = L"Blocked (View Only)";
@@ -54,13 +54,13 @@ void i18n::Init() {
     cn[Keys::LEGAL_EDIT_HINT] = L"点击编辑框编辑 | PageUp/Down翻页 | 鼠标点击移动光标";
     en[Keys::LEGAL_EDIT_HINT] = L"Click to edit | PageUp/Down scroll | Click to position cursor";
     cn[Keys::LEGAL_ADD_SOCD] = L"写入SOCD"; en[Keys::LEGAL_ADD_SOCD] = L"Add SOCD";
-    cn[Keys::LEGAL_REMOVE_SOCD] = L"移除SOCD"; en[Keys::LEGAL_REMOVE_SOCD] = L"Remove SOCD";
+    cn[Keys::LEGAL_REMOVE_SOCD] = L"移除SOCD"; en[Keys::LEGAL_REMOVE_SOCD] = L"RM SOCD";
     cn[Keys::LEGAL_ADD_MWHEEL] = L"写入滚轮跳"; en[Keys::LEGAL_ADD_MWHEEL] = L"Add MwheelJump";
-    cn[Keys::LEGAL_REMOVE_MWHEEL] = L"移除滚轮跳"; en[Keys::LEGAL_REMOVE_MWHEEL] = L"Remove MwheelJump";
+    cn[Keys::LEGAL_REMOVE_MWHEEL] = L"移除滚轮跳"; en[Keys::LEGAL_REMOVE_MWHEEL] = L"RM MwheelJump";
     cn[Keys::LEGAL_ADD_MS] = L"写入混合灵敏度"; en[Keys::LEGAL_ADD_MS] = L"Add MixedSens";
-    cn[Keys::LEGAL_REMOVE_MS] = L"移除混合灵敏度"; en[Keys::LEGAL_REMOVE_MS] = L"Remove MixedSens";
+    cn[Keys::LEGAL_REMOVE_MS] = L"移除混合灵敏度"; en[Keys::LEGAL_REMOVE_MS] = L"RM MixedSens";
     cn[Keys::LEGAL_ADD_CHSW] = L"写入准星跟随切换"; en[Keys::LEGAL_ADD_CHSW] = L"Add CrosshairSW";
-    cn[Keys::LEGAL_REMOVE_CHSW] = L"移除准星跟随切换"; en[Keys::LEGAL_REMOVE_CHSW] = L"Remove CrosshairSW";
+    cn[Keys::LEGAL_REMOVE_CHSW] = L"移除准星跟随切换"; en[Keys::LEGAL_REMOVE_CHSW] = L"RM CrosshairSW";
     cn[Keys::LEGAL_NORMAL] = L"常规"; en[Keys::LEGAL_NORMAL] = L"Normal";
     cn[Keys::LEGAL_ATTACK] = L"开火"; en[Keys::LEGAL_ATTACK] = L"Attack";
     cn[Keys::LEGAL_CUSTOM_HINT] = L"请自行修改配置文件中的绑定"; en[Keys::LEGAL_CUSTOM_HINT] = L"Edit keybinds in config";
@@ -78,6 +78,30 @@ void i18n::Init() {
     cn[Keys::Rage_MOVE_CAP] = L"封顶移动距离"; en[Keys::Rage_MOVE_CAP] = L"Move Cap At (ms)";
     cn[Keys::ITEM_TITLE] = L"道具助手"; en[Keys::ITEM_TITLE] = L"Item Helper";
     cn[Keys::ITEM_PLACEHOLDER] = L"功能开发中..."; en[Keys::ITEM_PLACEHOLDER] = L"Coming soon...";
+
+    cn[Keys::Rage_WARN_NOSAVE] = L"⚠ 由于供应商要求，Rage 模式启用状态不保存，每次启动程序必须手动启用";
+    en[Keys::Rage_WARN_NOSAVE] = L"⚠ Due to provider request, Rage mode state cannot be saved. Manually enable it each launch.";
+    
+    cn[Keys::Rage_ENABLE_TEXT] = L"启用 Rage 模式:";
+    en[Keys::Rage_ENABLE_TEXT] = L"Enable Rage Mode:";
+    
+    cn[Keys::Rage_HINT_LINE1] = L"触发条件：按下 W / A / S / D 后松手 → 自动发送反向键（例如松W按S，松A按D）";
+    en[Keys::Rage_HINT_LINE1] = L"Trigger: Release W/A/S/D → Auto counter-strafe (e.g., release W to tap S)";
+    
+    cn[Keys::Rage_HINT_LINE2] = L"脉冲时长根据按住时长线性插值（起始→封顶），支持 Shift/Ctrl 静默跳过";
+    en[Keys::Rage_HINT_LINE2] = L"Pulse duration scales linearly (Start→Cap). Supports Shift/Ctrl silent skip.";
+    
+    cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
+    en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";
+    
+    cn[Keys::Rage_REQ_ADMIN_MSG] = L"Rage 模式需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？";
+    en[Keys::Rage_REQ_ADMIN_MSG] = L"Rage mode requires Administrator privileges.\nDo you want to restart as Admin?";
+    
+    cn[Keys::Rage_RISK_WARNING_TITLE] = L"⚠️ 警告：Rage 模式";
+    en[Keys::Rage_RISK_WARNING_TITLE] = L"⚠️ Warning: Rage Mode";
+    
+    cn[Keys::Rage_RISK_WARNING_MSG] = L"本页面的配置来自DearMacro，需要谨慎使用。\n我们不对它的安全性做保证。\n使用本页面造成的虚拟财产损失后果自负。\n\n您还要开启吗？";
+    en[Keys::Rage_RISK_WARNING_MSG] = L"Configs are from DearMacro. Use with caution.\nWe DO NOT guarantee account safety.\nUse at your own risk.\n\nDo you still want to enable?";
 }
 
 const wchar_t* i18n::T(const char* key) {
@@ -100,6 +124,15 @@ namespace i18n { namespace Keys {
     const char *Rage_TITLE="Rage_TITLE",*Rage_PLACEHOLDER="Rage_PLACEHOLDER",*Rage_QUICKSTOP="Rage_QUICKSTOP",*Rage_MIN_PULSE="Rage_MIN_PULSE",*Rage_MAX_PULSE="Rage_MAX_PULSE",*Rage_CAP_PULSE="Rage_CAP_PULSE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
     const char* EVO_HINT_MUTE = "evo_hint_mute";
-        const char* EVO_STATUS_DISABLED = "evo_status_disabled";
-        const char* EVO_LOCK_VIEW = "evo_lock_view";
+    const char* EVO_STATUS_DISABLED = "evo_status_disabled";
+    const char* EVO_LOCK_VIEW = "evo_lock_view";
+
+    const char* Rage_WARN_NOSAVE = "Rage_WARN_NOSAVE";
+    const char* Rage_ENABLE_TEXT = "Rage_ENABLE_TEXT";
+    const char* Rage_HINT_LINE1 = "Rage_HINT_LINE1";
+    const char* Rage_HINT_LINE2 = "Rage_HINT_LINE2";
+    const char* Rage_REQ_ADMIN_TITLE = "Rage_REQ_ADMIN_TITLE";
+    const char* Rage_REQ_ADMIN_MSG = "Rage_REQ_ADMIN_MSG";
+    const char* Rage_RISK_WARNING_TITLE = "Rage_RISK_WARNING_TITLE";
+    const char* Rage_RISK_WARNING_MSG = "Rage_RISK_WARNING_MSG";
 }}
