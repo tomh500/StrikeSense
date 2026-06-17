@@ -4,6 +4,8 @@
 #include <atomic>
 #include <audiopolicy.h>
 #include <mmdeviceapi.h>
+#include "gsi_server.h"
+#include "config.h"
 
 #pragma comment(lib, "ole32.lib")
 
@@ -11,6 +13,7 @@ namespace {
     std::thread g_volThread;
     std::atomic<bool> g_volRunning{ false };
     float g_targetFactor = 0.5f;
+    static float s_savedGsiOriginalVolume = -1.0f;
 
     static bool IsCS2WindowActive()
     {
@@ -99,11 +102,22 @@ void StartCS2VolumeControl(float reduction)
     g_targetFactor = reduction;
     g_volRunning = true;
 
+    // 1. 同步降低 GSI 内存音量
+    config::Settings& c = gsi::GetConfig();
+    if (s_savedGsiOriginalVolume < 0.0f) 
+    {
+        s_savedGsiOriginalVolume = c.volume; 
+        c.volume = s_savedGsiOriginalVolume * reduction; 
+        std::cout << "[音量] GSI 辅助音量已同步降低至: " << (int)(c.volume * 100) << "%" << std::endl;
+    }
+
+    // 2. 启动系统控制线程
     g_volThread = std::thread([]() {
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
         ISimpleAudioVolume* pVol = nullptr;
         float savedVolume = -1.0f;
+        bool printedLowered = false; // 用于控制前台打印只触发一次
 
         while (g_volRunning)
         {
@@ -111,52 +125,56 @@ void StartCS2VolumeControl(float reduction)
 
             if (cs2Active)
             {
-                // 如果没有找到 CS2 会话，尝试查找
                 if (!pVol)
                 {
                     savedVolume = GetCS2VolumeAndSession(&pVol);
-                    if (pVol)
-                        std::cout << "[音量] CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
+                    if (pVol) {
+                        std::cout << "[音量] 捕捉到 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
+                        printedLowered = false; // 重新捕捉后允许打印
+                    }
                 }
 
-                // 应用降低（只有成功找到会话后才操作）
                 if (pVol && savedVolume >= 0)
                 {
                     float target = savedVolume * g_targetFactor;
                     pVol->SetMasterVolume(target, nullptr);
-                    // 只打印一次，不刷屏
-                    static bool printed = false;
-                    if (!printed)
+                    
+                    if (!printedLowered)
                     {
                         std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
-                        printed = true;
+                        printedLowered = true;
                     }
                 }
             }
             else
             {
-                // CS2 不在前台 → 恢复原始音量
+                // CS2 不在前台 → 临时恢复原始系统音量（不要释放 pVol，防止来回切窗口重新获取导致 savedVolume 错乱）
                 if (pVol && savedVolume >= 0)
                 {
                     pVol->SetMasterVolume(savedVolume, nullptr);
-                    std::cout << "[音量] CS2 后台 → 恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
-                    pVol->Release();
-                    pVol = nullptr;
-                    savedVolume = -1.0f;
+                    if (printedLowered) {
+                        std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
+                        printedLowered = false;
+                    }
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(200)); // 缩短至200ms提高响应速度
         }
 
-        // 退出时恢复
-        if (pVol && savedVolume >= 0)
+        // ========================================================
+        // ======= 核心修正：当用户彻底关闭功能时，在此处安全恢复 =======
+        // ========================================================
+        if (pVol)
         {
-            pVol->SetMasterVolume(savedVolume, nullptr);
-            std::cout << "[音量] 停止控制 → 已恢复原始音量" << std::endl;
+            if (savedVolume >= 0)
+            {
+                pVol->SetMasterVolume(savedVolume, nullptr);
+                std::cout << "[音量] 线程退出 → 已恢复 CS2 原始音量: " << (int)(savedVolume * 100) << "%" << std::endl;
+            }
             pVol->Release();
+            pVol = nullptr;
         }
-
         CoUninitialize();
     });
     g_volThread.detach();
@@ -164,7 +182,17 @@ void StartCS2VolumeControl(float reduction)
 
 void StopCS2VolumeControl()
 {
-    g_volRunning = false;
+    if (!g_volRunning) return;
+    g_volRunning = false; // 仅仅下发退出指令，让异步线程自己去恢复系统音频，防止竞争
+
+    // 完美同步：在此处恢复 GSI 工具自身的音量
+    if (s_savedGsiOriginalVolume >= 0.0f)
+    {
+        config::Settings& c = gsi::GetConfig();
+        c.volume = s_savedGsiOriginalVolume; 
+        std::cout << "[音量] GSI 辅助音量已恢复至原始大小: " << (int)(c.volume * 100) << "%" << std::endl;
+        s_savedGsiOriginalVolume = -1.0f; 
+    }
 }
 
 void SetCS2VolumeReduction(float factor)
