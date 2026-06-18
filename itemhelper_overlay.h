@@ -1,6 +1,34 @@
 #pragma once
 #include <windows.h>
 
+extern bool g_isBindingItemHelperHotkey;
+
+extern int g_itemHelperHotkeyMod;
+extern int g_itemHelperHotkeyVk;
+extern bool g_itemHelperEnabled;
+extern bool g_isBindingItemHelperHotkey;
+extern int g_itemHelperHotkeyMod;
+extern int g_itemHelperHotkeyVk;
+
+extern float g_itemHelperX;
+extern float g_itemHelperY;
+extern float g_itemHelperOpacity;
+extern bool  g_itemHelperAutoHide;
+extern int   g_itemHelperKeyPrev;
+extern int   g_itemHelperKeyNext;
+extern int   g_itemHelperKeySelect;
+extern bool  g_isBindingItemKeyPrev;
+extern bool  g_isBindingItemKeyNext;
+extern bool  g_isBindingItemKeySelect;
+extern float g_itemHelperX;
+extern float g_itemHelperY;
+extern float g_itemHelperOpacity;
+extern bool  g_itemHelperAutoHide;
+extern int   g_itemHelperKeyPrev;
+extern int   g_itemHelperKeyNext;
+extern int   g_itemHelperKeySelect;
+extern float g_itemHelperImgOpacity;
+
 namespace itemhelper_overlay
 {
     // 初始化遮罩窗口

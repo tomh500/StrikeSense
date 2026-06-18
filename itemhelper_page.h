@@ -2,11 +2,7 @@
 #include <vector>        // 解决 std::vector 报错
 #include <filesystem>    // 解决 std::filesystem 报错
 
-extern bool g_isBindingItemHelperHotkey;
 
-extern int g_itemHelperHotkeyMod;
-extern int g_itemHelperHotkeyVk;
-extern bool g_itemHelperEnabled;  
 enum ItemHelperState
 {
     IH_IDLE = 0,

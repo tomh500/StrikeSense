@@ -8,6 +8,7 @@
 #include "normalgen.h"
 #include "StrikeSense.h"
 #include "Hotkey.h"
+#include "itemhelper_overlay.h"
 
 namespace fs = std::filesystem;
 
@@ -40,6 +41,16 @@ void SaveEvolutionParams() {
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
     j["item_helper_hotkey_vk"] = g_itemHelperHotkeyVk;
+
+    // 道具助手新增设置
+    j["item_helper_x"] = g_itemHelperX;
+    j["item_helper_y"] = g_itemHelperY;
+    j["item_helper_opacity"] = g_itemHelperOpacity;
+    j["item_helper_img_opacity"] = g_itemHelperImgOpacity; // 保存图片透明度
+    j["item_helper_autohide"] = g_itemHelperAutoHide;      // 保存自动销毁
+    j["item_helper_key_prev"] = g_itemHelperKeyPrev;
+    j["item_helper_key_next"] = g_itemHelperKeyNext;
+    j["item_helper_key_sel"] = g_itemHelperKeySelect;
     if (g_itemHelperEnabled) {
     // 这里的 g_hwnd 是你的全局主窗口句柄（HWND），确保它在这个函数可用
     Hotkey::UpdateItemHelperHotkey(g_hwnd); 
@@ -89,6 +100,21 @@ void LoadEvolutionParams() {
         gv("item_helper_hotkey_vk", g_itemHelperHotkeyVk);
 
         gb("langCN", g_langCN);
+
+        // 道具助手基础读取
+        gb("item_helper_enabled", g_itemHelperEnabled);
+        gv("item_helper_hotkey_mod", g_itemHelperHotkeyMod);
+        gv("item_helper_hotkey_vk", g_itemHelperHotkeyVk);
+
+        // 道具助手新增读取
+        gv("item_helper_x", g_itemHelperX);
+        gv("item_helper_y", g_itemHelperY);
+        gv("item_helper_opacity", g_itemHelperOpacity);
+        gv("item_helper_img_opacity", g_itemHelperImgOpacity); // 读取图片透明度
+        gb("item_helper_autohide", g_itemHelperAutoHide);      // 读取自动销毁
+        gv("item_helper_key_prev", g_itemHelperKeyPrev);
+        gv("item_helper_key_next", g_itemHelperKeyNext);
+        gv("item_helper_key_sel", g_itemHelperKeySelect);
         
     } catch (...) {
         // 异常捕获时也保险起见重置

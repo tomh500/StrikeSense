@@ -61,6 +61,21 @@ bool g_itemHelperEnabled = false;   //道具助手开关
 int  g_itemHelperHotkeyMod = 0;
 int  g_itemHelperHotkeyVk  = VK_HOME;
 
+// ===== 道具助手新增全局变量 =====
+float g_itemHelperX = 0.95f;       // X位置 (0.0~1.0，默认靠右)
+float g_itemHelperY = 0.5f;        // Y位置 (0.0~1.0，默认居中)
+float g_itemHelperOpacity = 1.0f;  // 透明度 (0.0~1.0)
+bool  g_itemHelperAutoHide = false;// 桌面自动销毁开关
+
+int   g_itemHelperKeyPrev = VK_UP;      // 上一项快捷键
+int   g_itemHelperKeyNext = VK_DOWN;    // 下一项快捷键
+int   g_itemHelperKeySelect = VK_RETURN;// 确认/预览快捷键
+
+bool  g_isBindingItemKeyPrev = false;
+bool  g_isBindingItemKeyNext = false;
+bool  g_isBindingItemKeySelect = false;
+float g_itemHelperImgOpacity = 1.0f; //图片预览透明度
+
 
 
 // ===== 前向声明 =====
@@ -361,40 +376,37 @@ case WM_KEYDOWN: {
             break;
         }
 
-        if (g_isBindingItemHelperHotkey)    //道具助手绑定
-{
-    int vk = (int)wp;
+        // 道具助手：主开关快捷键绑定
+        if (g_isBindingItemHelperHotkey) {
+            int vk = (int)wp;
+            if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
+                g_itemHelperHotkeyVk = vk;
+                g_itemHelperHotkeyMod = 0;
+                if (GetKeyState(VK_CONTROL) & 0x8000) g_itemHelperHotkeyMod |= MOD_CONTROL;
+                if (GetKeyState(VK_SHIFT) & 0x8000)   g_itemHelperHotkeyMod |= MOD_SHIFT;
+                if (GetKeyState(VK_MENU) & 0x8000)    g_itemHelperHotkeyMod |= MOD_ALT;
+                g_isBindingItemHelperHotkey = false;
+                SaveEvolutionParams();
+                Hotkey::UpdateItemHelperHotkey(hw);
+                InvalidateRect(hw, nullptr, FALSE);
+            }
+            return 0; // 修复：这里必须 return，防止往下走到别的逻辑
+        }
 
-    if (vk != VK_CONTROL &&
-        vk != VK_SHIFT &&
-        vk != VK_MENU)
-    {
-        g_itemHelperHotkeyVk = vk;
+        // 道具助手：绑定上一项/下一项/确认热键 (修复嵌套：把它从上面的括号里拿出来了)
+        if (g_isBindingItemKeyPrev || g_isBindingItemKeyNext || g_isBindingItemKeySelect) {
+            int vk = (int)wp;
+            // 过滤掉单独的修饰键
+            if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
+                if (g_isBindingItemKeyPrev) { g_itemHelperKeyPrev = vk; g_isBindingItemKeyPrev = false; }
+                if (g_isBindingItemKeyNext) { g_itemHelperKeyNext = vk; g_isBindingItemKeyNext = false; }
+                if (g_isBindingItemKeySelect) { g_itemHelperKeySelect = vk; g_isBindingItemKeySelect = false; }
 
-        g_itemHelperHotkeyMod = 0;
-
-        if (GetKeyState(VK_CONTROL) & 0x8000)
-            g_itemHelperHotkeyMod |= MOD_CONTROL;
-
-        if (GetKeyState(VK_SHIFT) & 0x8000)
-            g_itemHelperHotkeyMod |= MOD_SHIFT;
-
-        if (GetKeyState(VK_MENU) & 0x8000)
-            g_itemHelperHotkeyMod |= MOD_ALT;
-
-        g_isBindingItemHelperHotkey = false;
-
-        SaveEvolutionParams();
-
-        Hotkey::UpdateItemHelperHotkey(hw);
-
-        InvalidateRect(
-            hw,
-            nullptr,
-            FALSE);
-    }
-
-    return 0;
+                SaveEvolutionParams();
+                InvalidateRect(hw, nullptr, FALSE);
+            }
+            return 0;
+        
 }
 
         return DefWindowProc(hw, m, wp, lp);

@@ -32,5 +32,8 @@ namespace Keys {
         extern const char* Rage_RISK_WARNING_TITLE;
         extern const char* Rage_RISK_WARNING_MSG;
         extern const char* SOUNDS_IMAGE_BTN;
+        extern const char* ITEM_BTN_MAKE ;
+        extern const char* ITEM_BTN_RECOVERY;
+        extern const char* ITEM_MSG_REC;
     }
 }

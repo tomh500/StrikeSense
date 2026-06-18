@@ -237,11 +237,12 @@ static void ScanMapFiles()
             // 清空全屏，全透明
             g.Clear(Color(0, 0, 0, 0));
 
-            // ==== 1. 右侧列表渲染配置 ====
             int panelW = 360;
             int panelH = 550;
-            int panelX = sw - panelW - 60; // 靠右贴边留置空隙
-            int panelY = (sh - panelH) / 2;
+
+            // 使用滑块动态计算位置，限制边界防止跑出屏幕
+            int panelX = (int)((sw - panelW) * g_itemHelperX);
+            int panelY = (int)((sh - panelH) * g_itemHelperY);
 
             // 绘制高级毛玻璃视觉感知的半透明黑色底座 (Alpha = 180)
             SolidBrush panelBg(Color(180, 15, 15, 18));
@@ -292,21 +293,34 @@ static void ScanMapFiles()
             }
 
             // ==== 2. 左侧图片预览长方形区域渲染 ====
+
             if (g_itemUI.state == IH_PREVIEW && s_previewImage) {
                 int previewW = 520;
-                int previewH = 390; // 4:3 经典准星道具图比例
-                int previewX = panelX - previewW - 40; // 恰好落在遮罩控制件的左侧
-                int previewY = panelY + (panelH - previewH) / 2; // 居中垂直对齐
+                int previewH = 390;
+                int previewX = panelX - previewW - 40;
+                int previewY = panelY + (panelH - previewH) / 2;
 
-                // 画预览区大黑底置框
                 SolidBrush previewBg(Color(230, 5, 5, 5));
                 g.FillRectangle(&previewBg, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
                 g.DrawRectangle(&borderPen, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
 
-                // 渲染图像到全屏覆层之上
-                g.DrawImage(s_previewImage.get(), (REAL)(previewX + 6), (REAL)(previewY + 6), (REAL)(previewW - 12), (REAL)(previewH - 12));
-                
-                // 水印或操作提示
+                // --- 核心修改：基于颜色矩阵实现图片半透明 ---
+                ImageAttributes imgAttr;
+                ColorMatrix cm = {
+                    1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                    0.0f, 0.0f, 0.0f, g_itemHelperImgOpacity, 0.0f, // 这里的 alpha 取决于滑块
+                    0.0f, 0.0f, 0.0f, 0.0f, 1.0f
+                };
+                imgAttr.SetColorMatrix(&cm, ColorMatrixFlagsDefault, ColorAdjustTypeBitmap);
+
+                g.DrawImage(s_previewImage.get(),
+                    RectF((REAL)(previewX + 6), (REAL)(previewY + 6), (REAL)(previewW - 12), (REAL)(previewH - 12)),
+                    0.0f, 0.0f, (REAL)s_previewImage->GetWidth(), (REAL)s_previewImage->GetHeight(),
+                    UnitPixel, &imgAttr);
+                // ------------------------------------------
+
                 Font hintFont(L"Microsoft YaHei", 9, FontStyleRegular);
                 g.DrawString(L"[Enter] 关闭预览", -1, &hintFont, PointF((REAL)(previewX + 12), (REAL)(previewY + previewH - 24)), &activeColor);
             }
@@ -319,8 +333,9 @@ static void ScanMapFiles()
         BLENDFUNCTION blend = {};
         blend.BlendOp = AC_SRC_OVER;
         blend.BlendFlags = 0;
-        blend.SourceConstantAlpha = 255;  // 整体控制透明度
-        blend.AlphaFormat = AC_SRC_ALPHA; // 允许透明度通道起效
+        // 动态应用透明度滑块，转为 0~255 的 Alpha 值
+        blend.SourceConstantAlpha = (BYTE)(255.0f * g_itemHelperOpacity);
+        blend.AlphaFormat = AC_SRC_ALPHA;
 
         UpdateLayeredWindow(s_hwnd, hdcScreen, &ptDst, &sizeDst, hdcMem, &ptSrc, 0, &blend, ULW_ALPHA);
 
@@ -338,7 +353,7 @@ static void ScanMapFiles()
 
             if (g_itemUI.showOverlay) {
                 // 1. 捕获上箭头
-                if (pKey->vkCode == VK_UP) {
+                if (pKey->vkCode == g_itemHelperKeyPrev) {
                     if (!g_itemUI.files.empty()) {
                         g_itemUI.selectedIndex = (g_itemUI.selectedIndex - 1 + (int)g_itemUI.files.size()) % (int)g_itemUI.files.size();
                         std::cout << "[道具助手] 按键响应: UP, 当前行索引: " << g_itemUI.selectedIndex << std::endl;
@@ -347,7 +362,7 @@ static void ScanMapFiles()
                     return 1; // 吞噬按键信号，不让其传递给游戏造成视角移动
                 }
                 // 2. 捕获下箭头
-                else if (pKey->vkCode == VK_DOWN) {
+                else if (pKey->vkCode == g_itemHelperKeyNext) {
                     if (!g_itemUI.files.empty()) {
                         g_itemUI.selectedIndex = (g_itemUI.selectedIndex + 1) % (int)g_itemUI.files.size();
                         std::cout << "[道具助手] 按键响应: DOWN, 当前行索引: " << g_itemUI.selectedIndex << std::endl;
@@ -356,7 +371,7 @@ static void ScanMapFiles()
                     return 1; // 吞噬按键信号
                 }
                 // 3. 捕获回车键
-                else if (pKey->vkCode == VK_RETURN) {
+                else if (pKey->vkCode == g_itemHelperKeySelect) {
                     std::cout << "[道具助手] 按键响应: ENTER" << std::endl;
                     if (g_itemUI.state == IH_BROWSE) {
                         if (!g_itemUI.files.empty() && g_itemUI.selectedIndex >= 0 && g_itemUI.selectedIndex < (int)g_itemUI.files.size()) {
@@ -384,13 +399,13 @@ static void ScanMapFiles()
             case WM_TIMER:{
                 if (wp == 999) {
                     // 如果当前道具助手遮罩正显示在屏幕上，但检测到游戏已经不再活跃（切回桌面了）
-                    if (g_itemUI.showOverlay && !IsCS2WindowActive()) {
-                        // 动态获取当前的实例句柄
-                        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hwnd, GWLP_HINSTANCE);
-                        // 强制安全隐藏遮罩，并卸载键盘钩子
-                        Toggle(hInst); 
-                        std::cout << "[道具助手] 检测到失去CS2游戏焦点，窗口自动隐退。" << std::endl;
-                    }
+                    if (g_itemHelperAutoHide && g_itemUI.showOverlay && !IsCS2WindowActive()) {
+                            // 动态获取当前的实例句柄
+                            HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hwnd, GWLP_HINSTANCE);
+                            // 强制安全隐藏遮罩，并卸载键盘钩子
+                            Toggle(hInst); 
+                            std::cout << "[道具助手] 检测到失去CS2游戏焦点，窗口自动隐退。" << std::endl;
+                        }
                 }
                 break;}
             // =====================================================

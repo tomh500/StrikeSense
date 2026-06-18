@@ -9,7 +9,7 @@ void i18n::Init() {
     cn[Keys::SIDEBAR_SETTINGS] = L"遗产核心"; en[Keys::SIDEBAR_SETTINGS] = L"Legacy Core";
     cn[Keys::SIDEBAR_EVOLUTION] = L"进化分支"; en[Keys::SIDEBAR_EVOLUTION] = L"Nextgen Mods";
     cn[Keys::SIDEBAR_LEGAL] = L"合法配置"; en[Keys::SIDEBAR_LEGAL] = L"Legit Config";
-    cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Rage Config";
+    cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Semi Rage";
     cn[Keys::SIDEBAR_ITEMHELPER] = L"道具助手"; en[Keys::SIDEBAR_ITEMHELPER] = L"Items Helper";
     
     cn[Keys::SOUNDS_TITLE] = L"文件位置"; en[Keys::SOUNDS_TITLE] = L"File Location";
@@ -69,7 +69,7 @@ void i18n::Init() {
     cn[Keys::LEGAL_SAVED] = L"已保存"; en[Keys::LEGAL_SAVED] = L"Saved";
     cn[Keys::LEGAL_NOT_FOUND] = L"未找到"; en[Keys::LEGAL_NOT_FOUND] = L"Not found";
 
-    cn[Keys::Rage_TITLE] = L"超频配置"; en[Keys::Rage_TITLE] = L"Rage";
+    cn[Keys::Rage_TITLE] = L"超频配置"; en[Keys::Rage_TITLE] = L"Semi Rage";
     cn[Keys::Rage_PLACEHOLDER] = L"功能开发中..."; en[Keys::Rage_PLACEHOLDER] = L"Coming soon...";
     cn[Keys::Rage_QUICKSTOP] = L"自动急停 (OpenDear)"; en[Keys::Rage_QUICKSTOP] = L"Auto QuickStop (OpenDear)";
     cn[Keys::Rage_MIN_PULSE] = L"最小脉冲 (ms)"; en[Keys::Rage_MIN_PULSE] = L"Min Pulse (ms)";
@@ -80,10 +80,10 @@ void i18n::Init() {
     cn[Keys::ITEM_TITLE] = L"道具助手"; en[Keys::ITEM_TITLE] = L"Item Helper";
     cn[Keys::ITEM_PLACEHOLDER] = L"功能开发中..."; en[Keys::ITEM_PLACEHOLDER] = L"Coming soon...";
 
-    cn[Keys::Rage_WARN_NOSAVE] = L"⚠ 由于供应商要求，Rage 模式启用状态不保存，每次启动程序必须手动启用";
+    cn[Keys::Rage_WARN_NOSAVE] = L"⚠ 由于供应商要求，超频配置启用状态不保存，每次启动程序必须手动启用";
     en[Keys::Rage_WARN_NOSAVE] = L"⚠ Due to provider request, Rage mode state cannot be saved. Manually enable it each launch.";
     
-    cn[Keys::Rage_ENABLE_TEXT] = L"启用 Rage 模式:";
+    cn[Keys::Rage_ENABLE_TEXT] = L"启用超频配置:";
     en[Keys::Rage_ENABLE_TEXT] = L"Enable Rage Mode:";
     
     cn[Keys::Rage_HINT_LINE1] = L"触发条件：按下 W / A / S / D 后松手 → 自动发送反向键（例如松W按S，松A按D）";
@@ -110,7 +110,9 @@ void i18n::Init() {
     cn["ITEM_BINDING"] = L"按下任意键...";    en["ITEM_BINDING"] = L"Press any key...";
     cn["ITEM_CLICK_MOD"] = L"点击修改快捷键"; en["ITEM_CLICK_MOD"] = L"Click to change hotkey";
     
-    cn["ITEM_BTN_OPEN_DIR"] = L"打开道具目录"; en["ITEM_BTN_OPEN_DIR"] = L"Open Items Directory";
+    cn["ITEM_BTN_RECOVERY"] = L"恢复默认设置"; en["ITEM_BTN_RECOVERY"] = L"Reocvery Setting";
+    cn["ITEM_BTN_MAKE"] = L"前往制作图片"; en["ITEM_BTN_MAKE"] = L"Goto Make Picture";
+    cn["ITEM_BTN_OPEN_DIR"] = L"打开道具目录"; en["ITEM_BTN_OPEN_DIR"] = L"Open Directory";
     cn["ITEM_USAGE_TITLE"] = L"使用说明:";     en["ITEM_USAGE_TITLE"] = L"How to Use:";
     cn["ITEM_USAGE_LINE1"] = L"1. 将图片文件放入对应的地图文件夹内。"; 
     en["ITEM_USAGE_LINE1"] = L"1. Place image files into the corresponding map folders.";
@@ -120,6 +122,17 @@ void i18n::Init() {
     en["ITEM_USAGE_LINE3"] = L"3. Use Up/Down arrows [↑] [↓] to switch selection.";
     cn["ITEM_USAGE_LINE4"] = L"4. 按下 [Enter] 键查看/关闭道具高清大图。";
     en["ITEM_USAGE_LINE4"] = L"4. Press [Enter] to view or close full-screen images.";
+
+    // ======  道具助手新增国际化文本  ======
+    cn["ITEM_POS_X"] = L"X 坐标";            en["ITEM_POS_X"] = L"Position X";
+    cn["ITEM_POS_Y"] = L"Y 坐标";            en["ITEM_POS_Y"] = L"Position Y";
+    cn["ITEM_OPACITY"] = L"透明度";          en["ITEM_OPACITY"] = L"Opacity";
+    cn["ITEM_PIC_OPACITY"] = L"图片透明度";  en["ITEM_PIC_OPACITY"] = L"Pic Opacity";
+    cn["ITEM_AUTOHIDE"] = L"桌面自动销毁";   en["ITEM_AUTOHIDE"] = L"Auto-Hide on Desktop";
+    cn["ITEM_KEY_PREV"] = L"上一项快捷键: %s"; en["ITEM_KEY_PREV"] = L"Prev Item Key: %s";
+    cn["ITEM_KEY_NEXT"] = L"下一项快捷键: %s"; en["ITEM_KEY_NEXT"] = L"Next Item Key: %s";
+    cn["ITEM_KEY_SEL"] = L"确认/预览快捷键: %s"; en["ITEM_KEY_SEL"] = L"Select/Preview Key: %s";
+    cn["ITEM_MSG_REC"] = L"确认将参数都设置为默认值吗？"; en["ITEM_MSG_REC"] = L"recovery setting?";
 }
 
 const wchar_t* i18n::T(const char* key) {
@@ -154,4 +167,8 @@ namespace i18n { namespace Keys {
     const char* Rage_RISK_WARNING_TITLE = "Rage_RISK_WARNING_TITLE";
     const char* Rage_RISK_WARNING_MSG = "Rage_RISK_WARNING_MSG";
     const char* SOUNDS_IMAGE_BTN = "SOUNDS_IMAGE_BTN";
+    const char* ITEM_BTN_MAKE = "ITEM_BTN_MAKE";
+    const char* ITEM_BTN_RECOVERY = "ITEM_BTN_RECOVERY";
+	const char* ITEM_OPACITY = "ITEM_OPACITY";
+    const char* ITEM_PIC_OPACITY = "ITEM_PIC_OPACITY";
 }}

@@ -1,0 +1,1 @@
+cmake --build C:\Users\jingy\source\repos\StrikeSense --config Release
