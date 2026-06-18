@@ -19,20 +19,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ====== 💎 2. 常见问题 Q&A 手风琴折叠效果 ======
+// ====== 💎 2. 常见问题 Q&A 手风琴折叠效果 ======
     const faqItems = document.querySelectorAll('.faq-item');
 
     faqItems.forEach(item => {
         const question = item.querySelector('.faq-question');
+        const answer = item.querySelector('.faq-answer');
         
-        question.addEventListener('click', () => {
+        question.addEventListener('click', (e) => {
+            // 防止点击事件冒泡到内部的其他卡片元素
+            e.stopPropagation(); 
+            
+            // 检查当前点击的这一项是不是已经打开了
             const isActive = item.classList.contains('active');
             
-            // 排他闭包：关闭其他打开的选项
-            faqItems.forEach(i => i.classList.remove('active'));
+            // 1. 【核心修复】只关闭“其他”选项，互不干扰
+            faqItems.forEach(i => {
+                if (i !== item) {
+                    i.classList.remove('active');
+                }
+            });
             
-            // 如果此前未开启，则激活当前项
-            if (!isActive) {
+            // 2. 切换当前项的状态：如果原来是开的就关掉，原来是关的就打开
+            if (isActive) {
+                item.classList.remove('active');
+            } else {
                 item.classList.add('active');
             }
         });
