@@ -67,6 +67,14 @@ const RESOURCE_DATABASE = [
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/理由.7z"
     },
+    {   id: 8,
+        filename: "燥起来",
+        img: "img/rescenter/燥起来.png",
+        desc: "CS2的官方音乐盒。",
+        tags: ["官方", "音乐盒"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/燥起来.7z"
+    },
     
 ];
 
