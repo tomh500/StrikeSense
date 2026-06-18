@@ -212,14 +212,13 @@ static void ScanMapFiles()
         int sw = GetSystemMetrics(SM_CXSCREEN);
         int sh = GetSystemMetrics(SM_CYSCREEN);
 
-        // 创建双缓冲动态离屏纹理，实现无闪烁半透明渲染
         HDC hdcScreen = GetDC(nullptr);
         HDC hdcMem = CreateCompatibleDC(hdcScreen);
 
         BITMAPINFO bmi = {};
         bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
         bmi.bmiHeader.biWidth = sw;
-        bmi.bmiHeader.biHeight = -sh; // 顶层自上而下像素排列
+        bmi.bmiHeader.biHeight = -sh;
         bmi.bmiHeader.biPlanes = 1;
         bmi.bmiHeader.biBitCount = 32;
         bmi.bmiHeader.biCompression = BI_RGB;
@@ -240,22 +239,29 @@ static void ScanMapFiles()
             int panelW = 360;
             int panelH = 550;
 
-            // 使用滑块动态计算位置，限制边界防止跑出屏幕
             int panelX = (int)((sw - panelW) * g_itemHelperX);
             int panelY = (int)((sh - panelH) * g_itemHelperY);
 
-            // 绘制高级毛玻璃视觉感知的半透明黑色底座 (Alpha = 180)
-            SolidBrush panelBg(Color(180, 15, 15, 18));
+            // ==========================================
+            // 💎 修复 1：将选择器透明度滑块动态应用到 GDI+ 画刷上
+            // ==========================================
+            // 假设 g_itemHelperOpacity 范围是 0.0f 到 1.0f
+            float pOpacity = g_itemHelperOpacity;
+            if (pOpacity < 0.0f) pOpacity = 0.0f;
+            if (pOpacity > 1.0f) pOpacity = 1.0f;
+
+            // 绘制右侧动态透明的菜单底座 (基础Alpha 180 乘以滑块)
+            SolidBrush panelBg(Color((BYTE)(180 * pOpacity), 15, 15, 18));
             g.FillRectangle(&panelBg, (REAL)panelX, (REAL)panelY, (REAL)panelW, (REAL)panelH);
 
-            // 绘制精细描框
-            Pen borderPen(Color(255, 30, 60, 100), 2.f);
+            // 绘制菜单边框
+            Pen borderPen(Color((BYTE)(255 * pOpacity), 30, 60, 100), 2.f);
             g.DrawRectangle(&borderPen, (REAL)panelX, (REAL)panelY, (REAL)panelW, (REAL)panelH);
 
             // 标题输出
             Font titleFont(L"Microsoft YaHei", 13, FontStyleBold);
-            SolidBrush textWhite(Color(255, 255, 255, 255));
-            
+            SolidBrush textWhite(Color((BYTE)(255 * pOpacity), 255, 255, 255));
+
             std::wstring mapWStr = fs::path(gsi::gamemap).wstring();
             wchar_t headerText[128];
             swprintf_s(headerText, L"道具助手清单 [%s]", mapWStr.c_str());
@@ -266,9 +272,9 @@ static void ScanMapFiles()
 
             // 滚动列出文件名
             Font itemFont(L"Microsoft YaHei", 10, FontStyleRegular);
-            SolidBrush activeColor(Color(255, 255, 215, 0));    // 被选中项：高亮土豪金
-            SolidBrush inactiveColor(Color(200, 210, 210, 210)); // 未选中项：淡灰色
-            SolidBrush highlightBg(Color(90, 255, 255, 255));   // 选中行的柔和亮色条背景
+            SolidBrush activeColor(Color((BYTE)(255 * pOpacity), 255, 215, 0));    // 高亮土豪金
+            SolidBrush inactiveColor(Color((BYTE)(200 * pOpacity), 210, 210, 210)); // 淡灰色
+            SolidBrush highlightBg(Color((BYTE)(90 * pOpacity), 255, 255, 255));   // 选中行背景
 
             int startY = panelY + 70;
             int itemHeight = 28;
@@ -283,34 +289,42 @@ static void ScanMapFiles()
                     std::wstring name = g_itemUI.files[i].filename().wstring();
 
                     if (i == g_itemUI.selectedIndex) {
-                        // 绘制选中高亮背景条
                         g.FillRectangle(&highlightBg, (REAL)(panelX + 12), (REAL)(currentY - 2), (REAL)(panelW - 24), (REAL)(itemHeight - 2));
                         g.DrawString(name.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &activeColor);
-                    } else {
+                    }
+                    else {
                         g.DrawString(name.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &inactiveColor);
                     }
                 }
             }
 
-            // ==== 2. 左侧图片预览长方形区域渲染 ====
-
+            // ==========================================
+            // 💎 修复 2：让图片预览区的黑遮罩和边框随图片透明度联动
+            // ==========================================
             if (g_itemUI.state == IH_PREVIEW && s_previewImage) {
                 int previewW = 520;
                 int previewH = 390;
                 int previewX = panelX - previewW - 40;
                 int previewY = panelY + (panelH - previewH) / 2;
 
-                SolidBrush previewBg(Color(230, 5, 5, 5));
-                g.FillRectangle(&previewBg, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
-                g.DrawRectangle(&borderPen, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
+                float imgOpacity = g_itemHelperImgOpacity;
+                if (imgOpacity < 0.0f) imgOpacity = 0.0f;
+                if (imgOpacity > 1.0f) imgOpacity = 1.0f;
 
-                // --- 核心修改：基于颜色矩阵实现图片半透明 ---
+                // 核心改动：黑色遮罩的 Alpha (230) 和 边框的 Alpha (255) 都要乘以图片透明度滑块值
+                SolidBrush previewBg(Color((BYTE)(230 * imgOpacity), 5, 5, 5));
+                g.FillRectangle(&previewBg, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
+
+                Pen previewBorderPen(Color((BYTE)(255 * imgOpacity), 30, 60, 100), 2.f);
+                g.DrawRectangle(&previewBorderPen, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
+
+                // 基于颜色矩阵实现图片半透明
                 ImageAttributes imgAttr;
                 ColorMatrix cm = {
                     1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                     0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
                     0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-                    0.0f, 0.0f, 0.0f, g_itemHelperImgOpacity, 0.0f, // 这里的 alpha 取决于滑块
+                    0.0f, 0.0f, 0.0f, imgOpacity, 0.0f,
                     0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                 };
                 imgAttr.SetColorMatrix(&cm, ColorMatrixFlagsDefault, ColorAdjustTypeBitmap);
@@ -319,27 +333,28 @@ static void ScanMapFiles()
                     RectF((REAL)(previewX + 6), (REAL)(previewY + 6), (REAL)(previewW - 12), (REAL)(previewH - 12)),
                     0.0f, 0.0f, (REAL)s_previewImage->GetWidth(), (REAL)s_previewImage->GetHeight(),
                     UnitPixel, &imgAttr);
-                // ------------------------------------------
 
+                // 提示文字也随之隐退
                 Font hintFont(L"Microsoft YaHei", 9, FontStyleRegular);
-                g.DrawString(L"[Enter] 关闭预览", -1, &hintFont, PointF((REAL)(previewX + 12), (REAL)(previewY + previewH - 24)), &activeColor);
+                SolidBrush hintColor(Color((BYTE)(255 * imgOpacity), 255, 215, 0));
+                g.DrawString(L"[Enter] 关闭预览", -1, &hintFont, PointF((REAL)(previewX + 12), (REAL)(previewY + previewH - 24)), &hintColor);
             }
         }
 
-        // 核心混合层叠：使用 Windows 硬件组合器将每像素含有 ARGB 属性的数据压入显示器最前端
+        // ==========================================
+        // 💎 修复 3：确保这里的全局混合透明度永远是 255 
+        // ==========================================
         POINT ptDst = { 0, 0 };
         SIZE sizeDst = { sw, sh };
         POINT ptSrc = { 0, 0 };
         BLENDFUNCTION blend = {};
         blend.BlendOp = AC_SRC_OVER;
         blend.BlendFlags = 0;
-        // 动态应用透明度滑块，转为 0~255 的 Alpha 值
-        blend.SourceConstantAlpha = (BYTE)(255.0f * g_itemHelperOpacity);
+        blend.SourceConstantAlpha = 255; // 严禁改为滑块变量，否则会引发全局缩放
         blend.AlphaFormat = AC_SRC_ALPHA;
 
         UpdateLayeredWindow(s_hwnd, hdcScreen, &ptDst, &sizeDst, hdcMem, &ptSrc, 0, &blend, ULW_ALPHA);
 
-        // 彻底销毁 GDI 临时资源，绝不发生系统资源泄露
         SelectObject(hdcMem, hOldBmp);
         DeleteObject(hBitmap);
         DeleteDC(hdcMem);
