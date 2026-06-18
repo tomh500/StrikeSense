@@ -29,7 +29,7 @@ const RESOURCE_DATABASE = [
         desc: "《穿越火线》经典音乐包，包含丰富的背景音乐和特效音效，完美还原游戏原声。",
         tags: ["社区", "音乐盒"],
         provider: "无损平方集团",
-        downloadUrl: "app/rescenter/CF_MUSIC.zip"
+        downloadUrl: "app/rescenter/CF_MUSIC.7z"
     },
     {
         id: 4,
@@ -38,7 +38,7 @@ const RESOURCE_DATABASE = [
         desc: "迷你世界击杀语音+瓦罗兰特经典击杀音效。",
         tags: ["社区", "击杀音效"],
         provider: "无损平方集团",
-        downloadUrl: "app/rescenter/minivarage.zip"
+        downloadUrl: "app/rescenter/minivarage.7z"
     },
        {
         id: 5,
@@ -47,9 +47,26 @@ const RESOURCE_DATABASE = [
         desc: "CS2的官方音乐盒。",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
-        downloadUrl: "app/rescenter/人生何处不青山.zip"
-    }
- 
+        downloadUrl: "app/rescenter/人生何处不青山.7z"
+    },
+           {
+        id: 6,
+        filename: "终极",
+        img: "img/rescenter/终极.jpg",
+        desc: "CS2的官方音乐盒。",
+        tags: ["官方", "音乐盒"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/终极.7z"
+    },
+    {
+        id: 7,
+        filename: "理由",
+        img: "img/rescenter/理由.png",
+        desc: "CS2的官方音乐盒。",
+        tags: ["官方", "音乐盒"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/理由.7z"
+    },
     
 ];
 
