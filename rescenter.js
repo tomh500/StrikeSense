@@ -39,7 +39,18 @@ const RESOURCE_DATABASE = [
         tags: ["社区", "击杀音效"],
         provider: "无损平方集团",
         downloadUrl: "app/rescenter/minivarage.zip"
+    },
+       {
+        id: 5,
+        filename: "人生何处不青山",
+        img: "img/rescenter/人生何处不青山.jpg",
+        desc: "CS2的官方音乐盒。",
+        tags: ["官方", "音乐盒"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/人生何处不青山.zip"
     }
+ 
+    
 ];
 
 // 2. 分页及过滤器核心状态配置
