@@ -262,7 +262,9 @@ namespace gsi {
             if (currentInLobby != s_isInLobby) {
                 s_isInLobby = currentInLobby;
                 if (currentInLobby) {
+
                     std::cout << "[大厅音乐] 进入大厅" << std::endl;
+                    Mix_HaltChannel(3);
                     s_isWindowActive = IsCS2WindowActive();
                     // 核心修复：进入大厅瞬间，强制同步当前真实的通道音量，根除0音量幽灵播放问题
                     Mix_Volume(4, s_isWindowActive ? static_cast<int>(s_cachedCfg.volume * MIX_MAX_VOLUME) : 0);

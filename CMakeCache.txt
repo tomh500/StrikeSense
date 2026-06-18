@@ -258,6 +258,8 @@ StrikeSense_SOURCE_DIR:STATIC=C:/Users/jingy/source/repos/StrikeSense
 // executables.
 VCPKG_APPLOCAL_DEPS:BOOL=ON
 
+VCPKG_HOST_TRIPLET:STRING=x64-windows-static
+
 //The directory which contains the installed libraries for each
 // triplet
 VCPKG_INSTALLED_DIR:PATH=C:/Users/jingy/vcpkg/installed
@@ -281,6 +283,9 @@ VCPKG_TARGET_TRIPLET:STRING=x64-windows-static
 
 //Trace calls to find_package()
 VCPKG_TRACE_FIND_PACKAGE:BOOL=OFF
+
+//Setup CMAKE_PROGRAM_PATH to use host tools
+VCPKG_USE_HOST_TOOLS:BOOL=ON
 
 //Enables messages from the VCPKG toolchain for debugging purposes.
 VCPKG_VERBOSE:BOOL=OFF

@@ -138,6 +138,9 @@
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\SteamHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="C:\Users\jingy\source\repos\StrikeSense\CMakeLists.txt" />

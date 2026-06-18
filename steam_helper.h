@@ -37,3 +37,4 @@ std::wstring LoadSavedCfgPath();
 void SaveCfgPath(const std::wstring& path);
 
 } // namespace strikesense
+

@@ -22,10 +22,16 @@
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "itemhelper_page.h"   
-
-
+#include <regex>
+#include <sstream>
+#include <vector>
+#include <Windows.h>
+#include "SteamHelper.h"
 #pragma comment(lib, "gdiplus.lib")
+#pragma comment(lib, "SteamHelper.lib")
 
+using namespace std;
+using namespace filesystem;
 namespace fs = std::filesystem;
 #define MAX_LOADSTRING 100
 
@@ -36,7 +42,7 @@ WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
 Console g_Console;
 std::wstring g_gsiCfgPath;
 static ULONG_PTR g_gdiToken = 0;
-HANDLE g_hMutex = nullptr; // 全局互斥锁句柄（用于管理员提权时释放）
+HANDLE g_hMutex = nullptr; 
 
 int g_currentPage = 0;
 bool g_langCN = true;
@@ -87,7 +93,7 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
 static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND);
 static void PaintAll(HWND, HDC);
-
+int AddCS2vulkanDebugVersion();
 
 
 static void LogTerminate()
@@ -268,6 +274,12 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     }
     // 【修改后】完全独立的两个 case
     case WM_CHAR: {
+        // 1. 如果当前在合法配置页面，优先处理该页面的字符输入逻辑
+        if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp)) {
+            return 0; // 如果内部成功处理（返回了 true），这里直接 return 0 拦截消息，不让系统默认处理
+        }
+
+        // 2. 如果不是该页面，或者该页面没处理这个按键，再走默认处理
         return DefWindowProc(hw, m, wp, lp);
     }
 
@@ -475,11 +487,69 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDYES:
+            // 1. 首先尝试写入原有的 GSI 配置
             if (strikesense::WriteGSIConfig(g_gsiCfgPath)) {
                 strikesense::SaveCfgPath(g_gsiCfgPath);
-                MessageBoxW(hD, L"成功！", L"提示", MB_OK);
-            } else MessageBoxW(hD, L"失败！", L"错误", MB_OK);
-            EndDialog(hD, IDYES); return TRUE;
+
+                // 2. GSI 成功后，紧接着调用追加 Vulkan 启动项的函数
+                int vulkanResult = AddCS2vulkanDebugVersion();
+
+                // 3. 根据函数的各种返回值进行分流弹窗提示
+                switch (vulkanResult) {
+                case 0:
+                    // 成功追加了 -vulkan
+                    MessageBoxW(hD, L"GSI 配置成功！已成功为您的 Steam 账号 CS2 启动项追加了 -vulkan 参数。\n\n请完全重启 Steam 客户端以使启动项生效！", L"提示", MB_OK | MB_ICONINFORMATION);
+                    break;
+
+                case 1:
+                    // 本地所有账号本来就都有 -vulkan 
+                    MessageBoxW(hD, L"GSI 配置成功！检测到您的 Steam 账号启动项中本来就已包含 -vulkan，无需重复添加。", L"提示", MB_OK | MB_ICONINFORMATION);
+                    break;
+
+                case 3:
+                    // 注册表找不到 Steam 路径
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：在注册表中未检测到标准的 Steam 安装路径，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                case 4:
+                    // 找不到账号文件夹 (userdata 为空)
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未在本地 Steam 目录中发现任何登录过的用户数据，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                case 5:
+                    // 物理上找不到任何 localconfig.vdf
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未找到有效的 Steam 本地配置文件(localconfig.vdf)，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                case 6:
+                    // 文件被独占或无权打开
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件当前被占用或拒绝访问，请【完全关闭 Steam 客户端】后再试，或手动添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                case 7:
+                    // 找到了配置文件，但里面没有 CS2 (730) 记录
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：检测到您的 Steam 账号在该电脑上【从未启动过 CS2】，请至少运行一次游戏后再试，或手动添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                case 8:
+                    // 正则解析异常或格式不规范
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件格式解析异常，为了安全未进行强行修改，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+
+                default:
+                    // 防御性未知错误
+                    MessageBoxW(hD, L"GSI 配置成功！但添加启动项时发生了未知的兼容性问题，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    break;
+                }
+
+            }
+            else {
+                // GSI 写入本身就失败的情况
+                MessageBoxW(hD, L"配置写入失败！请检查游戏路径是否正确或是否拥有管理员权限。", L"错误", MB_OK | MB_ICONERROR);
+            }
+
+            EndDialog(hD, IDYES);
+            return TRUE;
         case IDC_DELETE_CFG: {
             fs::path f = fs::path(g_gsiCfgPath) / L"gamestate_integration_square.cfg";
             std::error_code ec; fs::remove(f, ec);
@@ -512,4 +582,103 @@ INT_PTR CALLBACK About(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
         return (INT_PTR)TRUE;
     }
     return (INT_PTR)FALSE;
+}
+
+SteamHelper helper;
+wstring steamPath = helper.CallRegister2Steam();
+
+
+int AddCS2vulkanDebugVersion() {
+    if (steamPath == L"Read Failed") return 3;
+
+    const vector<string>& userIDs = helper.GetSteamUserIDs();
+    if (userIDs.empty()) return 4;
+
+    bool anyAddedTotal = false;
+    bool allAlreadyHad = true;
+    bool foundAnyVdf = false; // 新增：是否至少找到了一个物理文件
+    int lastSpecificError = 5;
+
+    for (const string& userID : userIDs) {
+        path vdfPath = path(steamPath) / "userdata" / userID / "config" / "localconfig.vdf";
+
+        if (!exists(vdfPath)) continue;
+
+        foundAnyVdf = true; // 只要进到这里，说明文件物理存在
+
+        string content;
+        {
+            ifstream inFile(vdfPath, ios::binary);
+            if (!inFile.is_open()) {
+                lastSpecificError = 6;
+                continue;
+            }
+            stringstream buffer;
+            buffer << inFile.rdbuf();
+            content = buffer.str();
+        }
+
+        if (content.empty()) continue;
+
+        // 查找 730 (CS2/CSGO的AppID)
+        size_t pos730 = content.find("\"730\"");
+        if (pos730 == string::npos) {
+            if (lastSpecificError < 7) lastSpecificError = 7;
+            continue;
+        }
+
+        // 走到这一步，错误码至少应该是 8 (没找到 LaunchOptions)
+        if (lastSpecificError < 8) lastSpecificError = 8;
+
+        bool modified = false;
+        size_t posLaunch = content.find("\"LaunchOptions\"", pos730);
+
+        if (posLaunch != string::npos) {
+            regex launchRegex("\"LaunchOptions\"\\s+\"([^\"]*)\"");
+            smatch match;
+
+            size_t lineEnd = content.find('\n', posLaunch);
+            if (lineEnd == string::npos) lineEnd = content.length();
+            string line = content.substr(posLaunch, lineEnd - posLaunch);
+
+            if (regex_search(line, match, launchRegex)) {
+                string currentOptions = match[1].str();
+                if (currentOptions.find("-vulkan") != string::npos) {
+                    continue;
+                }
+
+                allAlreadyHad = false;
+                string newOptions = currentOptions;
+                if (!newOptions.empty() && newOptions.back() != ' ') newOptions += " ";
+                newOptions += "-vulkan";
+
+                string newLine = "\"LaunchOptions\"\t\t\"" + newOptions + "\"";
+                content.replace(posLaunch, line.length(), newLine);
+                modified = true;
+            }
+        }
+        else {
+            size_t posBrace = content.find('{', pos730);
+            if (posBrace != string::npos) {
+                string insertStr = "\n\t\t\t\t\t\t\"LaunchOptions\"\t\t\"-vulkan\"";
+                content.insert(posBrace + 1, insertStr);
+                modified = true;
+                allAlreadyHad = false;
+            }
+        }
+
+        if (modified) {
+            ofstream outFile(vdfPath, ios::trunc | ios::binary);
+            if (outFile.is_open()) {
+                outFile << content;
+                outFile.close();
+                anyAddedTotal = true;
+            }
+        }
+    }
+
+    if (anyAddedTotal) return 0;
+    if (!foundAnyVdf) return 5; // 一个 VDF 路径都没对上
+    if (allAlreadyHad && lastSpecificError >= 7) return 1;
+    return lastSpecificError;
 }
