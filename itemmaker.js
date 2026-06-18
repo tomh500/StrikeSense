@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const chosenMap = mapSelect.value;
         let finalName = fileNameInput.value.trim();
         if (!finalName) finalName = 'prop_artifact';
-        const outputFullName = `${chosenMap}_${finalName}.jpg`;
+        const outputFullName = `${finalName}.jpg`;
 
         mainCanvas.toBlob((blob) => {
             const url = URL.createObjectURL(blob);
