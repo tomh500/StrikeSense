@@ -9,5 +9,6 @@ namespace normalgen {
 void Init();
 void Shutdown();
 bool CheckAdminPermission();
+bool IsCS2Running();
 
 } // namespace normalgen

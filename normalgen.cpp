@@ -1,6 +1,7 @@
 #include "normalgen.h"
 #include <windows.h>
-
+#include <tlhelp32.h>
+#include <string>
 namespace normalgen {
 
 void Init() {}
@@ -18,6 +19,33 @@ bool CheckAdminPermission() {
         CloseHandle(hToken);
     }
     return isElevated;
+}
+
+
+
+// 使用 Windows Toolhelp32 API 获取进程状态
+bool IsCS2Running() {
+    bool exists = false;
+    // 拍摄所有进程的快照
+    HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) return false;
+
+    PROCESSENTRY32W pe;
+    pe.dwSize = sizeof(PROCESSENTRY32W);
+
+    // 遍历快照中的进程
+    if (Process32FirstW(hSnapshot, &pe)) {
+        do {
+            // 检查进程名是否为 cs2.exe
+            if (std::wstring(pe.szExeFile) == L"cs2.exe") {
+                exists = true;
+                break;
+            }
+        } while (Process32NextW(hSnapshot, &pe));
+    }
+
+    CloseHandle(hSnapshot);
+    return exists;
 }
 
 } // namespace normalgen

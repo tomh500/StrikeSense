@@ -197,7 +197,7 @@ void CheckItemHelperClick(HWND hw, int mx, int my) {
 
     // 4. 底部按钮3：前往制作图片 (外部浏览器跳转)
     if (PtInRect(mx, my, g_itemHelperMakerBtnRect)) {
-        ShellExecuteW(nullptr, L"open", L"https://luotiany1.top/StrikeSense/maker", nullptr, nullptr, SW_SHOWNORMAL);
+        ShellExecuteW(nullptr, L"open", L"https://luotiany1.top/StrikeSense/itemmaker", nullptr, nullptr, SW_SHOWNORMAL);
         return;
     }
 

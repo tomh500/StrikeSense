@@ -63,15 +63,16 @@ void Quit()
 }
 
 // ----------------------------------------------------------
-static int SndIdToChannel(int id)
-{
+static int SndIdToChannel(int id) {
     switch (id) {
     case 1: case 2: case 3: case 4: case 5:
-    case -1: return 0; // kill
-    case -2: return 1; // MVP
-    case -3: case -4: return 2; // win/lose
-    case -12: return 3; // bomb
-    default: return -1;
+    case -1: return 0;  // Kill
+    case -2: return 1;  // MVP
+    case -3: case -4: return 2; // Win/Lose
+    case -12: case -13: case -14: case -19: return 3; // 音乐包 (Bomb/Round/Buy/GameOver)
+    case -18: return 5; // 死亡音效单独通道
+    case -21: return 4; // 大厅音乐
+    default: return 3;  // 兜底：防止遗漏，默认归入通道3
     }
 }
 
@@ -118,7 +119,6 @@ void PreloadSounds()
         return;
     }
 
-    // 构建音效列表
     std::vector<int> ids = {1,2,3,4,5,-1};
     if (cfg.custom_musickit)
     {
@@ -132,7 +132,7 @@ void PreloadSounds()
         std::wstring path = ResolveSndPath(id);
         std::string pathA = fs::path(path).string();
 
-        s_soundFileMap[id] = pathA; // 记录路径
+        s_soundFileMap[id] = pathA; 
 
         Mix_Chunk* chunk = Mix_LoadWAV(pathA.c_str());
         if (!chunk)
@@ -151,25 +151,39 @@ void Play(int id, float volume)
 {
     config::Settings cfg = config::Load();
 
-    // 死亡音效不受 enable_kill_sound 限制
+    // 1. 特殊处理：大厅背景音乐 (ID: -21)
+    if (id == -21) {
+        std::wstring path = ResolveSndPath(id);
+        if (path.empty() || !fs::exists(path)) return;
+
+        if (s_soundMap.count(-21)) {
+            Mix_FreeChunk(s_soundMap[-21]);
+        }
+
+        s_soundMap[-21] = Mix_LoadWAV(fs::path(path).string().c_str());
+        if (!s_soundMap[-21]) return;
+
+        Mix_VolumeChunk(s_soundMap[-21], static_cast<int>(volume * MIX_MAX_VOLUME));
+        Mix_HaltChannel(4); // 【修复问题2】大厅独立占用通道4
+        Mix_PlayChannel(4, s_soundMap[-21], -1); // 通道4，无限循环
+        return;
+    }
+
     if (id == -18)
     {
         // 始终播放死亡音效
     }
-    // 击杀音效：受 enable_kill_sound 控制
     else if (id >= 1 && id <= 5 || id == -1)
     {
         if (!cfg.enable_kill_sound) return;
     }
-    // 音乐包音效：受 custom_musickit 控制，且不会受到 enable_kill_sound 影响
     else if (!cfg.custom_musickit)
     {
-        // 不在 custom_musickit 模式下，不播放音乐包音效
         if (id == -2 || id == -3 || id == -4 || id == -12 || id == -13 || id == -14)
             return;
     }
 
-    // ===== 低内存模式：从磁盘加载后播放，播放完释放 =====
+    // ===== 低内存模式 =====
     if (cfg.low_memory)
     {
         std::wstring path = ResolveSndPath(id);
@@ -186,7 +200,8 @@ void Play(int id, float volume)
         int channel = SndIdToChannel(id);
         if (channel >= 0) Mix_HaltChannel(channel);
 
-        int played = Mix_PlayChannel(channel, chunk, 0);
+        int loops = (id == -21) ? -1 : 0;
+        int played = Mix_PlayChannel(channel, chunk, loops);
         if (played == -1)
         {
             Mix_FreeChunk(chunk);
@@ -194,12 +209,11 @@ void Play(int id, float volume)
         else
         {
             std::wcout << L"[音效] 播放 id=" << id << L" (低内存模式)" << std::endl;
-            // 播放完毕后自动释放
             std::thread([chunk, played]() {
                 while (Mix_Playing(played))
                     SDL_Delay(6);
                 Mix_FreeChunk(chunk);
-            }).detach();
+                }).detach();
         }
         return;
     }
@@ -220,7 +234,8 @@ void Play(int id, float volume)
     int channel = SndIdToChannel(id);
     if (channel >= 0) Mix_HaltChannel(channel);
 
-    int played = Mix_PlayChannel(channel, chunk, 0);
+    int loops = (id == -21) ? -1 : 0;
+    int played = Mix_PlayChannel(channel, chunk, loops);
     if (played == -1)
     {
         std::cerr << "[音效] 播放失败: " << Mix_GetError() << std::endl;

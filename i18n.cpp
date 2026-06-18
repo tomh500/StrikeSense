@@ -58,10 +58,12 @@ void i18n::Init() {
     cn[Keys::LEGAL_REMOVE_SOCD] = L"移除SOCD"; en[Keys::LEGAL_REMOVE_SOCD] = L"RM SOCD";
     cn[Keys::LEGAL_ADD_MWHEEL] = L"写入滚轮跳"; en[Keys::LEGAL_ADD_MWHEEL] = L"Add MwheelJump";
     cn[Keys::LEGAL_REMOVE_MWHEEL] = L"移除滚轮跳"; en[Keys::LEGAL_REMOVE_MWHEEL] = L"RM MwheelJump";
-    cn[Keys::LEGAL_ADD_MS] = L"写入混合灵敏度"; en[Keys::LEGAL_ADD_MS] = L"Add MixedSens";
+    cn["LEGAL_ADD_MS"] = L"写入混合灵敏度"; en["LEGAL_ADD_MS"] = L"Add MixedSens";
     cn[Keys::LEGAL_REMOVE_MS] = L"移除混合灵敏度"; en[Keys::LEGAL_REMOVE_MS] = L"RM MixedSens";
     cn[Keys::LEGAL_ADD_CHSW] = L"写入准星跟随切换"; en[Keys::LEGAL_ADD_CHSW] = L"Add CrosshairSW";
     cn[Keys::LEGAL_REMOVE_CHSW] = L"移除准星跟随切换"; en[Keys::LEGAL_REMOVE_CHSW] = L"RM CrosshairSW";
+    cn[Keys::LEGAL_ADD_SRP] = L"写入切刀声替换"; en[Keys::LEGAL_ADD_SRP] = L"Add Knife SoundReplace";
+    cn[Keys::LEGAL_RM_SRP] = L"移除切刀声替换"; en[Keys::LEGAL_RM_SRP] = L"RM Knife SoundReplace";
     cn[Keys::LEGAL_NORMAL] = L"常规"; en[Keys::LEGAL_NORMAL] = L"Normal";
     cn[Keys::LEGAL_ATTACK] = L"开火"; en[Keys::LEGAL_ATTACK] = L"Attack";
     cn[Keys::LEGAL_CUSTOM_HINT] = L"请自行修改配置文件中的绑定"; en[Keys::LEGAL_CUSTOM_HINT] = L"Edit keybinds in config";
@@ -133,6 +135,17 @@ void i18n::Init() {
     cn["ITEM_KEY_NEXT"] = L"下一项快捷键: %s"; en["ITEM_KEY_NEXT"] = L"Next Item Key: %s";
     cn["ITEM_KEY_SEL"] = L"确认/预览快捷键: %s"; en["ITEM_KEY_SEL"] = L"Select/Preview Key: %s";
     cn["ITEM_MSG_REC"] = L"确认将参数都设置为默认值吗？"; en["ITEM_MSG_REC"] = L"recovery setting?";
+
+    //刀
+// 刀型翻译定义
+    cn["LEGAL_SRP_NONE"] = L"不替换"; en["LEGAL_SRP_NONE"] = L"None";
+    cn["LEGAL_SRP_STILLETTO"] = L"短剑"; en["LEGAL_SRP_STILLETTO"] = L"Stiletto";
+    cn["LEGAL_SRP_GYPSY"] = L"折刀"; en["LEGAL_SRP_GYPSY"] = L"Navaja";
+    cn["LEGAL_SRP_PUSH"] = L"双匕"; en["LEGAL_SRP_PUSH"] = L"Shadow Daggers";
+    cn["LEGAL_SRP_WIDOW"] = L"锯齿"; en["LEGAL_SRP_WIDOW"] = L"Talon";
+    cn["LEGAL_SRP_FALCHION"] = L"折叠"; en["LEGAL_SRP_FALCHION"] = L"Falchion";
+    cn["LEGAL_SRP_URSUS"] = L"博伊"; en["LEGAL_SRP_URSUS"] = L"Ursus";
+    cn["LEGAL_SRP_BUTTERFLY"] = L"蝴蝶"; en["LEGAL_SRP_BUTTERFLY"] = L"Butterfly";
 }
 
 const wchar_t* i18n::T(const char* key) {
@@ -171,4 +184,6 @@ namespace i18n { namespace Keys {
     const char* ITEM_BTN_RECOVERY = "ITEM_BTN_RECOVERY";
 	const char* ITEM_OPACITY = "ITEM_OPACITY";
     const char* ITEM_PIC_OPACITY = "ITEM_PIC_OPACITY";
+    const char* LEGAL_ADD_SRP = "LEGAL_ADD_SRP";
+    const char* LEGAL_RM_SRP = "LEGAL_RM_SRP";
 }}

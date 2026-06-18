@@ -35,5 +35,16 @@ namespace Keys {
         extern const char* ITEM_BTN_MAKE ;
         extern const char* ITEM_BTN_RECOVERY;
         extern const char* ITEM_MSG_REC;
+        extern const char* LEGAL_ADD_SRP;
+        extern const char* LEGAL_RM_SRP;
+        extern const char* LEGAL_SRP_NONE;
+        extern  const char* LEGAL_SRP_NONE;
+        extern  const char* LEGAL_SRP_STILLETTO;
+        extern  const char* LEGAL_SRP_GYPSY;
+        extern  const char* LEGAL_SRP_PUSH;
+        extern  const char* LEGAL_SRP_WIDOW;
+        extern  const char* LEGAL_SRP_FALCHION;
+        extern  const char* LEGAL_SRP_URSUS;
+        extern  const char* LEGAL_SRP_BUTTERFLY;
     }
 }
