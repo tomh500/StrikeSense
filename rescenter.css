@@ -1,0 +1,323 @@
+/* ==========================================================================
+   💎 StrikeSense 资源中心专属样式 (明亮浅天蓝扩展)
+   ========================================================================== */
+
+.res-hero {
+    padding: 140px 0 60px 0;
+    text-align: center;
+    background: radial-gradient(circle at 50% 100%, rgba(0, 153, 255, 0.05) 0%, transparent 70%);
+}
+
+.res-hero h1 {
+    font-size: 38px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 15px;
+}
+
+/* 综合搜索过滤面板 */
+.filter-panel {
+    background-color: var(--bg-card);
+    padding: 25px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(9, 114, 122, 0.03);
+    border: 1px solid rgba(9, 114, 122, 0.06);
+    margin-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 搜索框 */
+.search-box-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    font-size: 15px;
+    border: 1px solid rgba(9, 114, 122, 0.15);
+    background-color: var(--bg-main);
+    border-radius: 12px;
+    color: var(--text-main);
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+#searchInput:focus {
+    border-color: var(--col-tb);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.1);
+}
+
+/* 标签过滤器 */
+.tag-filter-wrap {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.filter-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.tags-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.filter-tag {
+    padding: 6px 16px;
+    font-size: 13px;
+    border-radius: 8px;
+    border: 1px solid rgba(9, 114, 122, 0.1);
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.filter-tag:hover {
+    border-color: var(--col-bp);
+    background-color: var(--bg-card);
+}
+
+/* 标签激活（多选状态） */
+.filter-tag.active {
+    background-color: var(--col-td);
+    color: #ffffff;
+    border-color: var(--col-td);
+    box-shadow: 0 4px 12px rgba(0, 119, 204, 0.2);
+}
+
+.res-grid {
+    display: grid;
+    /* 修改此处：每行强制固定 3 列，且自动填充 */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 25px; /* 适当缩小间距以容纳 3 列 */
+    min-height: 350px;
+}
+
+/* 卡片骨架 */
+.res-card {
+    background-color: var(--bg-card);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(9, 114, 122, 0.06);
+    box-shadow: 0 4px 20px rgba(9, 114, 122, 0.02);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.res-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--col-bp);
+    box-shadow: 0 12px 30px rgba(9, 114, 122, 0.08);
+}
+
+/* 预览图盒子 */
+.res-img-box {
+    width: 100%;
+    height: 180px;
+    background-color: #e6f0f5;
+    position: relative;
+    overflow: hidden;
+}
+
+.res-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 卡片正文 */
+.res-info-box {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.res-filename {
+    font-size: 17px;
+    font-weight: bold;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.res-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 15px;
+    flex: 1;
+    /* 增加溢出省略，保持卡片高度统一 */
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* 限制最多显示 3 行 */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 内置卡片多标签展示 */
+.res-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.inner-tag {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: var(--bg-sub);
+    color: var(--col-td);
+    border: 1px solid rgba(0, 119, 204, 0.1);
+}
+
+/* 官方专属特别小边框标签 */
+.inner-tag.tag-official {
+    background-color: rgba(0, 153, 255, 0.1);
+    color: #0077cc;
+    font-weight: bold;
+}
+
+/* 分享人与下载按钮区 */
+.res-footer-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid rgba(9, 114, 122, 0.05);
+}
+
+.res-provider {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.res-provider strong {
+    color: var(--text-main);
+}
+
+/* 资源下载专用小按钮 */
+.btn-download {
+    padding: 7px 16px;
+    font-size: 12px;
+    border-radius: 10px;
+    background-color: var(--col-bb);
+    color: var(--col-td);
+    border: 1px solid var(--col-bp);
+    font-weight: bold;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-download:hover {
+    background-color: var(--col-td);
+    color: #ffffff;
+}
+
+
+.page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 6px;
+    border: 1px solid rgba(9, 114, 122, 0.1);
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+    border-color: var(--col-bp);
+    color: var(--col-tb);
+}
+
+.page-btn.active {
+    background-color: var(--col-td);
+    color: #ffffff;
+    border-color: var(--col-td);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 空状态搜索提示 */
+.empty-tips {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 0;
+    color: var(--text-dim);
+    font-size: 15px;
+}
+
+/* 导航激活高亮样式 */
+.active-link {
+    color: var(--col-tb) !important;
+    border-bottom: 2px solid var(--col-tb);
+}
+
+/* 响应式微调 */
+@media (max-width: 768px) {
+    .filter-panel { padding: 15px; gap: 15px; }
+    .tag-filter-wrap { flex-direction: column; align-items: flex-start; }
+    .res-grid { grid-template-columns: 1fr; }
+}
+
+.page-dots {
+    padding: 0 10px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+}
+.pagination-wrap {
+    display: flex;
+    justify-content: center; /* 关键：让内部子元素水平居中 */
+    align-items: center;
+    gap: 8px;
+    margin-top: 40px;
+    padding-bottom: 60px;
+    width: 100%;             /* 确保宽度占满父容器 */
+}
+
+/* 省略号容器，确保它不会破坏按钮间距 */
+.page-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px; /* 与 page-btn 宽度保持一致 */
+    height: 36px;
+    color: var(--text-dim);
+    font-weight: bold;
+    pointer-events: none; /* 让鼠标穿透，不会误点 */
+}

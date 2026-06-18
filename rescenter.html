@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StrikeSense - 游戏状态集成资源中心</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="rescenter.css">
+</head>
+<body>
+
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">StrikeSense</a>
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav-links" id="navLinks">
+                <a href="index.html">返回首页</a>
+                <a href="itemmaker.html">道具图制作</a>
+                <a href="#res-section" class="active-link">资源下载中心</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="res-hero">
+        <div class="container">
+            <span class="badge">资源与扩展中心</span>
+            <h1>自由定制，扩展你的竞技面板</h1>
+            <p class="subtitle">这里汇集了官方精选及社区玩家分享的音效包、音乐盒以及实战道具数据集。一键下载，即装即用。</p>
+        </div>
+    </section>
+
+    <section id="res-section" class="res-main-section">
+        <div class="container">
+            
+            <div class="filter-panel">
+                <div class="search-box-wrap">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="searchInput" placeholder="搜索文件名、简介或提供者...">
+                </div>
+                
+                <div class="tag-filter-wrap">
+                    <span class="filter-title">分类筛选：</span>
+                    <div class="tags-group" id="tagsGroup">
+                        <button class="filter-tag" data-tag="官方">官方</button>
+                        <button class="filter-tag" data-tag="社区">社区</button>
+                        <button class="filter-tag" data-tag="音乐盒">音乐盒</button>
+                        <button class="filter-tag" data-tag="击杀音效">击杀音效</button>
+                        <button class="filter-tag" data-tag="道具">道具</button>
+                        <button class="filter-tag" data-tag="其他">其他</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="res-grid" id="resGrid">
+                </div>
+
+            <div class="pagination-wrap" id="paginationWrap">
+                </div>
+
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
+        </div>
+    </footer>
+
+    <script src="rescenter.js"></script>
+    <script>
+        // 简单的手机端汉堡菜单基本抽屉逻辑
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.getElementById('navLinks');
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('open');
+            navLinks.classList.toggle('open');
+        });
+    </script>
+</body>
+</html>
