@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include <mutex>
 
 namespace fs = std::filesystem;
 
@@ -17,8 +18,25 @@ static bool s_sdlInitialized = false;
 // 预加载的音效缓存（非低内存模式使用）
 static std::unordered_map<int, Mix_Chunk*> s_soundMap;
 static std::unordered_map<int, std::string> s_soundFileMap;
-
 // ----------------------------------------------------------
+// 
+// ======= 新增：受控延迟播放线程控制元 =======
+static std::thread s_delayThread;
+static std::atomic<bool> s_delayCancel{ false };
+static std::mutex s_delayMutex;
+// 安全停止并回收延迟线程的同步函数
+static void StopDelayThread()
+{
+    s_delayCancel = true;
+    std::lock_guard<std::mutex> lock(s_delayMutex);
+    if (s_delayThread.joinable())
+    {
+        s_delayThread.join(); // 阻塞等待线程安全退出
+    }
+}
+// ===========================================
+// 
+
 bool Init()
 {
     if (s_sdlInitialized) return true;
@@ -47,9 +65,15 @@ bool Init()
 }
 
 // ----------------------------------------------------------
+// ----------------------------------------------------------
 void Quit()
 {
     if (!s_sdlInitialized) return;
+
+    // ======= 新增：优先切断并回收后台延迟线程，防止其在 SDL 销毁后越界访问 =======
+    StopDelayThread();
+    // =======================================================================
+
     // 释放预加载的音效
     for (auto& [id, chunk] : s_soundMap)
         if (chunk) Mix_FreeChunk(chunk);
@@ -147,8 +171,42 @@ void PreloadSounds()
 }
 
 // ----------------------------------------------------------
+// ----------------------------------------------------------
 void Play(int id, float volume)
 {
+    // ======== 修改：防止重叠的异步安全等待队列 ========
+    if (id == -13 || id == -14)
+    {
+        if (Mix_Playing(1) || Mix_Playing(2))
+        {
+            std::cout << "[音效] 检测到结算或 MVP 音效仍在播放，正在创建后台异步等待队列..." << std::endl;
+
+            // 1. 先安全清理上一次可能残存的延迟线程
+            StopDelayThread();
+
+            // 2. 加锁拉起新线程任务
+            std::lock_guard<std::mutex> lock(s_delayMutex);
+            s_delayCancel = false;
+            s_delayThread = std::thread([id, volume]() {
+                // 只要未触发取消信号，且结算音效仍在播放，就高频微步长等待
+                while (!s_delayCancel && (Mix_Playing(1) || Mix_Playing(2)))
+                {
+                    SDL_Delay(50);
+                }
+
+                // 如果中途没有被取消（说明不是因为程序退出或被新回合音效覆盖），则安全执行播放
+                if (!s_delayCancel)
+                {
+                    std::cout << "[音效] 上回合结算音效已完全播放完毕，现在正式投递音效 (ID: " << id << ")" << std::endl;
+                    Play(id, volume);
+                }
+                });
+
+            return; // 立刻返回，绝不阻塞当前 GSI 核心工作线程
+        }
+    }
+    // ===================================================================================
+
     config::Settings cfg = config::Load();
 
     // 1. 特殊处理：大厅背景音乐 (ID: -21)

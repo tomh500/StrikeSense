@@ -394,7 +394,6 @@ namespace gsi {
                 // freezetime → buy 音效
                 if (phase == "freezetime" && s_lastPhase != "freezetime")
                 {
-                    Mix_HaltChannel(1); Mix_HaltChannel(2); Mix_HaltChannel(3);
                     if (s_bombPlantedThisRound) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(3500));
                     }
