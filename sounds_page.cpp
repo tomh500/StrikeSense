@@ -27,6 +27,7 @@ static SoundRow s_sounds[] = {
     {-4, L"回合失败", L"lose.wav", &config::Settings::snd_lose},
     {-13, L"回合开始", L"round.wav", &config::Settings::snd_round},
     {-14, L"购买阶段", L"buy.wav", &config::Settings::snd_buy},
+    {-20, L"比赛十秒倒计时", L"lastsec.wav", &config::Settings::snd_lastsec}, 
     {-12, L"炸弹", L"bomb.wav", &config::Settings::snd_bomb},
     {-18, L"死亡", L"death.wav", &config::Settings::snd_death},
     {-19, L"游戏结束", L"gameover.wav", &config::Settings::snd_gameover},
@@ -204,6 +205,7 @@ void CheckSoundsClick(HWND hw, int mx, int my) {
             case -18: c.snd_death = p; break; 
             case -19: c.snd_gameover = p; break;
             case -21: c.snd_menu = p; break;
+            case -20: c.snd_lastsec = p; break;
         }
         config::Save(c); 
         InvalidateRect(hw, nullptr, FALSE); 

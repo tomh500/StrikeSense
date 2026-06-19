@@ -24,8 +24,11 @@
 // =========================
 extern HINSTANCE hInst;
 bool IsCS2WindowActive();
+int beforeisgaming = 0;
 
 namespace gsi {
+
+
 
     int g_debug = 1;
 
@@ -65,6 +68,13 @@ namespace gsi {
     // ===== 事件队列 =====
     static std::queue<int> s_eventQueue;
     static std::mutex s_queueMutex;
+
+    // ======= 线程安全改造：十秒倒计时专属多线程控制元 =======
+    static std::thread s_timerThread;
+    static std::atomic<bool> s_timerCancel{ false }; // 采用取消标记语义
+    static std::mutex s_timerMutex;                   // 核心互斥锁：终结并发冲突崩溃
+    static Mix_Chunk* s_lastSecChunk = nullptr;      // 静态音频缓冲区指针
+    // ====================================================
 
     // 实现刷新：让内存缓存重新加载一次磁盘文件
     void RefreshConfig()
@@ -175,6 +185,106 @@ namespace gsi {
             }
         }
     }
+    // ======= 核心重构：多线程安全控制函数群 =======
+
+        // 安全停止并无条件汇合(join)销毁倒计时线程
+    void StopRoundCountdown()
+    {
+        std::lock_guard<std::mutex> lock(s_timerMutex);
+        s_timerCancel = true; // 激活取消信号
+        if (s_timerThread.joinable())
+        {
+            s_timerThread.join(); // 阻塞等待子线程彻底离场，绝不留隐患
+            std::cout << "[倒计时系统] 计时器工作线程已安全汇合(join)并销毁。" << std::endl;
+        }
+    }
+
+    // 在 3 通道加载并播放倒计时音效
+    void PlayLastSecSound()
+    {
+        std::wstring wpath = s_cachedCfg.snd_lastsec;
+        if (wpath.empty())
+        {
+            std::cout << "[倒计时系统] 倒计时音效路径配置为空，放弃推送。" << std::endl;
+            return;
+        }
+
+        // 转换至 UTF-8 以兼容 SDL_mixer 接口
+        int u8Len = WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), (int)wpath.length(), nullptr, 0, nullptr, nullptr);
+        if (u8Len <= 0) return;
+        std::string u8Path(u8Len, '\0');
+        WideCharToMultiByte(CP_UTF8, 0, wpath.c_str(), (int)wpath.length(), &u8Path[0], u8Len, nullptr, nullptr);
+
+        std::cout << "[倒计时系统] 定时器触发！开始加载音频资源: " << u8Path << std::endl;
+
+        Mix_Chunk* chunk = Mix_LoadWAV(u8Path.c_str());
+        if (!chunk)
+        {
+            std::cerr << "[倒计时系统] 音频文件加载失败: " << Mix_GetError() << std::endl;
+            return;
+        }
+
+        // 涉及全局静态缓冲区更替与音频通道关闭，实施加锁防护
+        {
+            std::lock_guard<std::mutex> lock(s_timerMutex);
+            Mix_HaltChannel(3); // 阻断 3 通道旧音效
+            if (s_lastSecChunk)
+            {
+                Mix_FreeChunk(s_lastSecChunk); // 卸载释放历史内存
+            }
+            s_lastSecChunk = chunk;
+        }
+
+        Mix_Volume(3, static_cast<int>(s_cachedCfg.volume * MIX_MAX_VOLUME));
+        if (Mix_PlayChannel(3, chunk, 0) == -1)
+        {
+            std::cerr << "[倒计时系统] 3 通道音频独占播放失败: " << Mix_GetError() << std::endl;
+        }
+        else
+        {
+            std::cout << "[倒计时系统] 倒计时音效已成功推送至 3 通道。" << std::endl;
+        }
+    }
+
+    // 根据模式自适应拉起安全高频轮询计时器
+    void StartRoundCountdown(const std::string& mapMode)
+    {
+        // 1. 先关闭并汇合可能残存的旧计时线程
+        StopRoundCountdown();
+
+        // 2. 加锁进行新一轮线程实例指派
+        std::lock_guard<std::mutex> lock(s_timerMutex);
+        s_timerCancel = false;
+
+        int durationSeconds = 105; // 默认竞技模式 1min45s = 105s
+        if (mapMode == "casual")
+        {
+            durationSeconds = 125; // 休闲模式 2min5s = 125s
+            std::cout << "[倒计时系统] 当前模式: 休闲模式 (Casual)，拉起 125秒 独立守护进程。" << std::endl;
+        }
+        else
+        {
+            std::cout << "[倒计时系统] 当前模式: 竞技模式 (Competitive)，拉起 105秒 独立守护进程。" << std::endl;
+        }
+
+        // 创建新工作线程，无缝覆盖已被安全 join 的旧对象
+        s_timerThread = std::thread([durationSeconds]() {
+            int msLeft = durationSeconds * 1000;
+            const int tickStep = 50; // 50ms 高频分段步进，确保响应取消请求毫无粘滞感
+
+            while (!s_timerCancel && msLeft > 0)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(tickStep));
+                msLeft -= tickStep;
+            }
+
+            // 若在计时完结时未收到外部的拆弹、下包、或终结取消指令，则精准触发挥发音频推送
+            if (!s_timerCancel && msLeft <= 0)
+            {
+                PlayLastSecSound();
+            }
+            });
+    }
 
     // ============================================================
     // GSI POST 处理
@@ -284,6 +394,7 @@ namespace gsi {
                 // freezetime → buy 音效
                 if (phase == "freezetime" && s_lastPhase != "freezetime")
                 {
+                    Mix_HaltChannel(1); Mix_HaltChannel(2); Mix_HaltChannel(3);
                     if (s_bombPlantedThisRound) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(3500));
                     }
@@ -294,6 +405,7 @@ namespace gsi {
                 // live 阶段 → 回合开始
                 if (phase == "live" && s_waitingForLive)
                 {
+                    
                     s_lastKills = 0;
                     s_mvpsAtRoundStart = mvps;
                     s_mvpCandidateKills = 0;
@@ -303,7 +415,7 @@ namespace gsi {
                     s_waitingForLive = false;
                     s_roundStarted = true;
                     s_gameoverPushed = false;
-
+                    StartRoundCountdown(mapMode);
                     QueueEvent(-13);
                 }
 
@@ -312,6 +424,7 @@ namespace gsi {
                 {
                     std::cout << "[GSI] Round ended or new round started, stopping bomb sound.\n";
                     StopBombSound();
+                    StopRoundCountdown();
                     if (!s_deadMuted && roundKills > s_lastKills)
                     {
                         for (int k = s_lastKills + 1; k <= roundKills; ++k)
@@ -380,6 +493,7 @@ namespace gsi {
                 {
                     s_waitingForLive = true;
                     s_roundStarted = false;
+                    StopRoundCountdown();
                 }
 
                 s_lastPhase = phase;
@@ -426,6 +540,9 @@ namespace gsi {
                     if (bs == "planted" && !s_bombPlantedThisRound)
                     {
                         s_bombPlantedThisRound = true;
+                        // ======= 炸弹安放，直接销毁十秒倒计时计时器 =======
+                        std::cout << "[GSI] 炸弹已安放，强行销毁当前回合的比赛倒计时。" << std::endl;
+                        StopRoundCountdown();
                         if (s_cachedCfg.custom_musickit)
                             QueueEvent(-12);
                     }
@@ -598,7 +715,9 @@ namespace gsi {
                         s_isInLobby = false;
                         Mix_HaltChannel(4);
                         StopBombSound();
+
                     }
+                    StopRoundCountdown();
                 }
                 else if (s_isInLobby) {
                     // 游戏运行中且在大厅，高频轮询焦点状态
@@ -626,19 +745,31 @@ namespace gsi {
 
     void StopServer()
     {
-        // 【修复问题4】完美安全同步关闭序列，绝不引发未定义异常崩溃
         s_running = false;
 
+        // ======= 1. 率先全线切断并汇合倒计时子线程 =======
+        StopRoundCountdown();
+
         if (s_server) {
-            s_server->stop(); // 强行阻断 listen 阻塞
+            s_server->stop();
         }
 
-        // 等待后台线程完工再往下走
         if (s_serverThread.joinable()) {
             s_serverThread.join();
         }
         if (s_watchdogThread.joinable()) {
             s_watchdogThread.join();
+        }
+
+        // ======= 2. 上锁并彻底清洗 SDL_mixer 3通道的资源堆栈 =======
+        {
+            std::lock_guard<std::mutex> lock(s_timerMutex);
+            Mix_HaltChannel(3);
+            if (s_lastSecChunk) {
+                Mix_FreeChunk(s_lastSecChunk);
+                s_lastSecChunk = nullptr;
+                std::cout << "[GSI 析构] 3通道比赛倒计时音频静态缓冲区已完全卸载释放。" << std::endl;
+            }
         }
 
         if (s_server) {

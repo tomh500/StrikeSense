@@ -77,3 +77,4 @@ set_target_properties(StrikeSense PROPERTIES
 
 # 移除重复的无用 install 行，保留一行规范化输出
 install(TARGETS StrikeSense RUNTIME DESTINATION bin)
+

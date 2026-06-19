@@ -248,23 +248,28 @@ void EnsureDirectory(const fs::path& p)
         {"snd_round", &Settings::snd_round}, {"snd_buy", &Settings::snd_buy},
         {"snd_death", &Settings::snd_death}, {"snd_gameover", &Settings::snd_gameover},
         {"snd_menu", &Settings::snd_menu},
+        {"snd_lastsec", &Settings::snd_lastsec},
         {"flash_image", &Settings::flash_image}
     };
 
+    // 替换原有的 LoadSoundConfig 函数
     void LoadSoundConfig(Settings& s)
     {
         fs::path path(GetSoundConfigPath());
-    if (!fs::exists(path))
-    {
-        std::cout << "[音效配置] 创建默认 sound_config.json" << std::endl;
+        if (!fs::exists(path))
+        {
+            std::cout << "[音效配置] 创建默认 sound_config.json" << std::endl;
 
-        if (s.flash_image.empty())
-            s.flash_image = GetDefaultFlashPath();
+            if (s.flash_image.empty())
+                s.flash_image = GetDefaultFlashPath();
 
-        SaveSoundConfig(s);
+            // ======= 新增：生成默认十秒倒计时路径 =======
+            if (s.snd_lastsec.empty())
+                s.snd_lastsec = GetDefaultSndPath(L"lastsec", s.ogg);
 
-        return;
-    }
+            SaveSoundConfig(s);
+            return;
+        }
 
         try {
             std::ifstream in(path);
@@ -284,10 +289,16 @@ void EnsureDirectory(const fs::path& p)
                         MultiByteToWideChar(CP_UTF8, 0, u8.c_str(), (int)u8.length(), &target[0], wlen);
                     }
                 }
-            };
+                };
 
             for (const auto& f : s_soundFields)
                 readStr(f.key, s.*(f.ptr));
+
+            // ======= 新增：向下兼容旧配置文件升级 =======
+            if (s.snd_lastsec.empty()) {
+                s.snd_lastsec = GetDefaultSndPath(L"lastsec", s.ogg);
+                std::cout << "[音效配置] 检测到旧版本配置文件，已补全默认十秒倒计时音效。" << std::endl;
+            }
 
             std::cout << "[音效配置] 加载成功。" << std::endl;
         }
