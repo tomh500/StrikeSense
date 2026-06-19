@@ -8,7 +8,7 @@ const RESOURCE_DATABASE = [
         id: 1,
         filename: "音乐操作台",
         img: "img/rescenter/musictool.png", // 示范音乐盒图
-        desc: "一个可视化的音乐操作台，可以快速剪切音频和导出音频，需要安装FFmpeg、Python3.13更新版本和PyQt6 PyQt6-multimedia依赖库。可用于制作自定义的游戏提示音效包。本脚本由AI辅助编写。",
+        desc: "一个可视化的音乐操作台，可以快速剪切音频和导出音频，需要安装FFmpeg、Python3.13更新版本和PyQt6 PyQt6-multimedia依赖库，本脚本由AI辅助编写。",
         tags: ["官方", "其他"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/musictool.py"
@@ -75,7 +75,14 @@ const RESOURCE_DATABASE = [
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/燥起来.7z"
     },
-    
+        {   id: 9,
+        filename: "触摸能量",
+        img: "img/rescenter/触摸能量.png",
+        desc: "CS2的官方音乐盒。",
+        tags: ["官方", "音乐盒"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/触摸能量.7z"
+    },
 ];
 
 // 2. 分页及过滤器核心状态配置
