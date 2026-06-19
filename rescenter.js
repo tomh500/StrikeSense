@@ -44,7 +44,7 @@ const RESOURCE_DATABASE = [
         id: 5,
         filename: "人生何处不青山",
         img: "img/rescenter/人生何处不青山.jpg",
-        desc: "CS2的官方音乐盒。",
+        desc: "CS2的官方音乐盒。隶属于《激进音乐盒集》",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/人生何处不青山.7z"
@@ -53,7 +53,7 @@ const RESOURCE_DATABASE = [
         id: 6,
         filename: "终极",
         img: "img/rescenter/终极.jpg",
-        desc: "CS2的官方音乐盒。",
+        desc: "CS2的官方音乐盒。隶属于商城购买",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/终极.7z"
@@ -62,7 +62,7 @@ const RESOURCE_DATABASE = [
         id: 7,
         filename: "理由",
         img: "img/rescenter/理由.png",
-        desc: "CS2的官方音乐盒。",
+        desc: "CS2的官方音乐盒。隶属于《夜间模式音乐盒集》",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/理由.7z"
@@ -70,7 +70,7 @@ const RESOURCE_DATABASE = [
     {   id: 8,
         filename: "燥起来",
         img: "img/rescenter/燥起来.png",
-        desc: "CS2的官方音乐盒。",
+        desc: "CS2的官方音乐盒。隶属于《夜间模式音乐盒集》",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/燥起来.7z"
@@ -78,7 +78,7 @@ const RESOURCE_DATABASE = [
         {   id: 9,
         filename: "触摸能量",
         img: "img/rescenter/触摸能量.png",
-        desc: "CS2的官方音乐盒。",
+        desc: "CS2的官方音乐盒。隶属于《夜间模式音乐盒集》",
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/触摸能量.7z"
