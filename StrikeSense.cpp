@@ -1,4 +1,4 @@
-// StrikeSense.cpp ¡ª ³ÌĞòÈë¿Ú
+ï»¿// StrikeSense.cpp â€” ç¨‹åºå…¥å£
 #include "framework.h"
 #include "StrikeSense.h"
 #include "console.h"
@@ -36,7 +36,7 @@ using namespace filesystem;
 namespace fs = std::filesystem;
 #define MAX_LOADSTRING 100
 
-// ===== È«¾Ö±äÁ¿¶¨Òå =====
+// ===== å…¨å±€å˜é‡å®šä¹‰ =====
 HWND g_hwnd = nullptr;
 HINSTANCE hInst;
 WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
@@ -64,28 +64,28 @@ int   g_crosshairStyle = 0;
 int   g_crosshairThickness = 2;
 float g_crosshairScale = 0.2f;
 
-bool g_itemHelperEnabled = false;   //µÀ¾ßÖúÊÖ¿ª¹Ø
+bool g_itemHelperEnabled = false;   //é“å…·åŠ©æ‰‹å¼€å…³
 int  g_itemHelperHotkeyMod = 0;
 int  g_itemHelperHotkeyVk  = VK_HOME;
 
-// ===== µÀ¾ßÖúÊÖĞÂÔöÈ«¾Ö±äÁ¿ =====
-float g_itemHelperX = 0.95f;       // XÎ»ÖÃ (0.0~1.0£¬Ä¬ÈÏ¿¿ÓÒ)
-float g_itemHelperY = 0.5f;        // YÎ»ÖÃ (0.0~1.0£¬Ä¬ÈÏ¾ÓÖĞ)
-float g_itemHelperOpacity = 1.0f;  // Í¸Ã÷¶È (0.0~1.0)
-bool  g_itemHelperAutoHide = false;// ×ÀÃæ×Ô¶¯Ïú»Ù¿ª¹Ø
+// ===== é“å…·åŠ©æ‰‹æ–°å¢å…¨å±€å˜é‡ =====
+float g_itemHelperX = 0.95f;       // Xä½ç½® (0.0~1.0ï¼Œé»˜è®¤é å³)
+float g_itemHelperY = 0.5f;        // Yä½ç½® (0.0~1.0ï¼Œé»˜è®¤å±…ä¸­)
+float g_itemHelperOpacity = 1.0f;  // é€æ˜åº¦ (0.0~1.0)
+bool  g_itemHelperAutoHide = false;// æ¡Œé¢è‡ªåŠ¨é”€æ¯å¼€å…³
 
-int   g_itemHelperKeyPrev = VK_UP;      // ÉÏÒ»Ïî¿ì½İ¼ü
-int   g_itemHelperKeyNext = VK_DOWN;    // ÏÂÒ»Ïî¿ì½İ¼ü
-int   g_itemHelperKeySelect = VK_RETURN;// È·ÈÏ/Ô¤ÀÀ¿ì½İ¼ü
+int   g_itemHelperKeyPrev = VK_UP;      // ä¸Šä¸€é¡¹å¿«æ·é”®
+int   g_itemHelperKeyNext = VK_DOWN;    // ä¸‹ä¸€é¡¹å¿«æ·é”®
+int   g_itemHelperKeySelect = VK_RETURN;// ç¡®è®¤/é¢„è§ˆå¿«æ·é”®
 
 bool  g_isBindingItemKeyPrev = false;
 bool  g_isBindingItemKeyNext = false;
 bool  g_isBindingItemKeySelect = false;
-float g_itemHelperImgOpacity = 1.0f; //Í¼Æ¬Ô¤ÀÀÍ¸Ã÷¶È
+float g_itemHelperImgOpacity = 1.0f; //å›¾ç‰‡é¢„è§ˆé€æ˜åº¦
 
 
 
-// ===== Ç°ÏòÉùÃ÷ =====
+// ===== å‰å‘å£°æ˜ =====
 ATOM MyRegisterClass(HINSTANCE);
 HWND InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -114,15 +114,15 @@ static void LogTerminate()
 }
 
 // ===== WinMain =====
-// ===== ĞŞÕıºóµÄ wWinMain =====
+// ===== ä¿®æ­£åçš„ wWinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
-    // »¥³âËø£º·ÀÖ¹¶à¸öÊµÀıÍ¬Ê±ÔËĞĞ
+    // äº’æ–¥é”ï¼šé˜²æ­¢å¤šä¸ªå®ä¾‹åŒæ—¶è¿è¡Œ
     std::set_terminate(LogTerminate);
     g_hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
     if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
-        std::cout << "[ÏµÍ³] ÒÑÓĞ StrikeSense ÊµÀıÔÚÔËĞĞ" << std::endl;
-        MessageBoxW(nullptr, L"³ÌĞòÒÑÔÚÔËĞĞÖĞ£¬²»ÄÜÖØ¸´Æô¶¯¡£", L"StrikeSense", MB_OK | MB_ICONINFORMATION);
+        std::cout << "[ç³»ç»Ÿ] å·²æœ‰ StrikeSense å®ä¾‹åœ¨è¿è¡Œ" << std::endl;
+        MessageBoxW(nullptr, L"ç¨‹åºå·²åœ¨è¿è¡Œä¸­ï¼Œä¸èƒ½é‡å¤å¯åŠ¨ã€‚", L"StrikeSense", MB_OK | MB_ICONINFORMATION);
         if (g_hMutex) CloseHandle(g_hMutex);
         return 1;
     }
@@ -132,18 +132,18 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
     flashoverlay::Initialize(hInst);
-    // ===== Æô¶¯ĞÅÏ¢ =====
+    // ===== å¯åŠ¨ä¿¡æ¯ =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense ²âÊÔ·¢²¼°æ 202606301754" << std::endl;
-    std::cout << "  Copyright (C) 2026 ÎŞËğÆ½·½¼¯ÍÅ" << std::endl;
+    std::cout << "  StrikeSense æµ‹è¯•å‘å¸ƒç‰ˆ 202606172219" << std::endl;
+    std::cout << "  Copyright (C) 2026 æ— æŸå¹³æ–¹é›†å›¢" << std::endl;
     std::cout << "============================================" << std::endl;
-    std::cout << "  ±¾³ÌĞò³ĞÅµ£º" << std::endl;
-    std::cout << "  ¡ï ÓÀ²»ÁªÍø£¡" << std::endl;
-    std::cout << "  ¡ï ¾ø¶ÔÎŞ¶¾£¡" << std::endl;
-    std::cout << "  ¡ï Êı¾İ°²È«£¡" << std::endl;
-    std::cout << "  ¡ï ¿ìËÙºÃÓÃ£¡" << std::endl;
+    std::cout << "  æœ¬ç¨‹åºæ‰¿è¯ºï¼š" << std::endl;
+    std::cout << "  â˜… æ°¸ä¸è”ç½‘ï¼" << std::endl;
+    std::cout << "  â˜… ç»å¯¹æ— æ¯’ï¼" << std::endl;
+    std::cout << "  â˜… æ•°æ®å®‰å…¨ï¼" << std::endl;
+    std::cout << "  â˜… å¿«é€Ÿå¥½ç”¨ï¼" << std::endl;
     std::cout << "============================================" << std::endl;
-    std::cout << "  ±¾³ÌĞò³ĞÅµ¾ø²»ÁªÍø£¡ËùÒÔÎŞ·¨¼ì²é¸üĞÂ" << std::endl;
+    std::cout << "  æœ¬ç¨‹åºæ‰¿è¯ºç»ä¸è”ç½‘ï¼æ‰€ä»¥æ— æ³•æ£€æŸ¥æ›´æ–°" << std::endl;
     std::cout << "============================================" << std::endl;
     config::EnsureDirectoriesExist(); config::Load();
     LoadQuickStopConfig();
@@ -152,41 +152,41 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
 
     LoadStringW(hI, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hI, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
-    // i18n ±ØĞëÔÚÈÎºÎ»æÖÆÇ°³õÊ¼»¯
+    // i18n å¿…é¡»åœ¨ä»»ä½•ç»˜åˆ¶å‰åˆå§‹åŒ–
     i18n::Init();
 
     // ----------------------------------------------------
-    // ¡¾ºËĞÄĞŞ¸´ÇøÓò¡¿½ö´´½¨Ò»´Î´°¿Ú£¬²¢½«Î¨Ò»¾ä±ú½»¸øÈÈ¼ü×¢²á
+    // ã€æ ¸å¿ƒä¿®å¤åŒºåŸŸã€‘ä»…åˆ›å»ºä¸€æ¬¡çª—å£ï¼Œå¹¶å°†å”¯ä¸€å¥æŸ„äº¤ç»™çƒ­é”®æ³¨å†Œ
     MyRegisterClass(hI);
     
-    HWND hwMain = InitInstance(hI, nSC); // ½ö´´½¨ÕâÒ»¸öÎ¨Ò»µÄÓĞĞ§´°¿Ú
+    HWND hwMain = InitInstance(hI, nSC); // ä»…åˆ›å»ºè¿™ä¸€ä¸ªå”¯ä¸€çš„æœ‰æ•ˆçª—å£
     if (!hwMain) return FALSE;
     g_hwnd = hwMain;
     vscrpit::Initialize(hInst, hwMain);
     SetTimer(hwMain, 2001, 200, nullptr);
 
-    // Ò³Ãæ³õÊ¼»¯
+    // é¡µé¢åˆå§‹åŒ–
     InitLegalCfgPage();
     
-    // ¼ÓÔØ±¾µØÅäÖÃ²¢ÈÃ¶¯Ì¬È«¾ÖÈÈ¼üÉúĞ§
+    // åŠ è½½æœ¬åœ°é…ç½®å¹¶è®©åŠ¨æ€å…¨å±€çƒ­é”®ç”Ÿæ•ˆ
     LoadEvolutionParams();  
     Hotkey::UpdateGlobalHotkey(hwMain); 
     Hotkey::UpdateItemHelperHotkey(hwMain);
     // ----------------------------------------------------
 
-    // ===== ×Ô¶¯¼ì²â GSI ÅäÖÃÎÄ¼ş =====
+    // ===== è‡ªåŠ¨æ£€æµ‹ GSI é…ç½®æ–‡ä»¶ =====
     {
         fs::path gsiCfg = fs::path(GetCS2CfgPath()) / L"gamestate_integration_square.cfg";
         bool gsiExists = fs::exists(gsiCfg);
         if (!gsiExists)
         {
-            std::cout << "[GSI] Î´·¢ÏÖ GSI ÅäÖÃÎÄ¼ş£¬×¼±¸°²×°..." << std::endl;
-            // ÓÃÏûÏ¢Ñ­»·ÑÓ³Ùµ÷ÓÃ£¬È·±£´°¿ÚÒÑ¾­´´½¨
+            std::cout << "[GSI] æœªå‘ç° GSI é…ç½®æ–‡ä»¶ï¼Œå‡†å¤‡å®‰è£…..." << std::endl;
+            // ç”¨æ¶ˆæ¯å¾ªç¯å»¶è¿Ÿè°ƒç”¨ï¼Œç¡®ä¿çª—å£å·²ç»åˆ›å»º
             PostMessageW(hwMain, WM_COMMAND, IDM_CREATE_GSI_CFG, 0);
         }
         else
         {
-            std::cout << "[GSI] GSI ÅäÖÃÎÄ¼şÒÑ´æÔÚ: " << gsiCfg.string() << std::endl;
+            std::cout << "[GSI] GSI é…ç½®æ–‡ä»¶å·²å­˜åœ¨: " << gsiCfg.string() << std::endl;
         }
     }
 
@@ -225,7 +225,7 @@ HWND InitInstance(HINSTANCE hI, int nSC) {
         CW_USEDEFAULT, 0, 820, 740, nullptr, nullptr, hI, nullptr);
     if (!w) return nullptr;
     ShowWindow(w, nSC); UpdateWindow(w); 
-    return w; //·µ»Ø´°¿Ú¾ä±ú
+    return w; //è¿”å›çª—å£å¥æŸ„
 }
 
 static void PaintAll(HWND hw, HDC hdc) {
@@ -258,7 +258,7 @@ static void PaintAll(HWND hw, HDC hdc) {
 LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     switch (m) {
     case WM_ERASEBKGND: return DefWindowProc(hw, m, wp, lp);
-    case WM_CREATE: std::cout << "StrikeSense Æô¶¯" << std::endl; break;
+    case WM_CREATE: std::cout << "StrikeSense å¯åŠ¨" << std::endl; break;
     case WM_PAINT: {
         PAINTSTRUCT ps; HDC hdc = BeginPaint(hw, &ps);
         PaintAll(hw, hdc); EndPaint(hw, &ps); break;
@@ -277,93 +277,93 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
         break;
     }
-    // ¡¾ĞŞ¸Äºó¡¿ÍêÈ«¶ÀÁ¢µÄÁ½¸ö case
+    // ã€ä¿®æ”¹åã€‘å®Œå…¨ç‹¬ç«‹çš„ä¸¤ä¸ª case
     case WM_CHAR: {
-        // 1. Èç¹ûµ±Ç°ÔÚºÏ·¨ÅäÖÃÒ³Ãæ£¬ÓÅÏÈ´¦Àí¸ÃÒ³ÃæµÄ×Ö·ûÊäÈëÂß¼­
+        // 1. å¦‚æœå½“å‰åœ¨åˆæ³•é…ç½®é¡µé¢ï¼Œä¼˜å…ˆå¤„ç†è¯¥é¡µé¢çš„å­—ç¬¦è¾“å…¥é€»è¾‘
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp)) {
-            return 0; // Èç¹ûÄÚ²¿³É¹¦´¦Àí£¨·µ»ØÁË true£©£¬ÕâÀïÖ±½Ó return 0 À¹½ØÏûÏ¢£¬²»ÈÃÏµÍ³Ä¬ÈÏ´¦Àí
+            return 0; // å¦‚æœå†…éƒ¨æˆåŠŸå¤„ç†ï¼ˆè¿”å›äº† trueï¼‰ï¼Œè¿™é‡Œç›´æ¥ return 0 æ‹¦æˆªæ¶ˆæ¯ï¼Œä¸è®©ç³»ç»Ÿé»˜è®¤å¤„ç†
         }
 
-        // 2. Èç¹û²»ÊÇ¸ÃÒ³Ãæ£¬»òÕß¸ÃÒ³ÃæÃ»´¦ÀíÕâ¸ö°´¼ü£¬ÔÙ×ßÄ¬ÈÏ´¦Àí
+        // 2. å¦‚æœä¸æ˜¯è¯¥é¡µé¢ï¼Œæˆ–è€…è¯¥é¡µé¢æ²¡å¤„ç†è¿™ä¸ªæŒ‰é”®ï¼Œå†èµ°é»˜è®¤å¤„ç†
         return DefWindowProc(hw, m, wp, lp);
     }
 
     case WM_HOTKEY: {
-        if (wp == 1001) { // ²¶»ñµ½È«¾Ö¶¯Ì¬ÈÈ¼ü´¥·¢
+        if (wp == 1001) { // æ•è·åˆ°å…¨å±€åŠ¨æ€çƒ­é”®è§¦å‘
             
-            // È¨ÏŞÀ¹½Ø£ºÎ´ÒÔ¹ÜÀíÔ±Éí·İÔËĞĞÔòÖ±½Ó¾²Ä¬×èÖ¹£¬²»µ¯´°£¬²»ÇĞ»»×´Ì¬
+            // æƒé™æ‹¦æˆªï¼šæœªä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œåˆ™ç›´æ¥é™é»˜é˜»æ­¢ï¼Œä¸å¼¹çª—ï¼Œä¸åˆ‡æ¢çŠ¶æ€
             if (!normalgen::CheckAdminPermission()) {
-                std::cout << "[È«¾ÖÈÈ¼ü×èÖ¹] ÓÎÏ·ÄÚ³¢ÊÔÇĞ»»Ê§°Ü£ºÎŞ¹ÜÀíÔ±È¨ÏŞ¡£" << std::endl;
+                std::cout << "[å…¨å±€çƒ­é”®é˜»æ­¢] æ¸¸æˆå†…å°è¯•åˆ‡æ¢å¤±è´¥ï¼šæ— ç®¡ç†å‘˜æƒé™ã€‚" << std::endl;
                 break; 
             }
 
-            // È¨ÏŞÍ¨¹ı£¬ÔÊĞíÇĞ»»×´Ì¬
+            // æƒé™é€šè¿‡ï¼Œå…è®¸åˆ‡æ¢çŠ¶æ€
             g_deathMute = !g_deathMute;
             SaveEvolutionParams();
             
-            // Ö´ĞĞ¾ßÌåµÄÒôÆµ¿ØÖÆÂß¼­
+            // æ‰§è¡Œå…·ä½“çš„éŸ³é¢‘æ§åˆ¶é€»è¾‘
             if (g_deathMute) {
                 StartCS2VolumeControl(g_death_vol);
             } else {
                 StopCS2VolumeControl();
             }
             
-            // Í¨ÖªÖ÷´°¿ÚÖØ»æ
+            // é€šçŸ¥ä¸»çª—å£é‡ç»˜
             InvalidateRect(hw, nullptr, FALSE); 
         }
 
         if (wp == 1002)
         {
-            std::cout << "[µÀ¾ßÖúÊÖ] ¼ì²âµ½ÓÎÏ·ÄÚ¿ì½İ¼ü´¥·¢ĞÅºÅ" << std::endl;
+            std::cout << "[é“å…·åŠ©æ‰‹] æ£€æµ‹åˆ°æ¸¸æˆå†…å¿«æ·é”®è§¦å‘ä¿¡å·" << std::endl;
             if (g_itemHelperEnabled) {
-                // Ö´ĞĞÇĞ»»ÏÔÊ¾»òÒş²ØµÄ¶¯×÷
+                // æ‰§è¡Œåˆ‡æ¢æ˜¾ç¤ºæˆ–éšè—çš„åŠ¨ä½œ
                 itemhelper_overlay::Toggle(hInst);
             } else {
-                std::cout << "[µÀ¾ßÖúÊÖ] È«¾Ö¹¦ÄÜÒÑ±»¹Ø±Õ£¬ºöÂÔÍâ²¿°´¼üÊÂ¼ş" << std::endl;
+                std::cout << "[é“å…·åŠ©æ‰‹] å…¨å±€åŠŸèƒ½å·²è¢«å…³é—­ï¼Œå¿½ç•¥å¤–éƒ¨æŒ‰é”®äº‹ä»¶" << std::endl;
             }
             return 0;
         }
         return 0;
     }
 case WM_KEYDOWN: {
-        // 1. Èç¹ûµ±Ç°ÔÚºÏ·¨ÅäÖÃÒ³Ãæ£¬ÓÅÏÈ´¦Àí¸ÃÒ³ÃæµÄÊäÈëÂß¼­
+        // 1. å¦‚æœå½“å‰åœ¨åˆæ³•é…ç½®é¡µé¢ï¼Œä¼˜å…ˆå¤„ç†è¯¥é¡µé¢çš„è¾“å…¥é€»è¾‘
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
             break;
 
-        // 2. Èç¹ûÕıÔÚ Evolution Ò³ÃæÂ¼ÈëÈÈ¼ü£¬´¦ÀíÂ¼ÈëÂß¼­
+        // 2. å¦‚æœæ­£åœ¨ Evolution é¡µé¢å½•å…¥çƒ­é”®ï¼Œå¤„ç†å½•å…¥é€»è¾‘
         extern bool g_isBindingHotkey;
         if (g_isBindingHotkey) {
             int vk = (int)wp;
-            // ÅÅ³ıĞŞÊÎ¼ü±¾Éí
+            // æ’é™¤ä¿®é¥°é”®æœ¬èº«
             if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
                 g_hotkeyVk = vk;
                 
-                // Ë³±ãÂ¼Èëµ±Ç°µÄĞŞÊÎ¼ü×´Ì¬
+                // é¡ºä¾¿å½•å…¥å½“å‰çš„ä¿®é¥°é”®çŠ¶æ€
                 g_hotkeyMod = 0;
                 if (GetKeyState(VK_CONTROL) & 0x8000) g_hotkeyMod |= MOD_CONTROL;
                 if (GetKeyState(VK_MENU)    & 0x8000) g_hotkeyMod |= MOD_ALT;
                 if (GetKeyState(VK_SHIFT)   & 0x8000) g_hotkeyMod |= MOD_SHIFT;
 
-                g_isBindingHotkey = false; // Â¼ÈëÍê³É
-                SaveEvolutionParams();     // ±£´æÅäÖÃµ½ÎÄ¼ş
+                g_isBindingHotkey = false; // å½•å…¥å®Œæˆ
+                SaveEvolutionParams();     // ä¿å­˜é…ç½®åˆ°æ–‡ä»¶
                 Hotkey::UpdateGlobalHotkey(hw);
-                InvalidateRect(hw, nullptr, FALSE); // Ë¢ĞÂ½çÃæ
+                InvalidateRect(hw, nullptr, FALSE); // åˆ·æ–°ç•Œé¢
             }
             break;
         }
 
-        // 3. ´¦Àí¿ì½İ¼ü´¥·¢Âß¼­£¨µ±¸¨Öú³ÌĞòÔÚÇ°Ì¨Ê±£©
+        // 3. å¤„ç†å¿«æ·é”®è§¦å‘é€»è¾‘ï¼ˆå½“è¾…åŠ©ç¨‹åºåœ¨å‰å°æ—¶ï¼‰
         if (g_hotkeyVk != 0 && (int)wp == g_hotkeyVk) {
             
-            // --- ºËĞÄĞŞ¸Ä£ºÈ¨ÏŞÀ¹½Ø£¨²»µ¯´°£¬Ö±½Ó×èÖ¹ÇĞ»»£© ---
+            // --- æ ¸å¿ƒä¿®æ”¹ï¼šæƒé™æ‹¦æˆªï¼ˆä¸å¼¹çª—ï¼Œç›´æ¥é˜»æ­¢åˆ‡æ¢ï¼‰ ---
             if (!normalgen::CheckAdminPermission()) {
-                // Èç¹ûÃ»ÓĞ¹ÜÀíÔ±È¨ÏŞ£¬Ö±½Ó´òÆÆÂß¼­£¬²»¸Ä±äÈÎºÎ×´Ì¬£¬²»Ğ´ JSON£¬²»µ¯´°
-                std::cout << "[È¨ÏŞ×èÖ¹] ³¢ÊÔ¿ì½İ¼üÇĞ»»Ê§°Ü£ºÎ´ÒÔ¹ÜÀíÔ±Éí·İÔËĞĞ" << std::endl;
+                // å¦‚æœæ²¡æœ‰ç®¡ç†å‘˜æƒé™ï¼Œç›´æ¥æ‰“ç ´é€»è¾‘ï¼Œä¸æ”¹å˜ä»»ä½•çŠ¶æ€ï¼Œä¸å†™ JSONï¼Œä¸å¼¹çª—
+                std::cout << "[æƒé™é˜»æ­¢] å°è¯•å¿«æ·é”®åˆ‡æ¢å¤±è´¥ï¼šæœªä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œ" << std::endl;
                 break; 
             }
             // ------------------------------------------------
 
-            // ¼ì²éĞŞÊÎ¼üÊÇ·ñÆ¥Åä
+            // æ£€æŸ¥ä¿®é¥°é”®æ˜¯å¦åŒ¹é…
             bool ctrlPressed  = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
             bool altPressed   = (GetKeyState(VK_MENU)    & 0x8000) != 0;
             bool shiftPressed = (GetKeyState(VK_SHIFT)   & 0x8000) != 0;
@@ -372,28 +372,28 @@ case WM_KEYDOWN: {
             bool targetAlt   = (g_hotkeyMod & MOD_ALT) != 0;
             bool targetShift = (g_hotkeyMod & MOD_SHIFT) != 0;
 
-            // Èç¹ûĞŞÊÎ¼ü¶Ô²»ÉÏ£¬²»´¥·¢
+            // å¦‚æœä¿®é¥°é”®å¯¹ä¸ä¸Šï¼Œä¸è§¦å‘
             if (ctrlPressed != targetCtrl || altPressed != targetAlt || shiftPressed != targetShift) {
                 break;
             }
 
-            // È¨ÏŞºÍ°´¼ü¶¼Í¨¹ı£¬ÔÊĞí¸Ä±ä×´Ì¬
-            g_deathMute = !g_deathMute; // ÇĞ»»¿ª¹Ø×´Ì¬
-            SaveEvolutionParams();      // ±£´æ×´Ì¬
+            // æƒé™å’ŒæŒ‰é”®éƒ½é€šè¿‡ï¼Œå…è®¸æ”¹å˜çŠ¶æ€
+            g_deathMute = !g_deathMute; // åˆ‡æ¢å¼€å…³çŠ¶æ€
+            SaveEvolutionParams();      // ä¿å­˜çŠ¶æ€
             
-            // Ö´ĞĞÒôÆµ¿ØÖÆÂß¼­
+            // æ‰§è¡ŒéŸ³é¢‘æ§åˆ¶é€»è¾‘
             if (g_deathMute) {
                 StartCS2VolumeControl(g_death_vol);
             } else {
                 StopCS2VolumeControl();
             }
             
-            // ¹Ø¼ü£ºÍ¨ÖªÖ÷´°¿ÚÖØ»æ
+            // å…³é”®ï¼šé€šçŸ¥ä¸»çª—å£é‡ç»˜
             InvalidateRect(hw, nullptr, FALSE); 
             break;
         }
 
-        // µÀ¾ßÖúÊÖ£ºÖ÷¿ª¹Ø¿ì½İ¼ü°ó¶¨
+        // é“å…·åŠ©æ‰‹ï¼šä¸»å¼€å…³å¿«æ·é”®ç»‘å®š
         if (g_isBindingItemHelperHotkey) {
             int vk = (int)wp;
             if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
@@ -407,13 +407,13 @@ case WM_KEYDOWN: {
                 Hotkey::UpdateItemHelperHotkey(hw);
                 InvalidateRect(hw, nullptr, FALSE);
             }
-            return 0; // ĞŞ¸´£ºÕâÀï±ØĞë return£¬·ÀÖ¹ÍùÏÂ×ßµ½±ğµÄÂß¼­
+            return 0; // ä¿®å¤ï¼šè¿™é‡Œå¿…é¡» returnï¼Œé˜²æ­¢å¾€ä¸‹èµ°åˆ°åˆ«çš„é€»è¾‘
         }
 
-        // µÀ¾ßÖúÊÖ£º°ó¶¨ÉÏÒ»Ïî/ÏÂÒ»Ïî/È·ÈÏÈÈ¼ü (ĞŞ¸´Ç¶Ì×£º°ÑËü´ÓÉÏÃæµÄÀ¨ºÅÀïÄÃ³öÀ´ÁË)
+        // é“å…·åŠ©æ‰‹ï¼šç»‘å®šä¸Šä¸€é¡¹/ä¸‹ä¸€é¡¹/ç¡®è®¤çƒ­é”® (ä¿®å¤åµŒå¥—ï¼šæŠŠå®ƒä»ä¸Šé¢çš„æ‹¬å·é‡Œæ‹¿å‡ºæ¥äº†)
         if (g_isBindingItemKeyPrev || g_isBindingItemKeyNext || g_isBindingItemKeySelect) {
             int vk = (int)wp;
-            // ¹ıÂËµôµ¥¶ÀµÄĞŞÊÎ¼ü
+            // è¿‡æ»¤æ‰å•ç‹¬çš„ä¿®é¥°é”®
             if (vk != VK_CONTROL && vk != VK_SHIFT && vk != VK_MENU) {
                 if (g_isBindingItemKeyPrev) { g_itemHelperKeyPrev = vk; g_isBindingItemKeyPrev = false; }
                 if (g_isBindingItemKeyNext) { g_itemHelperKeyNext = vk; g_isBindingItemKeyNext = false; }
@@ -467,7 +467,7 @@ case WM_KEYDOWN: {
     return 0;
 }
 
-// ===== GSI ÅäÖÃÂ·¾¶ =====
+// ===== GSI é…ç½®è·¯å¾„ =====
 static std::wstring GetCS2CfgPath() {
     std::wstring sv = strikesense::LoadSavedCfgPath();
     if (!sv.empty() && fs::exists(sv)) return sv;
@@ -483,7 +483,7 @@ static void OnCreateGSIConfig(HWND hw) {
     if (g_gsiCfgPath.empty()) {
         wchar_t p[MAX_PATH] = {};
         BROWSEINFOW b = {}; b.hwndOwner = hw;
-        b.lpszTitle = L"Ñ¡ÔñCS2 cfgÄ¿Â¼"; b.ulFlags = BIF_RETURNONLYFSDIRS;
+        b.lpszTitle = L"é€‰æ‹©CS2 cfgç›®å½•"; b.ulFlags = BIF_RETURNONLYFSDIRS;
         LPITEMIDLIST pid = SHBrowseForFolderW(&b);
         if (!pid) return;
         SHGetPathFromIDListW(pid, p); g_gsiCfgPath = p;
@@ -504,65 +504,65 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
     case WM_COMMAND:
         switch (LOWORD(wp)) {
         case IDYES:
-            // 1. Ê×ÏÈ³¢ÊÔĞ´ÈëÔ­ÓĞµÄ GSI ÅäÖÃ
+            // 1. é¦–å…ˆå°è¯•å†™å…¥åŸæœ‰çš„ GSI é…ç½®
             if (strikesense::WriteGSIConfig(g_gsiCfgPath)) {
                 strikesense::SaveCfgPath(g_gsiCfgPath);
 
-                // 2. GSI ³É¹¦ºó£¬½ô½Ó×Åµ÷ÓÃ×·¼Ó Vulkan Æô¶¯ÏîµÄº¯Êı
+                // 2. GSI æˆåŠŸåï¼Œç´§æ¥ç€è°ƒç”¨è¿½åŠ  Vulkan å¯åŠ¨é¡¹çš„å‡½æ•°
                 int vulkanResult = AddCS2vulkanDebugVersion();
 
-                // 3. ¸ù¾İº¯ÊıµÄ¸÷ÖÖ·µ»ØÖµ½øĞĞ·ÖÁ÷µ¯´°ÌáÊ¾
+                // 3. æ ¹æ®å‡½æ•°çš„å„ç§è¿”å›å€¼è¿›è¡Œåˆ†æµå¼¹çª—æç¤º
                 switch (vulkanResult) {
                 case 0:
-                    // ³É¹¦×·¼ÓÁË -vulkan
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡ÒÑ³É¹¦ÎªÄúµÄ Steam ÕËºÅ CS2 Æô¶¯Ïî×·¼ÓÁË -vulkan ²ÎÊı¡£\n\nÇëÍêÈ«ÖØÆô Steam ¿Í»§¶ËÒÔÊ¹Æô¶¯ÏîÉúĞ§£¡", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                    // æˆåŠŸè¿½åŠ äº† -vulkan
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼å·²æˆåŠŸä¸ºæ‚¨çš„ Steam è´¦å· CS2 å¯åŠ¨é¡¹è¿½åŠ äº† -vulkan å‚æ•°ã€‚\n\nè¯·å®Œå…¨é‡å¯ Steam å®¢æˆ·ç«¯ä»¥ä½¿å¯åŠ¨é¡¹ç”Ÿæ•ˆï¼", L"æç¤º", MB_OK | MB_ICONINFORMATION);
                     break;
 
                 case 1:
-                    // ±¾µØËùÓĞÕËºÅ±¾À´¾Í¶¼ÓĞ -vulkan 
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡¼ì²âµ½ÄúµÄ Steam ÕËºÅÆô¶¯ÏîÖĞ±¾À´¾ÍÒÑ°üº¬ -vulkan£¬ÎŞĞèÖØ¸´Ìí¼Ó¡£", L"ÌáÊ¾", MB_OK | MB_ICONINFORMATION);
+                    // æœ¬åœ°æ‰€æœ‰è´¦å·æœ¬æ¥å°±éƒ½æœ‰ -vulkan 
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼æ£€æµ‹åˆ°æ‚¨çš„ Steam è´¦å·å¯åŠ¨é¡¹ä¸­æœ¬æ¥å°±å·²åŒ…å« -vulkanï¼Œæ— éœ€é‡å¤æ·»åŠ ã€‚", L"æç¤º", MB_OK | MB_ICONINFORMATION);
                     break;
 
                 case 3:
-                    // ×¢²á±íÕÒ²»µ½ Steam Â·¾¶
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£ºÔÚ×¢²á±íÖĞÎ´¼ì²âµ½±ê×¼µÄ Steam °²×°Â·¾¶£¬ÇëÊÖ¶¯Îª CS2 Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // æ³¨å†Œè¡¨æ‰¾ä¸åˆ° Steam è·¯å¾„
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šåœ¨æ³¨å†Œè¡¨ä¸­æœªæ£€æµ‹åˆ°æ ‡å‡†çš„ Steam å®‰è£…è·¯å¾„ï¼Œè¯·æ‰‹åŠ¨ä¸º CS2 æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 4:
-                    // ÕÒ²»µ½ÕËºÅÎÄ¼ş¼Ğ (userdata Îª¿Õ)
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£ºÎ´ÔÚ±¾µØ Steam Ä¿Â¼ÖĞ·¢ÏÖÈÎºÎµÇÂ¼¹ıµÄÓÃ»§Êı¾İ£¬ÇëÊÖ¶¯Îª CS2 Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // æ‰¾ä¸åˆ°è´¦å·æ–‡ä»¶å¤¹ (userdata ä¸ºç©º)
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šæœªåœ¨æœ¬åœ° Steam ç›®å½•ä¸­å‘ç°ä»»ä½•ç™»å½•è¿‡çš„ç”¨æˆ·æ•°æ®ï¼Œè¯·æ‰‹åŠ¨ä¸º CS2 æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 5:
-                    // ÎïÀíÉÏÕÒ²»µ½ÈÎºÎ localconfig.vdf
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£ºÎ´ÕÒµ½ÓĞĞ§µÄ Steam ±¾µØÅäÖÃÎÄ¼ş(localconfig.vdf)£¬ÇëÊÖ¶¯Îª CS2 Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // ç‰©ç†ä¸Šæ‰¾ä¸åˆ°ä»»ä½• localconfig.vdf
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šæœªæ‰¾åˆ°æœ‰æ•ˆçš„ Steam æœ¬åœ°é…ç½®æ–‡ä»¶(localconfig.vdf)ï¼Œè¯·æ‰‹åŠ¨ä¸º CS2 æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 6:
-                    // ÎÄ¼ş±»¶ÀÕ¼»òÎŞÈ¨´ò¿ª
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£º±¾µØÅäÖÃÎÄ¼şµ±Ç°±»Õ¼ÓÃ»ò¾Ü¾ø·ÃÎÊ£¬Çë¡¾ÍêÈ«¹Ø±Õ Steam ¿Í»§¶Ë¡¿ºóÔÙÊÔ£¬»òÊÖ¶¯Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // æ–‡ä»¶è¢«ç‹¬å æˆ–æ— æƒæ‰“å¼€
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šæœ¬åœ°é…ç½®æ–‡ä»¶å½“å‰è¢«å ç”¨æˆ–æ‹’ç»è®¿é—®ï¼Œè¯·ã€å®Œå…¨å…³é—­ Steam å®¢æˆ·ç«¯ã€‘åå†è¯•ï¼Œæˆ–æ‰‹åŠ¨æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 7:
-                    // ÕÒµ½ÁËÅäÖÃÎÄ¼ş£¬µ«ÀïÃæÃ»ÓĞ CS2 (730) ¼ÇÂ¼
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£º¼ì²âµ½ÄúµÄ Steam ÕËºÅÔÚ¸ÃµçÄÔÉÏ¡¾´ÓÎ´Æô¶¯¹ı CS2¡¿£¬ÇëÖÁÉÙÔËĞĞÒ»´ÎÓÎÏ·ºóÔÙÊÔ£¬»òÊÖ¶¯Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // æ‰¾åˆ°äº†é…ç½®æ–‡ä»¶ï¼Œä½†é‡Œé¢æ²¡æœ‰ CS2 (730) è®°å½•
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šæ£€æµ‹åˆ°æ‚¨çš„ Steam è´¦å·åœ¨è¯¥ç”µè„‘ä¸Šã€ä»æœªå¯åŠ¨è¿‡ CS2ã€‘ï¼Œè¯·è‡³å°‘è¿è¡Œä¸€æ¬¡æ¸¸æˆåå†è¯•ï¼Œæˆ–æ‰‹åŠ¨æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 8:
-                    // ÕıÔò½âÎöÒì³£»ò¸ñÊ½²»¹æ·¶
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Î´ÄÜ×Ô¶¯Ìí¼ÓÆô¶¯Ïî£º±¾µØÅäÖÃÎÄ¼ş¸ñÊ½½âÎöÒì³££¬ÎªÁË°²È«Î´½øĞĞÇ¿ĞĞĞŞ¸Ä£¬ÇëÊÖ¶¯Îª CS2 Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // æ­£åˆ™è§£æå¼‚å¸¸æˆ–æ ¼å¼ä¸è§„èŒƒ
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æœªèƒ½è‡ªåŠ¨æ·»åŠ å¯åŠ¨é¡¹ï¼šæœ¬åœ°é…ç½®æ–‡ä»¶æ ¼å¼è§£æå¼‚å¸¸ï¼Œä¸ºäº†å®‰å…¨æœªè¿›è¡Œå¼ºè¡Œä¿®æ”¹ï¼Œè¯·æ‰‹åŠ¨ä¸º CS2 æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
 
                 default:
-                    // ·ÀÓùĞÔÎ´Öª´íÎó
-                    MessageBoxW(hD, L"GSI ÅäÖÃ³É¹¦£¡µ«Ìí¼ÓÆô¶¯ÏîÊ±·¢ÉúÁËÎ´ÖªµÄ¼æÈİĞÔÎÊÌâ£¬ÇëÊÖ¶¯Îª CS2 Ìí¼Ó -vulkan Æô¶¯Ïî¡£", L"¾¯¸æ", MB_OK | MB_ICONWARNING);
+                    // é˜²å¾¡æ€§æœªçŸ¥é”™è¯¯
+                    MessageBoxW(hD, L"GSI é…ç½®æˆåŠŸï¼ä½†æ·»åŠ å¯åŠ¨é¡¹æ—¶å‘ç”Ÿäº†æœªçŸ¥çš„å…¼å®¹æ€§é—®é¢˜ï¼Œè¯·æ‰‹åŠ¨ä¸º CS2 æ·»åŠ  -vulkan å¯åŠ¨é¡¹ã€‚", L"è­¦å‘Š", MB_OK | MB_ICONWARNING);
                     break;
                 }
 
             }
             else {
-                // GSI Ğ´Èë±¾Éí¾ÍÊ§°ÜµÄÇé¿ö
-                MessageBoxW(hD, L"ÅäÖÃĞ´ÈëÊ§°Ü£¡Çë¼ì²éÓÎÏ·Â·¾¶ÊÇ·ñÕıÈ·»òÊÇ·ñÓµÓĞ¹ÜÀíÔ±È¨ÏŞ¡£", L"´íÎó", MB_OK | MB_ICONERROR);
+                // GSI å†™å…¥æœ¬èº«å°±å¤±è´¥çš„æƒ…å†µ
+                MessageBoxW(hD, L"é…ç½®å†™å…¥å¤±è´¥ï¼è¯·æ£€æŸ¥æ¸¸æˆè·¯å¾„æ˜¯å¦æ­£ç¡®æˆ–æ˜¯å¦æ‹¥æœ‰ç®¡ç†å‘˜æƒé™ã€‚", L"é”™è¯¯", MB_OK | MB_ICONERROR);
             }
 
             EndDialog(hD, IDYES);
@@ -570,11 +570,11 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
         case IDC_DELETE_CFG: {
             fs::path f = fs::path(g_gsiCfgPath) / L"gamestate_integration_square.cfg";
             std::error_code ec; fs::remove(f, ec);
-            MessageBoxW(hD, ec ? L"Ê§°Ü" : L"ÒÑÉ¾³ı", L"ÌáÊ¾", MB_OK); return TRUE;
+            MessageBoxW(hD, ec ? L"å¤±è´¥" : L"å·²åˆ é™¤", L"æç¤º", MB_OK); return TRUE;
         }
         case IDC_BROWSE_BTN: {
             wchar_t p[MAX_PATH] = {}; BROWSEINFOW b = {};
-            b.hwndOwner = hD; b.lpszTitle = L"Ñ¡ÔñcfgÄ¿Â¼"; b.ulFlags = BIF_RETURNONLYFSDIRS;
+            b.hwndOwner = hD; b.lpszTitle = L"é€‰æ‹©cfgç›®å½•"; b.ulFlags = BIF_RETURNONLYFSDIRS;
             LPITEMIDLIST pid = SHBrowseForFolderW(&b);
             if (pid) {
                 SHGetPathFromIDListW(pid, p); g_gsiCfgPath = p;
@@ -613,7 +613,7 @@ int AddCS2vulkanDebugVersion() {
 
     bool anyAddedTotal = false;
     bool allAlreadyHad = true;
-    bool foundAnyVdf = false; // ĞÂÔö£ºÊÇ·ñÖÁÉÙÕÒµ½ÁËÒ»¸öÎïÀíÎÄ¼ş
+    bool foundAnyVdf = false; // æ–°å¢ï¼šæ˜¯å¦è‡³å°‘æ‰¾åˆ°äº†ä¸€ä¸ªç‰©ç†æ–‡ä»¶
     int lastSpecificError = 5;
 
     for (const string& userID : userIDs) {
@@ -621,7 +621,7 @@ int AddCS2vulkanDebugVersion() {
 
         if (!exists(vdfPath)) continue;
 
-        foundAnyVdf = true; // Ö»Òª½øµ½ÕâÀï£¬ËµÃ÷ÎÄ¼şÎïÀí´æÔÚ
+        foundAnyVdf = true; // åªè¦è¿›åˆ°è¿™é‡Œï¼Œè¯´æ˜æ–‡ä»¶ç‰©ç†å­˜åœ¨
 
         string content;
         {
@@ -637,14 +637,14 @@ int AddCS2vulkanDebugVersion() {
 
         if (content.empty()) continue;
 
-        // ²éÕÒ 730 (CS2/CSGOµÄAppID)
+        // æŸ¥æ‰¾ 730 (CS2/CSGOçš„AppID)
         size_t pos730 = content.find("\"730\"");
         if (pos730 == string::npos) {
             if (lastSpecificError < 7) lastSpecificError = 7;
             continue;
         }
 
-        // ×ßµ½ÕâÒ»²½£¬´íÎóÂëÖÁÉÙÓ¦¸ÃÊÇ 8 (Ã»ÕÒµ½ LaunchOptions)
+        // èµ°åˆ°è¿™ä¸€æ­¥ï¼Œé”™è¯¯ç è‡³å°‘åº”è¯¥æ˜¯ 8 (æ²¡æ‰¾åˆ° LaunchOptions)
         if (lastSpecificError < 8) lastSpecificError = 8;
 
         bool modified = false;
@@ -695,7 +695,7 @@ int AddCS2vulkanDebugVersion() {
     }
 
     if (anyAddedTotal) return 0;
-    if (!foundAnyVdf) return 5; // Ò»¸ö VDF Â·¾¶¶¼Ã»¶ÔÉÏ
+    if (!foundAnyVdf) return 5; // ä¸€ä¸ª VDF è·¯å¾„éƒ½æ²¡å¯¹ä¸Š
     if (allAlreadyHad && lastSpecificError >= 7) return 1;
     return lastSpecificError;
 }
