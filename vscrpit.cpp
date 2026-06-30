@@ -100,6 +100,8 @@ value BoolValue(bool b);
 value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars);
 bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
 bool RefreshScriptState(mounted_script& script, bool showDialogs);
+void ResetTransientWeaponVars();
+void SetStateVar(const std::wstring& name, const value& v);
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -500,6 +502,15 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
         return false;
     }
     return true;
+}
+
+void ResetTransientWeaponVars()
+{
+    SetStateVar(L"weapon_fired", BoolValue(false));
+    SetStateVar(L"weapon_reloading", BoolValue(false));
+    SetStateVar(L"weapon_switched", BoolValue(false));
+    SetStateVar(L"weapon_clip_delta", NumberValue(0.0));
+    SetStateVar(L"weapon_reserve_delta", NumberValue(0.0));
 }
 
 bool ScriptHasEdgeGuard(const std::wstring& path)
@@ -1389,7 +1400,6 @@ void Initialize(HINSTANCE instance, HWND owner)
     s_owner = owner;
     fs::create_directories(GetDefaultScriptDir());
     EnsureExampleScript();
-    EnsureOemUnlockFile();
     s_oemValid = IsOemUnlockValid();
     s_runtimeCapability = GetBuildCode();
     if (s_runtimeCapability == buildcode::user && s_oemValid) s_runtimeCapability = buildcode::userdebug;
@@ -1424,6 +1434,10 @@ bool HasUserDebugCapability() { return (int)s_runtimeCapability >= (int)buildcod
 bool EnsureOemUnlockFile()
 {
     fs::path path = BaseDir() / L".oemunlock";
+    const bool exists = fs::exists(path);
+    std::wcout << L"[OEM] 检测解锁文件是否存在: " << path.wstring()
+               << L" 结果=" << (exists ? L"存在" : L"不存在") << std::endl;
+    return exists;
     if (fs::exists(path)) return true;
     WriteUtf8(path, MakeOemKey(NowStamp(), L"24h"));
     std::wcout << L"[OEM] 已生成默认 24 小时调试解锁文件: " << path.wstring() << std::endl;
@@ -1571,12 +1585,14 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"weapon_fire_count", NumberValue((double)s_weaponFireCount));
         SetStateVar(L"weapon_reload_count", NumberValue((double)s_weaponReloadCount));
         SetStateVar(L"weapon_reserve_drop_count", NumberValue((double)s_weaponReserveDropCount));
+        std::wstring activeWeaponSlot;
         if (player.contains("weapons") && player["weapons"].is_object()) {
             for (auto it = player["weapons"].begin(); it != player["weapons"].end(); ++it) {
                 const auto& weapon = it.value();
                 if (!weapon.is_object()) continue;
                 std::string stateText = weapon.value("state", "");
                 if (stateText != "active") continue;
+                activeWeaponSlot = Utf8ToWide(it.key());
                 SetJsonVar(L"weapon_name", weapon, "name");
                 SetJsonVar(L"weapon_type", weapon, "type");
                 SetJsonVar(L"weapon_state", weapon, "state");
@@ -1600,8 +1616,27 @@ void UpdateFromGsi(const nlohmann::json& state)
         const bool currentWeaponValid = !nowWeaponName.empty() && nowWeaponName != L"void" && nowClip >= 0.0;
         const bool sameWeapon = currentWeaponValid && s_lastWeaponSnapshot.valid && s_lastWeaponSnapshot.name == nowWeaponName;
         const bool switched = currentWeaponValid && (!s_lastWeaponSnapshot.valid || s_lastWeaponSnapshot.name != nowWeaponName);
-        const double prevClip = sameWeapon ? s_lastWeaponSnapshot.clip : -1.0;
-        const double prevReserve = sameWeapon ? s_lastWeaponSnapshot.reserve : -1.0;
+        double prevClip = sameWeapon ? s_lastWeaponSnapshot.clip : -1.0;
+        double prevReserve = sameWeapon ? s_lastWeaponSnapshot.reserve : -1.0;
+        if (!activeWeaponSlot.empty() && state.contains("previously") && state["previously"].is_object()) {
+            const auto& previously = state["previously"];
+            if (previously.contains("player") && previously["player"].is_object()) {
+                const auto& prevPlayer = previously["player"];
+                if (prevPlayer.contains("weapons") && prevPlayer["weapons"].is_object()) {
+                    const auto& prevWeapons = prevPlayer["weapons"];
+                    const std::string slotUtf8 = WideToUtf8(activeWeaponSlot);
+                    if (prevWeapons.contains(slotUtf8) && prevWeapons[slotUtf8].is_object()) {
+                        const auto& prevWeapon = prevWeapons[slotUtf8];
+                        if (prevWeapon.contains("ammo_clip") && prevWeapon["ammo_clip"].is_number()) {
+                            prevClip = prevWeapon["ammo_clip"].get<double>();
+                        }
+                        if (prevWeapon.contains("ammo_reserve") && prevWeapon["ammo_reserve"].is_number()) {
+                            prevReserve = prevWeapon["ammo_reserve"].get<double>();
+                        }
+                    }
+                }
+            }
+        }
         const bool fired = sameWeapon && prevClip > nowClip && nowWeaponState != L"reloading";
         const bool reserveDropped = sameWeapon && prevReserve > nowReserve && nowReserve >= 0.0;
         const bool reloading = sameWeapon && nowClip > prevClip;
@@ -1718,6 +1753,7 @@ void TickContinuousScripts()
             }
         }
     }
+    ResetTransientWeaponVars();
     s_prevVars = s_vars;
 }
 

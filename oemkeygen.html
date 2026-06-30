@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>StrikeSense OEM Key Generator</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 40px;
+      background: #f7f9fc;
+      color: #1f2937;
+    }
+    .panel {
+      max-width: 720px;
+      background: #fff;
+      border: 1px solid #dbe3ee;
+      border-radius: 8px;
+      padding: 24px;
+    }
+    label {
+      display: block;
+      margin-top: 16px;
+      font-weight: 600;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+      padding: 10px 12px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      margin-top: 20px;
+    }
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h1>StrikeSense OEM Key Generator</h1>
+    <label for="stamp">Stamp (YYYYMMDDHHMM)</label>
+    <input id="stamp" type="text">
+
+    <label for="type">Type</label>
+    <select id="type">
+      <option>24h</option>
+      <option>7d</option>
+      <option>1m</option>
+      <option>6m</option>
+      <option>1y</option>
+      <option>10y</option>
+      <option>50y</option>
+      <option>forever</option>
+    </select>
+
+    <button id="generate" type="button">Generate</button>
+    <button id="copy" type="button">Copy</button>
+
+    <label for="output">Key</label>
+    <textarea id="output" readonly></textarea>
+  </div>
+
+  <script>
+    const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+    const secret = new TextEncoder().encode("StrikeSenseOEMKey2026");
+
+    function nowStamp() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
+    }
+
+    function fnv1a(text) {
+      const bytes = new TextEncoder().encode(text);
+      let value = 2166136261 >>> 0;
+      for (const byte of bytes) {
+        value ^= byte;
+        value = Math.imul(value, 16777619) >>> 0;
+      }
+      return value >>> 0;
+    }
+
+    function xorPayload(bytes) {
+      const out = new Uint8Array(bytes);
+      for (let i = 0; i < out.length; i += 1) {
+        out[i] = out[i] ^ secret[i % secret.length] ^ ((i * 29 + 17) & 0xff);
+      }
+      return out;
+    }
+
+    function encode64(bytes) {
+      let out = "";
+      let value = 0;
+      let bits = -6;
+      for (const byte of bytes) {
+        value = (value << 8) + byte;
+        bits += 8;
+        while (bits >= 0) {
+          out += alphabet[(value >> bits) & 63];
+          bits -= 6;
+        }
+      }
+      if (bits > -6) {
+        out += alphabet[((value << 8) >> (bits + 8)) & 63];
+      }
+      return out;
+    }
+
+    function makeKey(stamp, kind) {
+      if (!/^\d{12}$/.test(stamp)) {
+        throw new Error("Stamp must be YYYYMMDDHHMM");
+      }
+      const body = `SSOEM1|${stamp}|${kind}`;
+      const check = fnv1a(`${body}|StrikeSense`).toString(16);
+      return encode64(xorPayload(new TextEncoder().encode(`${body}|${check}`)));
+    }
+
+    document.getElementById("stamp").value = nowStamp();
+
+    document.getElementById("generate").addEventListener("click", () => {
+      const stamp = document.getElementById("stamp").value.trim();
+      const kind = document.getElementById("type").value;
+      const output = document.getElementById("output");
+      try {
+        output.value = makeKey(stamp, kind);
+      } catch (error) {
+        output.value = `Error: ${error.message}`;
+      }
+    });
+
+    document.getElementById("copy").addEventListener("click", async () => {
+      const text = document.getElementById("output").value;
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+    });
+  </script>
+</body>
+</html>

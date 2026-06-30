@@ -6,64 +6,56 @@ SECRET = b"StrikeSenseOEMKey2026"
 
 TYPE_ALIASES = {
     "24h": "24h",
-    "24小时": "24h",
     "7d": "7d",
-    "7天": "7d",
     "1m": "1m",
-    "一个月": "1m",
     "6m": "6m",
-    "半年": "6m",
     "1y": "1y",
-    "一年": "1y",
     "10y": "10y",
-    "十年": "10y",
     "50y": "50y",
-    "五十年": "50y",
     "forever": "forever",
-    "永不失效": "forever",
 }
 
 
-def normalize_type(kind: str) -> str:
-    value = TYPE_ALIASES.get(kind.strip())
-    if not value:
-        raise ValueError("未知期限类型")
-    return value
-
-
 def fnv1a(text: str) -> int:
-    h = 2166136261
-    for b in text.encode("utf-8"):
-        h ^= b
-        h = (h * 16777619) & 0xFFFFFFFF
-    return h
-
-
-def encode64(raw: bytes) -> str:
-    out = []
-    val = 0
-    bits = -6
-    for b in raw:
-        val = (val << 8) + b
-        bits += 8
-        while bits >= 0:
-            out.append(ALPHABET[(val >> bits) & 63])
-            bits -= 6
-    if bits > -6:
-        out.append(ALPHABET[((val << 8) >> (bits + 8)) & 63])
-    return "".join(out)
+    value = 2166136261
+    for byte in text.encode("utf-8"):
+        value ^= byte
+        value = (value * 16777619) & 0xFFFFFFFF
+    return value
 
 
 def xor_payload(raw: bytes) -> bytes:
     data = bytearray(raw)
-    for i, b in enumerate(data):
-        data[i] = b ^ SECRET[i % len(SECRET)] ^ ((i * 29 + 17) & 255)
+    for index, byte in enumerate(data):
+        data[index] = byte ^ SECRET[index % len(SECRET)] ^ ((index * 29 + 17) & 0xFF)
     return bytes(data)
+
+
+def encode64(raw: bytes) -> str:
+    output = []
+    value = 0
+    bits = -6
+    for byte in raw:
+        value = (value << 8) + byte
+        bits += 8
+        while bits >= 0:
+            output.append(ALPHABET[(value >> bits) & 63])
+            bits -= 6
+    if bits > -6:
+        output.append(ALPHABET[((value << 8) >> (bits + 8)) & 63])
+    return "".join(output)
+
+
+def normalize_type(kind: str) -> str:
+    normalized = TYPE_ALIASES.get(kind.strip().lower())
+    if not normalized:
+        raise ValueError("Unknown type. Use one of: 24h, 7d, 1m, 6m, 1y, 10y, 50y, forever")
+    return normalized
 
 
 def make_key(stamp: str, kind: str) -> str:
     if len(stamp) != 12 or not stamp.isdigit():
-        raise ValueError("时间戳必须是 YYYYMMDDHHMM")
+        raise ValueError("Stamp must be YYYYMMDDHHMM")
     normalized = normalize_type(kind)
     body = f"SSOEM1|{stamp}|{normalized}"
     check = format(fnv1a(f"{body}|StrikeSense"), "x")
@@ -72,11 +64,19 @@ def make_key(stamp: str, kind: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="StrikeSense OEM key generator")
-    parser.add_argument("--stamp", default=dt.datetime.now().strftime("%Y%m%d%H%M"), help="YYYYMMDDHHMM, default is now")
-    parser.add_argument("--type", default=None, help="24小时/7天/一个月/半年/一年/十年/五十年/永不失效")
+    parser.add_argument("--stamp", default=dt.datetime.now().strftime("%Y%m%d%H%M"))
+    parser.add_argument("--type", default="24h")
     args = parser.parse_args()
-    kind = args.type or input("请输入期限类型：").strip()
-    print(make_key(args.stamp, kind))
+
+    try:
+        key = make_key(args.stamp, args.type)
+        print("Stamp :", args.stamp)
+        print("Type  :", normalize_type(args.type))
+        print("Key   :", key)
+    except Exception as exc:
+        print("Error :", exc)
+
+    input("Press Enter to exit...")
 
 
 if __name__ == "__main__":
