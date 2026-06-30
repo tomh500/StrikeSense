@@ -1,17 +1,29 @@
 const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
-const key = "StrikeSenseOEMKey2026";
+const secret = Buffer.from("StrikeSenseOEMKey2026", "utf8");
 
-function daysForType(type) {
-  return {
-    "24小时": 1, "24h": 1,
-    "7天": 7, "7d": 7,
-    "一个月": 31, "1m": 31,
-    "半年": 183, "6m": 183,
-    "一年": 366, "1y": 366,
-    "十年": 3653, "10y": 3653,
-    "五十年": 18263, "50y": 18263,
-    "永不失效": 365000, "forever": 365000
-  }[type] || 0;
+const typeAliases = new Map([
+  ["24h", "24h"],
+  ["24小时", "24h"],
+  ["7d", "7d"],
+  ["7天", "7d"],
+  ["1m", "1m"],
+  ["一个月", "1m"],
+  ["6m", "6m"],
+  ["半年", "6m"],
+  ["1y", "1y"],
+  ["一年", "1y"],
+  ["10y", "10y"],
+  ["十年", "10y"],
+  ["50y", "50y"],
+  ["五十年", "50y"],
+  ["forever", "forever"],
+  ["永不失效", "forever"],
+]);
+
+function normalizeType(kind) {
+  const value = typeAliases.get(String(kind).trim());
+  if (!value) throw new Error("未知期限类型");
+  return value;
 }
 
 function fnv1a(text) {
@@ -24,7 +36,9 @@ function fnv1a(text) {
 }
 
 function encode64(buf) {
-  let out = "", val = 0, bits = -6;
+  let out = "";
+  let val = 0;
+  let bits = -6;
   for (const c of buf) {
     val = (val << 8) + c;
     bits += 8;
@@ -38,23 +52,24 @@ function encode64(buf) {
 }
 
 function xorPayload(buf) {
-  const k = Buffer.from(key, "utf8");
   const out = Buffer.from(buf);
-  for (let i = 0; i < out.length; i++) out[i] = out[i] ^ k[i % k.length] ^ ((i * 29 + 17) & 255);
+  for (let i = 0; i < out.length; i += 1) {
+    out[i] = out[i] ^ secret[i % secret.length] ^ ((i * 29 + 17) & 255);
+  }
   return out;
 }
 
-function makeKey(stamp, type) {
+function makeKey(stamp, kind) {
   if (!/^\d{8}$/.test(stamp)) throw new Error("时间戳必须是 YYYYMMDD");
-  if (!daysForType(type)) throw new Error("未知期限类型");
-  const body = `SSOEM1|${stamp}|${type}`;
+  const normalized = normalizeType(kind);
+  const body = `SSOEM1|${stamp}|${normalized}`;
   const check = fnv1a(`${body}|StrikeSense`).toString(16);
   return encode64(xorPayload(Buffer.from(`${body}|${check}`, "utf8")));
 }
 
-if (typeof module !== "undefined") module.exports = { makeKey, daysForType };
+if (typeof module !== "undefined") module.exports = { makeKey, normalizeType };
 if (require.main === module) {
   const stamp = process.argv[2] || new Date().toISOString().slice(0, 10).replaceAll("-", "");
-  const type = process.argv[3] || "24小时";
-  console.log(makeKey(stamp, type));
+  const kind = process.argv[3] || "24小时";
+  console.log(makeKey(stamp, kind));
 }

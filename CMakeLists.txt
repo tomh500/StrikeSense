@@ -27,6 +27,7 @@ if(MSVC)
 endif()
 
 add_definitions(-D_WINDOWS -DUNICODE -D_UNICODE)
+add_compile_definitions(STRIKESENSE_BUILD_CODE=2)
 
 # 寻找第三方包
 find_package(nlohmann_json CONFIG REQUIRED)

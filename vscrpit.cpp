@@ -60,7 +60,8 @@ std::map<std::wstring, value> s_vars;
 std::map<std::wstring, value> s_prevVars;
 std::unordered_map<int, image_window> s_images;
 std::unordered_map<int, sound_slot> s_sounds;
-std::mutex s_mutex;
+std::recursive_mutex s_mutex;
+std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 
 constexpr const wchar_t* k_imageClass = L"StrikeSenseVscrpitImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
@@ -101,14 +102,14 @@ std::wstring NowStamp()
 
 int DaysForType(const std::wstring& type)
 {
-    if (type == L"24h" || type == L"24小时") return 1;
-    if (type == L"7d" || type == L"7天") return 7;
-    if (type == L"1m" || type == L"一个月") return 31;
-    if (type == L"6m" || type == L"半年") return 183;
-    if (type == L"1y" || type == L"一年") return 366;
-    if (type == L"10y" || type == L"十年") return 3653;
-    if (type == L"50y" || type == L"五十年") return 18263;
-    if (type == L"forever" || type == L"永不失效") return 365000;
+    if (type == L"24h") return 1;
+    if (type == L"7d") return 7;
+    if (type == L"1m") return 31;
+    if (type == L"6m") return 183;
+    if (type == L"1y") return 366;
+    if (type == L"10y") return 3653;
+    if (type == L"50y") return 18263;
+    if (type == L"forever") return 365000;
     return 0;
 }
 
@@ -228,6 +229,46 @@ std::wstring ReadAllWide(const fs::path& path)
     if (raw.size() >= 3 && (unsigned char)raw[0] == 0xEF && (unsigned char)raw[1] == 0xBB && (unsigned char)raw[2] == 0xBF)
         raw.erase(0, 3);
     return Utf8ToWide(raw);
+}
+
+std::wstring LoadScriptCached(const std::wstring& path)
+{
+    auto it = s_scriptCache.find(path);
+    if (it != s_scriptCache.end()) return it->second;
+    std::wstring text = ReadAllWide(path);
+    s_scriptCache[path] = text;
+    return text;
+}
+
+bool ScriptHasEdgeGuard(const std::wstring& path)
+{
+    std::wstring script = LoadScriptCached(path);
+    return script.find(L"on:") != std::wstring::npos;
+}
+
+bool ConfirmContinuousAllowed(const std::wstring& path)
+{
+    if (ScriptHasEdgeGuard(path)) return true;
+    if (GetRuntimeCapability() == buildcode::eng) {
+        std::wcout << L"[脚本权限] eng 构建允许无 on: 轮询脚本: " << path << std::endl;
+        return true;
+    }
+    if (GetRuntimeCapability() == buildcode::userdebug) {
+        int result = MessageBoxW(
+            s_owner,
+            L"这个脚本没有 on: 状态边沿判断，持续执行可能反复打开网页、重复创建文件或反复执行命令。\n\n是否仍然允许它轮询？",
+            L"StrikeSense 脚本轮询确认",
+            MB_YESNO | MB_ICONWARNING
+        );
+        return result == IDYES;
+    }
+    MessageBoxW(
+        s_owner,
+        L"user 模式禁止轮询没有 on: 状态判断的脚本。\n\n请给脚本加入类似 if(on:death_mute==true){ ... }; 的结构，或提升运行权限。",
+        L"StrikeSense 脚本结构被拒绝",
+        MB_OK | MB_ICONWARNING
+    );
+    return false;
 }
 
 void WriteUtf8(const fs::path& path, const std::wstring& text)
@@ -442,6 +483,25 @@ BOOL CALLBACK EnumMinimizeCs2(HWND hwnd, LPARAM)
     return TRUE;
 }
 
+BOOL CALLBACK EnumShowCs2(HWND hwnd, LPARAM)
+{
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (!pid || !IsWindowVisible(hwnd)) return TRUE;
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) return TRUE;
+    wchar_t path[MAX_PATH]{};
+    DWORD size = MAX_PATH;
+    bool match = QueryFullProcessImageNameW(h, 0, path, &size) && _wcsicmp(PathFindFileNameW(path), L"cs2.exe") == 0;
+    CloseHandle(h);
+    if (match) {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 bool KillProcessByName(const std::wstring& exe)
 {
     bool killed = false;
@@ -592,6 +652,10 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
     }
     if (name == L"KillGameProcess") return KillProcessByName(L"cs2.exe");
     if (name == L"RunGameProcess") return (INT_PTR)ShellExecuteW(nullptr, L"open", L"steam://run/730", nullptr, nullptr, SW_SHOWNORMAL) > 32;
+    if (name == L"ShowGameProcess") {
+        EnumWindows(EnumShowCs2, 0);
+        return true;
+    }
     if (name == L"Browser" && args.size() >= 1) return (INT_PTR)ShellExecuteW(nullptr, L"open", ToText(args[0]).c_str(), nullptr, nullptr, SW_SHOWNORMAL) > 32;
     if (name == L"Drawimg" && args.size() >= 7) return DrawImageCommand(ToText(args[0]), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6]));
     if (name == L"Closeimg" && args.size() >= 1) { CloseImage((int)ToNumber(args[0])); return true; }
@@ -693,8 +757,10 @@ void SetJsonVar(const std::wstring& name, const nlohmann::json& j, const char* k
 void RegisterBuildWarning()
 {
     if (s_runtimeCapability == buildcode::userdebug && GetBuildCode() == buildcode::user && s_owner) {
-        MessageBoxW(s_owner, L"检测到 OEM 调试解锁，程序将启用 userdebug 能力。\n\n请确认你理解脚本可以执行 shell 和文件写入等高权限操作。本提示将在 5 秒后允许关闭。", L"StrikeSense 调试功能警告", MB_OK | MB_ICONWARNING);
-        Sleep(5000);
+        HWND owner = s_owner;
+        std::thread([owner]() {
+            MessageBoxW(owner, L"检测到 OEM 调试解锁，程序将启用 userdebug 能力。\n\n请确认你理解脚本可以执行 shell 和文件写入等高权限操作。", L"StrikeSense 调试功能警告", MB_OK | MB_ICONWARNING);
+        }).detach();
     }
 }
 
@@ -752,14 +818,12 @@ bool IsOemUnlockValid()
     fs::path path = BaseDir() / L".oemunlock";
     if (!fs::exists(path)) return false;
     std::wstring key = Trim(ReadAllWide(path));
-    bool ok = ParseOemKey(key);
-    std::cout << "[OEM] 解锁文件校验: " << (ok ? "有效" : "无效") << std::endl;
-    return ok;
+    return ParseOemKey(key);
 }
 
 void UpdateFromGsi(const nlohmann::json& state)
 {
-    std::lock_guard<std::mutex> lock(s_mutex);
+    std::lock_guard<std::recursive_mutex> lock(s_mutex);
     s_prevVars = s_vars;
     if (state.contains("map") && state["map"].is_object()) {
         SetJsonVar(L"map", state["map"], "name");
@@ -802,19 +866,25 @@ void UpdateFromGsi(const nlohmann::json& state)
 
 void TickContinuousScripts()
 {
-    std::lock_guard<std::mutex> lock(s_mutex);
+    std::lock_guard<std::recursive_mutex> lock(s_mutex);
     for (const auto& script : s_mounted) {
-        if (script.continuous) ExecuteScriptFile(script.path);
+        if (script.continuous) {
+            std::wstring text = LoadScriptCached(script.path);
+            if (!text.empty()) ExecuteBlock(text);
+        }
     }
+    s_prevVars = s_vars;
 }
 
 bool ExecuteScriptFile(const std::wstring& path)
 {
+    std::lock_guard<std::recursive_mutex> lock(s_mutex);
     std::wstring script = ReadAllWide(path);
     if (script.empty()) {
         std::wcout << L"[脚本] 脚本为空或读取失败: " << path << std::endl;
         return false;
     }
+    s_scriptCache[path] = script;
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
     ExecuteBlock(script);
     return true;
@@ -854,7 +924,11 @@ void LoadMountedScripts()
                 mounted_script s;
                 if (item.contains("path") && item["path"].is_string()) s.path = Utf8ToWide(item["path"].get<std::string>());
                 if (item.contains("continuous") && item["continuous"].is_boolean()) s.continuous = item["continuous"].get<bool>();
-                if (!s.path.empty()) s_mounted.push_back(s);
+                if (!s.path.empty()) {
+                    s_scriptCache[s.path] = ReadAllWide(s.path);
+                    if (s.continuous && !ConfirmContinuousAllowed(s.path)) s.continuous = false;
+                    s_mounted.push_back(s);
+                }
             }
         }
         std::cout << "[脚本配置] 已加载挂载脚本数量=" << s_mounted.size() << std::endl;
@@ -880,6 +954,7 @@ void SaveMountedScripts()
 void AddMountedScript(const std::wstring& path)
 {
     auto it = std::find_if(s_mounted.begin(), s_mounted.end(), [&](const mounted_script& s) { return s.path == path; });
+    s_scriptCache[path] = ReadAllWide(path);
     if (it == s_mounted.end()) s_mounted.push_back({ path, false });
     SaveMountedScripts();
 }
@@ -887,6 +962,7 @@ void AddMountedScript(const std::wstring& path)
 void RemoveMountedScript(size_t index)
 {
     if (index >= s_mounted.size()) return;
+    s_scriptCache.erase(s_mounted[index].path);
     s_mounted.erase(s_mounted.begin() + index);
     SaveMountedScripts();
 }
@@ -894,6 +970,10 @@ void RemoveMountedScript(size_t index)
 void ToggleContinuous(size_t index)
 {
     if (index >= s_mounted.size()) return;
+    if (!s_mounted[index].continuous && !ConfirmContinuousAllowed(s_mounted[index].path)) {
+        std::wcout << L"[脚本权限] 已拒绝开启持续执行: " << s_mounted[index].path << std::endl;
+        return;
+    }
     s_mounted[index].continuous = !s_mounted[index].continuous;
     SaveMountedScripts();
 }
@@ -909,7 +989,7 @@ void EnsureExampleScript()
         L"};\n"
         L"\n"
         L"if(on:round_phase==\"live\"){\n"
-        L"    RunGameProcess();\n"
+        L"    ShowGameProcess();\n"
         L"};\n");
     std::wcout << L"[脚本] 已创建示范脚本: " << path.wstring() << std::endl;
 }

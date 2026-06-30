@@ -1,22 +1,34 @@
 import argparse
-import datetime as _dt
+import datetime as dt
 
 ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
-KEY = b"StrikeSenseOEMKey2026"
+SECRET = b"StrikeSenseOEMKey2026"
+
+TYPE_ALIASES = {
+    "24h": "24h",
+    "24小时": "24h",
+    "7d": "7d",
+    "7天": "7d",
+    "1m": "1m",
+    "一个月": "1m",
+    "6m": "6m",
+    "半年": "6m",
+    "1y": "1y",
+    "一年": "1y",
+    "10y": "10y",
+    "十年": "10y",
+    "50y": "50y",
+    "五十年": "50y",
+    "forever": "forever",
+    "永不失效": "forever",
+}
 
 
-def days_for_type(kind: str) -> int:
-    table = {
-        "24小时": 1, "24h": 1,
-        "7天": 7, "7d": 7,
-        "一个月": 31, "1m": 31,
-        "半年": 183, "6m": 183,
-        "一年": 366, "1y": 366,
-        "十年": 3653, "10y": 3653,
-        "五十年": 18263, "50y": 18263,
-        "永不失效": 365000, "forever": 365000,
-    }
-    return table.get(kind, 0)
+def normalize_type(kind: str) -> str:
+    value = TYPE_ALIASES.get(kind.strip())
+    if not value:
+        raise ValueError("未知期限类型")
+    return value
 
 
 def fnv1a(text: str) -> int:
@@ -45,23 +57,22 @@ def encode64(raw: bytes) -> str:
 def xor_payload(raw: bytes) -> bytes:
     data = bytearray(raw)
     for i, b in enumerate(data):
-        data[i] = b ^ KEY[i % len(KEY)] ^ ((i * 29 + 17) & 255)
+        data[i] = b ^ SECRET[i % len(SECRET)] ^ ((i * 29 + 17) & 255)
     return bytes(data)
 
 
 def make_key(stamp: str, kind: str) -> str:
     if len(stamp) != 8 or not stamp.isdigit():
         raise ValueError("时间戳必须是 YYYYMMDD")
-    if not days_for_type(kind):
-        raise ValueError("未知期限类型")
-    body = f"SSOEM1|{stamp}|{kind}"
+    normalized = normalize_type(kind)
+    body = f"SSOEM1|{stamp}|{normalized}"
     check = format(fnv1a(f"{body}|StrikeSense"), "x")
     return encode64(xor_payload(f"{body}|{check}".encode("utf-8")))
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="StrikeSense OEM 调试 key 生成器")
-    parser.add_argument("--stamp", default=_dt.date.today().strftime("%Y%m%d"), help="YYYYMMDD，默认系统日期")
+    parser = argparse.ArgumentParser(description="StrikeSense OEM key generator")
+    parser.add_argument("--stamp", default=dt.date.today().strftime("%Y%m%d"), help="YYYYMMDD, default is today")
     parser.add_argument("--type", default=None, help="24小时/7天/一个月/半年/一年/十年/五十年/永不失效")
     args = parser.parse_args()
     kind = args.type or input("请输入期限类型：").strip()
