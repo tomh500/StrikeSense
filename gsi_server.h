@@ -1,6 +1,8 @@
 #pragma once
 
+#include <nlohmann/json.hpp>
 #include <string>
+#include <unordered_map>
 
 // =========== 新增：前置声明 config 命名空间与 Settings 结构体 ===========
 namespace config {
@@ -65,5 +67,29 @@ void RefreshConfig();
 config::Settings& GetConfig();
 
 extern std::string gamemap;
+
+namespace state {
+extern nlohmann::json full;
+extern nlohmann::json provider;
+extern nlohmann::json map;
+extern nlohmann::json team;
+extern nlohmann::json round;
+extern nlohmann::json player;
+extern nlohmann::json player_state;
+extern nlohmann::json player_id;
+extern nlohmann::json player_match_stats;
+extern nlohmann::json allplayers;
+extern nlohmann::json allplayers_id;
+extern nlohmann::json allplayers_state;
+extern nlohmann::json allplayers_match_stats;
+extern nlohmann::json bomb;
+extern nlohmann::json player_name;
+extern nlohmann::json player_weapons;
+extern nlohmann::json previously;
+extern nlohmann::json added;
+extern std::unordered_map<std::string, std::string> flat;
+
+void SyncFromJson(const nlohmann::json& stateJson);
+}
 
 } // namespace gsi

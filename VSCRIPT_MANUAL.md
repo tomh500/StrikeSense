@@ -1,140 +1,123 @@
 # StrikeSense VScript 手册
 
-VScript 是 StrikeSense 的轻量脚本系统，用来把 GSI 状态转换成可执行动作。脚本文件建议放在：
+VScript 是 StrikeSense 的轻量脚本系统，用来把 GSI 状态转换成动作。
+
+脚本建议目录：
 
 `%UserProfile%/StrikeSense/script`
 
-程序启动时只会创建脚本目录和资源目录，不再把示范脚本内容写在 C++ 源码里。
+程序现在只会确保这个脚本目录存在，不会再自动创建 `assets` 之类的示范资源目录。仓库里的 `vscript_examples` 只是示例源码，发布程序本体保持干净。
 
-当前版本中，示范脚本作为项目里的 `.vscrpit` 文件维护。用户可以把示范脚本复制到 `%UserProfile%/StrikeSense/script` 后挂载。
+## 权限分级
 
-## 构建权限
+- `user`：稳定版，只有安全命令。
+- `userdebug`：对应 nightly / OEM 解锁，可执行 shell 和文件写入。
+- `eng`：测试专用，允许更激进的调试与轮询能力。
 
-- `Release`: `user`
-- `Nightly`: `userdebug`
-- `Debug`: `eng`
+## 基本语法
 
-高权限构建可以执行低权限命令。`userdebug` 命令在 `user` 下会被拒绝，除非 OEM 解锁有效。
+- 语句以 `;` 结尾。
+- 支持 `//` 与 `/* */` 注释。
+- 支持 `if / else / while / for / goto / return`。
+- 条件现在支持 `== != > < >= <= && || !`。
+- `on:` 表示“整个条件从假变真时只触发一次”。
 
-## 脚本结构
-
-每条语句用 `;` 结尾。字符串支持跨行拼接：
+示例：
 
 ```cpp
-Browser("https://www.douyin.com/"
-"home", true);
+if(on:weapon_fired==true && weapon_name=="weapon_hkp2000"){
+    Playsnd("%USERPROFILE%/StrikeSense/snd/1.wav", 1.0, 2001);
+};
 ```
 
-支持注释：
+## 元信息
+
+脚本顶部可写元信息，挂载页优先显示这里的名字和说明：
 
 ```cpp
-// 行注释
-/*
-块注释
-*/
-```
-
-脚本开头可以写元信息，挂载页面会优先显示脚本名：
-
-```cpp
-// @name: 死后刷抖音
+// @name: P2000 开火音效
 // @provider: StrikeSense
 // @version: 1.0.0
-// @notice: 死亡时打开页面，新回合切回游戏。
+// @notice: 手持 P2000 且开火时播放 1.wav。
 ```
 
-公告信息过长时不会直接铺在列表里，页面会显示一个感叹号图标，鼠标悬停后显示公告浮窗。
+提示框会按文字量动态调整大小。
 
-## 条件
+## 常用变量
 
-普通条件会在每次执行时判断：
+### 便捷变量
 
-```cpp
-if(map=="de_nuke"){
-    Top("cs2.exe", true);
-};
-```
+- `provider_name`
+- `provider_appid`
+- `provider_version`
+- `provider_steamid`
+- `map`
+- `map_mode`
+- `map_phase`
+- `round_phase`
+- `round_win_team`
+- `bomb`
+- `player_name`
+- `activity`
+- `steamid`
+- `team`
+- `kills`
+- `health`
+- `flashed`
+- `mvps`
+- `death_mute`
+- `weapon_name`
+- `weapon_type`
+- `weapon_state`
+- `weapon_ammo_clip`
+- `weapon_ammo_clip_max`
+- `weapon_ammo_reserve`
+- `weapon_fired`
+- `weapon_reloading`
+- `weapon_switched`
 
-`on:` 表示状态刚刚变成目标值时触发一次，适合持续轮询脚本：
+### 上一帧便捷变量
 
-```cpp
-if(on:death_mute==true){
-    Browser("https://www.douyin.com/", true);
-};
-```
+- `prev_round_phase`
+- `prev_kills`
+- `prev_health`
+- `prev_weapon_name`
+- `prev_weapon_type`
+- `prev_weapon_state`
+- `prev_weapon_ammo_clip`
 
-没有 `on:` 的脚本开启持续执行时：
+### 原始 GSI 展平变量
 
-- `user`: 拒绝轮询。
-- `userdebug`: 弹窗询问。
-- `eng`: 直接允许。
+收到的 GSI JSON 会尽量完整展开为 `gsi_...` 变量，例如：
 
-## 控制流
+- `gsi_player_state_health`
+- `gsi_player_weapons_weapon_0_name`
+- `gsi_allplayers_7656119xxxx_state_health`
 
-支持最小 C 风格控制流：
-
-```cpp
-int i = 0;
-while(i<5){
-    i = i + 1;
-};
-
-for(int k=0; k<3; k=k+1){
-    Sleep(50);
-};
-
-start:
-goto start;
-return;
-```
-
-循环有 1000 次上限，避免脚本卡死 UI 线程。
-
-## GSI 变量
-
-常用变量：
-
-- `map`: 地图名，例如 `de_nuke`
-- `map_mode`: 模式
-- `map_phase`: 地图阶段
-- `round_phase`: 回合阶段，例如 `freezetime`、`live`、`over`
-- `bomb`: 炸弹状态
-- `activity`: 玩家活动状态
-- `steamid`: 玩家 SteamID
-- `team`: 玩家队伍
-- `kills`: 本回合击杀数
-- `health`: 血量
-- `flashed`: 闪光值
-- `mvps`: MVP 数
-- `death_mute`: 血量小于等于 0 时为 `true`
-- `weapon_name`: 当前手持武器名，例如 `weapon_awp`
-- `weapon_type`: 当前手持武器类型，例如 `SniperRifle`
-- `weapon_state`: 当前武器状态
-- `gsi_...`: 原始 GSI JSON 会尽量展开成变量，例如 `gsi_player_state_health`
+同时 `gsi_server` 侧也会同步缓存整份原型字段，脚本侧可通过这些展平变量直接消费。`gsi_field_count` 表示当前已同步的叶子字段数量。
 
 缺失字段会写成 `void`。
 
-## API
+## 内置函数
 
-### user 权限
+### 基础动作
 
 ```cpp
 CloseGameWindow();
 KillGameProcess();
 RunGameProcess();
 ShowGameProcess();
-Browser("url", true);
-Top("process.exe", true);
+Browser("https://example.com", true);
+Top("chrome.exe", true);
 Drawimg("path", x, y, alpha, opacity, ttl_ms, id);
 Closeimg(id);
 Playsnd("path", volume, id);
 Stopsnd(id);
 Sleep(ms);
+Log("调试文本");
 ```
 
-`Browser` 的第二个参数可选，`true` 表示尝试把浏览器置顶。`Top` 的第二个参数为 `false` 时取消置顶。
-
-### userdebug 权限
+### userdebug / eng
 
 ```cpp
 ShellExecute("command");
@@ -144,54 +127,42 @@ OwriteFile("path", "content");
 AwriteFile("path", "content");
 ```
 
-### StrikeSense 状态
+### StrikeSense 状态控制
 
 ```cpp
 SetDeathVolume(0.35);
 SetDeathMute(true);
-SetCrosshair(true, 255, 0, 0, 0, 2, 0.2);
+SetCrosshairEnabled(true);
+SetCrosshairVisual(255, 40, 40, 2, 2, 0.22);
+SetCrosshair(true, 255, 40, 40, 2, 2, 0.22); // 兼容旧写法
 ```
 
-这些函数会修改进化分支相关状态并保存配置。需要管理员权限但权限不足时会忽略实际启用动作，避免 UI 状态和真实状态不一致。
+`SetCrosshairEnabled` 和 `SetCrosshairVisual` 现在已拆开，推荐分开使用。
 
 ## 示例
 
-死亡打开抖音，冻结时间切回游戏：
+### 狙击枪自动准星
 
 ```cpp
-if(on:death_mute==true){
-    CloseGameWindow();
-    Browser("https://www.douyin.com/", true);
+if(on:(weapon_name=="weapon_awp" || weapon_name=="weapon_ssg08")){
+    SetCrosshairVisual(255, 40, 40, 2, 2, 0.22);
+    SetCrosshairEnabled(true);
 };
 
-if(on:round_phase=="freezetime"){
-    ShowGameProcess();
-};
-```
-
-1 到 5 杀显示图标：
-
-```cpp
-if(on:kills==1){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/1.png", 0, 360, true, 1.0, 3000, 101); };
-if(on:kills==2){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/2.png", 0, 360, true, 1.0, 3000, 102); };
-```
-
-狙击枪自动准星：
-
-```cpp
-if(on:weapon_name=="weapon_awp"){
-    SetCrosshair(true, 255, 40, 40, 2, 2, 0.22);
+if(on:(weapon_name=="weapon_scar20" || weapon_name=="weapon_g3sg1")){
+    SetCrosshairVisual(255, 220, 80, 2, 2, 0.22);
+    SetCrosshairEnabled(true);
 };
 
 if(on:weapon_type!="SniperRifle"){
-    SetCrosshair(false, 255, 0, 0, 0, 2, 0.2);
+    SetCrosshairEnabled(false);
 };
 ```
 
-## OEM Key 时间戳
+### P2000 开火播放音效
 
-OEM 工具使用 12 位时间戳：
-
-`yyyyMMddHHmm`
-
-例如 `202606301845` 表示 2026 年 6 月 30 日 18:45。
+```cpp
+if(on:weapon_fired==true && weapon_name=="weapon_hkp2000"){
+    Playsnd("%USERPROFILE%/StrikeSense/snd/1.wav", 1.0, 2001);
+};
+```

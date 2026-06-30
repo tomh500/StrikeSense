@@ -29,6 +29,100 @@ int beforeisgaming = 0;
 
 namespace gsi {
 
+    namespace state {
+        nlohmann::json full = nlohmann::json::object();
+        nlohmann::json provider = nlohmann::json::object();
+        nlohmann::json map = nlohmann::json::object();
+        nlohmann::json team = nlohmann::json::object();
+        nlohmann::json round = nlohmann::json::object();
+        nlohmann::json player = nlohmann::json::object();
+        nlohmann::json player_state = nlohmann::json::object();
+        nlohmann::json player_id = nlohmann::json::object();
+        nlohmann::json player_match_stats = nlohmann::json::object();
+        nlohmann::json allplayers = nlohmann::json::object();
+        nlohmann::json allplayers_id = nlohmann::json::object();
+        nlohmann::json allplayers_state = nlohmann::json::object();
+        nlohmann::json allplayers_match_stats = nlohmann::json::object();
+        nlohmann::json bomb = nlohmann::json::object();
+        nlohmann::json player_name = nlohmann::json::object();
+        nlohmann::json player_weapons = nlohmann::json::object();
+        nlohmann::json previously = nlohmann::json::object();
+        nlohmann::json added = nlohmann::json::object();
+        std::unordered_map<std::string, std::string> flat;
+    }
+
+    namespace {
+        std::string JsonLeafToString(const nlohmann::json& value)
+        {
+            if (value.is_string()) return value.get<std::string>();
+            if (value.is_boolean()) return value.get<bool>() ? "true" : "false";
+            if (value.is_number_float()) return std::to_string(value.get<double>());
+            if (value.is_number_integer()) return std::to_string(value.get<long long>());
+            if (value.is_number_unsigned()) return std::to_string(value.get<unsigned long long>());
+            if (value.is_null()) return "null";
+            return value.dump();
+        }
+
+        void FlattenStateJson(const std::string& prefix, const nlohmann::json& value, std::unordered_map<std::string, std::string>& out)
+        {
+            if (value.is_object()) {
+                for (auto it = value.begin(); it != value.end(); ++it) {
+                    const std::string next = prefix.empty() ? it.key() : prefix + "." + it.key();
+                    FlattenStateJson(next, it.value(), out);
+                }
+                return;
+            }
+            if (value.is_array()) {
+                for (size_t i = 0; i < value.size(); ++i) {
+                    const std::string next = prefix + "[" + std::to_string(i) + "]";
+                    FlattenStateJson(next, value[i], out);
+                }
+                return;
+            }
+            out[prefix] = JsonLeafToString(value);
+        }
+    }
+
+    void state::SyncFromJson(const nlohmann::json& stateJson)
+    {
+        full = stateJson;
+        provider = stateJson.value("provider", nlohmann::json::object());
+        map = stateJson.value("map", nlohmann::json::object());
+        team = stateJson.value("team", nlohmann::json::object());
+        round = stateJson.value("round", nlohmann::json::object());
+        player = stateJson.value("player", nlohmann::json::object());
+        player_state = player.value("state", nlohmann::json::object());
+        player_id = {
+            {"steamid", player.value("steamid", "")},
+            {"team", player.value("team", "")},
+            {"activity", player.value("activity", "")}
+        };
+        player_match_stats = player.value("match_stats", nlohmann::json::object());
+        allplayers = stateJson.value("allplayers", nlohmann::json::object());
+        allplayers_id = nlohmann::json::object();
+        allplayers_state = nlohmann::json::object();
+        allplayers_match_stats = nlohmann::json::object();
+        for (auto it = allplayers.begin(); it != allplayers.end(); ++it) {
+            if (!it.value().is_object()) continue;
+            allplayers_id[it.key()] = {
+                {"steamid", it.value().value("steamid", "")},
+                {"name", it.value().value("name", "")},
+                {"team", it.value().value("team", "")}
+            };
+            allplayers_state[it.key()] = it.value().value("state", nlohmann::json::object());
+            allplayers_match_stats[it.key()] = it.value().value("match_stats", nlohmann::json::object());
+        }
+        bomb = stateJson.value("bomb", nlohmann::json::object());
+        player_name = { {"name", player.value("name", "")} };
+        player_weapons = player.value("weapons", nlohmann::json::object());
+        previously = stateJson.value("previously", nlohmann::json::object());
+        added = stateJson.value("added", nlohmann::json::object());
+
+        flat.clear();
+        FlattenStateJson("", full, flat);
+        std::cout << "[GSI] 已同步全部原型字段到命名空间缓存，字段数=" << flat.size() << std::endl;
+    }
+
 
 
     int g_debug = 0;
@@ -322,6 +416,7 @@ namespace gsi {
 
         try {
             nlohmann::json j = nlohmann::json::parse(rawJson);
+            state::SyncFromJson(j);
 
             std::string phase;
             std::string activity;

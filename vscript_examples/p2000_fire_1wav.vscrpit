@@ -1,0 +1,9 @@
+// @name: P2000 开火音效
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 手持 P2000 时开火，播放 %USERPROFILE%/StrikeSense/snd/1.wav。
+
+if(on:weapon_fired==true && weapon_name=="weapon_hkp2000"){
+    Playsnd("%USERPROFILE%/StrikeSense/snd/1.wav", 1.0, 2001);
+    Log("P2000 开火，已播放 1.wav");
+};

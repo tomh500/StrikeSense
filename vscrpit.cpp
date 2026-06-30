@@ -2,6 +2,7 @@
 #include "pages.h"
 #include "volume_mixer.h"
 #include "normalgen.h"
+#include "gsi_server.h"
 
 #include <TlHelp32.h>
 #include <Shellapi.h>
@@ -79,6 +80,8 @@ std::wstring Trim(std::wstring s);
 value TextValue(const std::wstring& s);
 value NumberValue(double n);
 value BoolValue(bool b);
+value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars);
+bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -485,6 +488,13 @@ value GetVar(const std::wstring& name)
     return TextValue(L"void");
 }
 
+value GetVarFromMap(const std::map<std::wstring, value>& vars, const std::wstring& name)
+{
+    auto it = vars.find(name);
+    if (it != vars.end()) return it->second;
+    return TextValue(L"void");
+}
+
 std::wstring Trim(std::wstring s)
 {
     auto isSpace = [](wchar_t c) { return iswspace(c) != 0; };
@@ -544,7 +554,7 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args)
     return out;
 }
 
-value EvalExpr(const std::wstring& expr)
+value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars)
 {
     std::wstring e = Trim(expr);
     auto findOp = [&](const std::wstring& ops) -> std::pair<size_t, wchar_t> {
@@ -565,12 +575,12 @@ value EvalExpr(const std::wstring& expr)
         return { std::wstring::npos, L'\0' };
     };
     if (e.size() >= 2 && e.front() == L'(' && e.back() == L')') {
-        return EvalExpr(e.substr(1, e.size() - 2));
+        return EvalExprWithVars(e.substr(1, e.size() - 2), vars);
     }
     auto addOp = findOp(L"+-");
     if (addOp.first != std::wstring::npos) {
-        value left = EvalExpr(e.substr(0, addOp.first));
-        value right = EvalExpr(e.substr(addOp.first + 1));
+        value left = EvalExprWithVars(e.substr(0, addOp.first), vars);
+        value right = EvalExprWithVars(e.substr(addOp.first + 1), vars);
         if (addOp.second == L'+' && (left.type == value::kind::text || right.type == value::kind::text)) {
             return TextValue(ToText(left) + ToText(right));
         }
@@ -578,8 +588,8 @@ value EvalExpr(const std::wstring& expr)
     }
     auto mulOp = findOp(L"*/");
     if (mulOp.first != std::wstring::npos) {
-        value left = EvalExpr(e.substr(0, mulOp.first));
-        value right = EvalExpr(e.substr(mulOp.first + 1));
+        value left = EvalExprWithVars(e.substr(0, mulOp.first), vars);
+        value right = EvalExprWithVars(e.substr(mulOp.first + 1), vars);
         double r = ToNumber(right);
         if (mulOp.second == L'/' && r == 0.0) return NumberValue(0.0);
         return NumberValue(mulOp.second == L'*' ? ToNumber(left) * r : ToNumber(left) / r);
@@ -603,7 +613,12 @@ value EvalExpr(const std::wstring& expr)
     if (!e.empty() && (iswdigit(e[0]) || e[0] == L'-')) {
         try { return NumberValue(std::stod(e)); } catch (...) {}
     }
-    return GetVar(e);
+    return GetVarFromMap(vars, e);
+}
+
+value EvalExpr(const std::wstring& expr)
+{
+    return EvalExprWithVars(expr, s_vars);
 }
 
 bool CompareValues(const value& l, const std::wstring& op, const value& r)
@@ -618,6 +633,47 @@ bool CompareValues(const value& l, const std::wstring& op, const value& r)
     return false;
 }
 
+size_t FindLogicalOp(const std::wstring& text, const std::wstring& op)
+{
+    bool inString = false;
+    int paren = 0;
+    for (size_t i = 0; i + op.size() <= text.size(); ++i) {
+        wchar_t c = text[i];
+        if (c == L'"' && (i == 0 || text[i - 1] != L'\\')) inString = !inString;
+        if (inString) continue;
+        if (c == L'(') ++paren;
+        else if (c == L')' && paren > 0) --paren;
+        if (paren == 0 && text.compare(i, op.size(), op) == 0) return i;
+    }
+    return std::wstring::npos;
+}
+
+bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars)
+{
+    cond = Trim(cond);
+    if (cond.empty()) return false;
+    if (cond.size() >= 2 && cond.front() == L'(' && cond.back() == L')')
+        return EvalConditionWithVars(cond.substr(1, cond.size() - 2), vars);
+    if (cond.rfind(L"!", 0) == 0) return !EvalConditionWithVars(cond.substr(1), vars);
+    size_t orPos = FindLogicalOp(cond, L"||");
+    if (orPos != std::wstring::npos)
+        return EvalConditionWithVars(cond.substr(0, orPos), vars) || EvalConditionWithVars(cond.substr(orPos + 2), vars);
+    size_t andPos = FindLogicalOp(cond, L"&&");
+    if (andPos != std::wstring::npos)
+        return EvalConditionWithVars(cond.substr(0, andPos), vars) && EvalConditionWithVars(cond.substr(andPos + 2), vars);
+
+    static const std::vector<std::wstring> ops = { L">=", L"<=", L"==", L"!=", L">", L"<", L"=" };
+    for (const auto& op : ops) {
+        size_t pos = FindLogicalOp(cond, op);
+        if (pos == std::wstring::npos) continue;
+        std::wstring leftName = Trim(cond.substr(0, pos));
+        value left = EvalExprWithVars(leftName, vars);
+        value right = EvalExprWithVars(cond.substr(pos + op.size()), vars);
+        return CompareValues(left, op, right);
+    }
+    return Truthy(EvalExprWithVars(cond, vars));
+}
+
 bool EvalCondition(std::wstring cond)
 {
     cond = Trim(cond);
@@ -626,21 +682,10 @@ bool EvalCondition(std::wstring cond)
         edge = true;
         cond = cond.substr(3);
     }
-    static const std::vector<std::wstring> ops = { L">=", L"<=", L"==", L"!=", L">", L"<", L"=" };
-    for (const auto& op : ops) {
-        size_t pos = cond.find(op);
-        if (pos == std::wstring::npos) continue;
-        std::wstring leftName = Trim(cond.substr(0, pos));
-        value left = GetVar(leftName);
-        value right = EvalExpr(cond.substr(pos + op.size()));
-        bool now = CompareValues(left, op, right);
-        if (!edge) return now;
-        auto prevIt = s_prevVars.find(leftName);
-        bool before = false;
-        if (prevIt != s_prevVars.end()) before = CompareValues(prevIt->second, op, right);
-        return now && !before;
-    }
-    return Truthy(EvalExpr(cond));
+    bool now = EvalConditionWithVars(cond, s_vars);
+    if (!edge) return now;
+    bool before = EvalConditionWithVars(cond, s_prevVars);
+    return now && !before;
 }
 
 std::optional<std::pair<std::wstring, std::wstring>> ParseFunction(const std::wstring& stmt)
@@ -955,6 +1000,10 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         Sleep((DWORD)waitMs);
         return true;
     }
+    if (name == L"Log" && args.size() >= 1) {
+        std::wcout << L"[脚本] " << ToText(args[0]) << std::endl;
+        return true;
+    }
     if (name == L"SetDeathVolume" && args.size() >= 1) {
         g_death_vol = (float)std::clamp(ToNumber(args[0]), 0.0, 1.0);
         SaveEvolutionParams();
@@ -974,14 +1023,33 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return true;
     }
+    if (name == L"SetCrosshairEnabled" && args.size() >= 1) {
+        ApplyCrosshairEnabled(Truthy(args[0]));
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return true;
+    }
+    if ((name == L"SetCrosshairVisual" || name == L"SetCrosshairConfig") && args.size() >= 6) {
+        ApplyCrosshairVisual(
+            std::clamp((int)ToNumber(args[0]), 0, 255),
+            std::clamp((int)ToNumber(args[1]), 0, 255),
+            std::clamp((int)ToNumber(args[2]), 0, 255),
+            std::clamp((int)ToNumber(args[3]), 0, 2),
+            std::clamp((int)ToNumber(args[4]), 1, 10),
+            (float)std::clamp(ToNumber(args[5]), 0.1, 0.6));
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return true;
+    }
     if (name == L"SetCrosshair" && args.size() >= 7) {
-        g_crosshairEnabled = Truthy(args[0]);
-        g_crosshairR = std::clamp((int)ToNumber(args[1]), 0, 255);
-        g_crosshairG = std::clamp((int)ToNumber(args[2]), 0, 255);
-        g_crosshairB = std::clamp((int)ToNumber(args[3]), 0, 255);
-        g_crosshairStyle = std::clamp((int)ToNumber(args[4]), 0, 2);
-        g_crosshairThickness = std::clamp((int)ToNumber(args[5]), 1, 10);
-        g_crosshairScale = (float)std::clamp(ToNumber(args[6]), 0.1, 0.6);
+        ApplyCrosshairEnabled(Truthy(args[0]));
+        ApplyCrosshairVisual(
+            std::clamp((int)ToNumber(args[1]), 0, 255),
+            std::clamp((int)ToNumber(args[2]), 0, 255),
+            std::clamp((int)ToNumber(args[3]), 0, 255),
+            std::clamp((int)ToNumber(args[4]), 0, 2),
+            std::clamp((int)ToNumber(args[5]), 1, 10),
+            (float)std::clamp(ToNumber(args[6]), 0.1, 0.6));
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return true;
@@ -1133,6 +1201,11 @@ void SetJsonVar(const std::wstring& name, const nlohmann::json& j, const char* k
     else SetStateVar(name, TextValue(L"void"));
 }
 
+void SetPrevAlias(const std::wstring& name, const std::wstring& source)
+{
+    SetStateVar(name, GetVarFromMap(s_prevVars, source));
+}
+
 void RegisterBuildWarning()
 {
     if (s_runtimeCapability == buildcode::userdebug && GetBuildCode() == buildcode::user && s_owner) {
@@ -1207,6 +1280,26 @@ void UpdateFromGsi(const nlohmann::json& state)
     for (const auto& key : s_stateKeys) s_vars.erase(key);
     s_stateKeys.clear();
     FlattenJsonState(L"gsi", state);
+    SetStateVar(L"gsi_field_count", NumberValue((double)gsi::state::flat.size()));
+    SetPrevAlias(L"prev_round_phase", L"round_phase");
+    SetPrevAlias(L"prev_kills", L"kills");
+    SetPrevAlias(L"prev_health", L"health");
+    SetPrevAlias(L"prev_weapon_name", L"weapon_name");
+    SetPrevAlias(L"prev_weapon_type", L"weapon_type");
+    SetPrevAlias(L"prev_weapon_state", L"weapon_state");
+    SetPrevAlias(L"prev_weapon_ammo_clip", L"weapon_ammo_clip");
+
+    if (state.contains("provider") && state["provider"].is_object()) {
+        SetJsonVar(L"provider_name", state["provider"], "name");
+        SetJsonVar(L"provider_appid", state["provider"], "appid");
+        SetJsonVar(L"provider_version", state["provider"], "version");
+        SetJsonVar(L"provider_steamid", state["provider"], "steamid");
+    } else {
+        SetStateVar(L"provider_name", TextValue(L"void"));
+        SetStateVar(L"provider_appid", TextValue(L"void"));
+        SetStateVar(L"provider_version", TextValue(L"void"));
+        SetStateVar(L"provider_steamid", TextValue(L"void"));
+    }
     if (state.contains("map") && state["map"].is_object()) {
         SetJsonVar(L"map", state["map"], "name");
         SetJsonVar(L"map_mode", state["map"], "mode");
@@ -1219,12 +1312,15 @@ void UpdateFromGsi(const nlohmann::json& state)
     if (state.contains("round") && state["round"].is_object()) {
         SetJsonVar(L"round_phase", state["round"], "phase");
         SetJsonVar(L"bomb", state["round"], "bomb");
+        SetJsonVar(L"round_win_team", state["round"], "win_team");
     } else {
         SetStateVar(L"round_phase", TextValue(L"void"));
         SetStateVar(L"bomb", TextValue(L"void"));
+        SetStateVar(L"round_win_team", TextValue(L"void"));
     }
     if (state.contains("player") && state["player"].is_object()) {
         const auto& player = state["player"];
+        SetJsonVar(L"player_name", player, "name");
         SetJsonVar(L"activity", player, "activity");
         SetJsonVar(L"steamid", player, "steamid");
         SetJsonVar(L"team", player, "team");
@@ -1247,6 +1343,12 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"weapon_name", TextValue(L"void"));
         SetStateVar(L"weapon_type", TextValue(L"void"));
         SetStateVar(L"weapon_state", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_clip", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_clip_max", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_reserve", TextValue(L"void"));
+        SetStateVar(L"weapon_fired", BoolValue(false));
+        SetStateVar(L"weapon_reloading", BoolValue(false));
+        SetStateVar(L"weapon_switched", BoolValue(false));
         if (player.contains("weapons") && player["weapons"].is_object()) {
             for (auto it = player["weapons"].begin(); it != player["weapons"].end(); ++it) {
                 const auto& weapon = it.value();
@@ -1256,9 +1358,43 @@ void UpdateFromGsi(const nlohmann::json& state)
                 SetJsonVar(L"weapon_name", weapon, "name");
                 SetJsonVar(L"weapon_type", weapon, "type");
                 SetJsonVar(L"weapon_state", weapon, "state");
+                SetJsonVar(L"weapon_ammo_clip", weapon, "ammo_clip");
+                SetJsonVar(L"weapon_ammo_clip_max", weapon, "ammo_clip_max");
+                SetJsonVar(L"weapon_ammo_reserve", weapon, "ammo_reserve");
                 break;
             }
         }
+        const std::wstring prevWeaponName = ToText(GetVarFromMap(s_prevVars, L"weapon_name"));
+        const std::wstring nowWeaponName = ToText(GetVar(L"weapon_name"));
+        const std::wstring nowWeaponState = ToText(GetVar(L"weapon_state"));
+        const double prevClip = ToNumber(GetVarFromMap(s_prevVars, L"weapon_ammo_clip"));
+        const double nowClip = ToNumber(GetVar(L"weapon_ammo_clip"));
+        const bool sameWeapon = !nowWeaponName.empty() && nowWeaponName != L"void" && prevWeaponName == nowWeaponName;
+        const bool switched = nowWeaponName != prevWeaponName;
+        const bool fired = sameWeapon && prevClip > nowClip && nowClip >= 0.0 && nowWeaponState != L"reloading";
+        const bool reloading = sameWeapon && nowClip > prevClip;
+        SetStateVar(L"weapon_switched", BoolValue(switched));
+        SetStateVar(L"weapon_fired", BoolValue(fired));
+        SetStateVar(L"weapon_reloading", BoolValue(reloading));
+    } else {
+        SetStateVar(L"player_name", TextValue(L"void"));
+        SetStateVar(L"activity", TextValue(L"void"));
+        SetStateVar(L"steamid", TextValue(L"void"));
+        SetStateVar(L"team", TextValue(L"void"));
+        SetStateVar(L"kills", TextValue(L"void"));
+        SetStateVar(L"health", TextValue(L"void"));
+        SetStateVar(L"flashed", TextValue(L"void"));
+        SetStateVar(L"mvps", TextValue(L"void"));
+        SetStateVar(L"death_mute", TextValue(L"void"));
+        SetStateVar(L"weapon_name", TextValue(L"void"));
+        SetStateVar(L"weapon_type", TextValue(L"void"));
+        SetStateVar(L"weapon_state", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_clip", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_clip_max", TextValue(L"void"));
+        SetStateVar(L"weapon_ammo_reserve", TextValue(L"void"));
+        SetStateVar(L"weapon_fired", BoolValue(false));
+        SetStateVar(L"weapon_reloading", BoolValue(false));
+        SetStateVar(L"weapon_switched", BoolValue(false));
     }
 }
 
@@ -1391,8 +1527,8 @@ void ToggleContinuous(size_t index)
 void EnsureExampleScript()
 {
     fs::path dir = GetDefaultScriptDir();
-    fs::create_directories(dir / L"assets" / L"kills");
-    std::cout << "[脚本] 已确认脚本目录与资源目录存在" << std::endl;
+    fs::create_directories(dir);
+    std::cout << "[脚本] 已确认脚本目录存在，不会额外生成示例资源目录" << std::endl;
 }
 
 const std::wstring& GetScriptDisplayName(const mounted_script& script)
