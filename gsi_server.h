@@ -92,4 +92,31 @@ extern std::unordered_map<std::string, std::string> flat;
 void SyncFromJson(const nlohmann::json& stateJson);
 }
 
+namespace runtime {
+extern std::string last_phase;
+extern int last_kills;
+extern int last_mvps;
+extern bool dead_muted;
+extern bool waiting_for_live;
+extern bool round_started;
+extern int mvp_candidate_kills;
+extern bool mvp_pushed_this_round;
+extern int mvps_at_round_start;
+extern bool gameover_pushed;
+extern bool bomb_planted_this_round;
+extern std::string player_team;
+extern std::string map_mode;
+extern std::string activity;
+extern int round_kills;
+extern int health;
+extern bool in_lobby;
+
+void SyncDerived(
+    const std::string& currentMapMode,
+    const std::string& currentActivity,
+    int currentRoundKills,
+    int currentHealth,
+    bool currentInLobby);
+}
+
 } // namespace gsi

@@ -72,9 +72,17 @@ std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 std::unordered_set<std::wstring> s_stateKeys;
 bool s_returnRequested = false;
 std::optional<std::wstring> s_gotoTarget;
+bool s_currentPrivilegedAllowed = false;
+std::wstring s_currentScriptPath;
+int s_weaponFireCount = 0;
+int s_weaponReloadCount = 0;
+int s_weaponReserveDropCount = 0;
 
 constexpr const wchar_t* k_imageClass = L"StrikeSenseVscrpitImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+constexpr const wchar_t* k_privilegedApiNames[] = {
+    L"ShellExecute", L"CFile", L"DFile", L"OwriteFile", L"AwriteFile"
+};
 
 std::wstring Trim(std::wstring s);
 value TextValue(const std::wstring& s);
@@ -82,6 +90,7 @@ value NumberValue(double n);
 value BoolValue(bool b);
 value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars);
 bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
+bool RefreshScriptState(mounted_script& script, bool showDialogs);
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -320,24 +329,168 @@ std::wstring ReadMetaValue(const std::wstring& line, const std::wstring& key)
     return Trim(t.substr(pos + 1));
 }
 
+std::wstring GetWindowsUserName()
+{
+    wchar_t user[MAX_PATH] = {};
+    DWORD size = MAX_PATH;
+    if (GetEnvironmentVariableW(L"USERNAME", user, size) > 0) return user;
+    return L"";
+}
+
+bool EqualsIgnoreCase(const std::wstring& a, const std::wstring& b)
+{
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) {
+        if (towlower(a[i]) != towlower(b[i])) return false;
+    }
+    return true;
+}
+
+std::vector<std::wstring> SplitMetaTokens(const std::wstring& text)
+{
+    std::vector<std::wstring> tokens;
+    std::wstring current;
+    for (wchar_t c : text) {
+        if (c == L';' || c == L',') {
+            std::wstring token = Trim(current);
+            if (!token.empty()) tokens.push_back(token);
+            current.clear();
+            continue;
+        }
+        current.push_back(c);
+    }
+    std::wstring token = Trim(current);
+    if (!token.empty()) tokens.push_back(token);
+    return tokens;
+}
+
+bool ScriptUsesPrivilegedApis(const std::wstring& script)
+{
+    const std::wstring clean = StripComments(script);
+    for (const wchar_t* apiName : k_privilegedApiNames) {
+        std::wstring pattern = std::wstring(apiName) + L"(";
+        if (clean.find(pattern) != std::wstring::npos) return true;
+    }
+    return false;
+}
+
+void ApplyModifierMetadata(mounted_script& script)
+{
+    script.selfUser.clear();
+    for (const auto& token : SplitMetaTokens(script.modifier)) {
+        size_t pos = token.find(L'=');
+        if (pos == std::wstring::npos) continue;
+        std::wstring key = Trim(token.substr(0, pos));
+        std::wstring value = Trim(token.substr(pos + 1));
+        if (EqualsIgnoreCase(key, L"self_user") || EqualsIgnoreCase(key, L"self") || EqualsIgnoreCase(key, L"windows_user")) {
+            script.selfUser = value;
+        }
+    }
+}
+
+void ResetScriptMetadata(mounted_script& script)
+{
+    script.name.clear();
+    script.author.clear();
+    script.provider.clear();
+    script.version.clear();
+    script.notice.clear();
+    script.modifier.clear();
+    script.selfUser.clear();
+    script.riskNotice.clear();
+    script.hasMetadataName = false;
+    script.usesPrivilegedApis = false;
+    script.selfAuthoredPrivileged = false;
+    script.privilegedAllowed = false;
+    script.dangerStyle = false;
+    script.missing = false;
+}
+
 void LoadScriptMetadata(mounted_script& script)
 {
+    ResetScriptMetadata(script);
     std::wstring raw = LoadScriptCached(script.path);
     std::wstringstream ss(raw);
     std::wstring line;
     while (std::getline(ss, line)) {
         std::wstring name = ReadMetaValue(line, L"@name");
+        std::wstring author = ReadMetaValue(line, L"@author");
         std::wstring provider = ReadMetaValue(line, L"@provider");
         std::wstring version = ReadMetaValue(line, L"@version");
         std::wstring notice = ReadMetaValue(line, L"@notice");
+        std::wstring modifier = ReadMetaValue(line, L"@modifier");
         if (!name.empty()) {
             script.name = name;
             script.hasMetadataName = true;
         }
+        if (!author.empty()) script.author = author;
         if (!provider.empty()) script.provider = provider;
         if (!version.empty()) script.version = version;
         if (!notice.empty()) script.notice = notice;
+        if (!modifier.empty()) script.modifier = modifier;
     }
+    ApplyModifierMetadata(script);
+}
+
+bool IsPrivilegedAllowedForScript(const mounted_script& script)
+{
+    if (!script.usesPrivilegedApis) return true;
+    if (GetRuntimeCapability() >= buildcode::userdebug) return true;
+    if (!script.selfUser.empty() && EqualsIgnoreCase(script.selfUser, GetWindowsUserName())) return true;
+    return false;
+}
+
+std::wstring BuildRiskNotice(const mounted_script& script)
+{
+    if (!script.usesPrivilegedApis) return L"";
+    if (!script.selfUser.empty() && script.selfAuthoredPrivileged) {
+        return L"该脚本包含高权限函数，但已通过 @modifier 绑定到当前 Windows 用户，允许在 user 模式执行。";
+    }
+    if (GetRuntimeCapability() >= buildcode::userdebug) {
+        return L"该脚本包含高权限函数。当前运行能力允许挂载与执行，但界面会持续标出风险。";
+    }
+    return L"该脚本包含高权限函数，但没有声明当前 Windows 用户为作者，user 模式下拒绝挂载。";
+}
+
+bool RefreshScriptState(mounted_script& script, bool showDialogs)
+{
+    script.missing = false;
+    if (!fs::exists(script.path)) {
+        script.missing = true;
+        script.continuous = false;
+        script.notice = L"脚本文件已不存在，已阻止继续执行。";
+        script.riskNotice = script.notice;
+        script.dangerStyle = true;
+        if (showDialogs && s_owner) {
+            std::wstring msg = L"脚本文件不存在，已停止挂载状态：\n" + script.path;
+            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本文件丢失", MB_OK | MB_ICONWARNING);
+        }
+        return false;
+    }
+
+    s_scriptCache[script.path] = ReadAllWide(script.path);
+    LoadScriptMetadata(script);
+    script.usesPrivilegedApis = ScriptUsesPrivilegedApis(s_scriptCache[script.path]);
+    script.selfAuthoredPrivileged = !script.selfUser.empty() && EqualsIgnoreCase(script.selfUser, GetWindowsUserName());
+    script.privilegedAllowed = IsPrivilegedAllowedForScript(script);
+    script.riskNotice = BuildRiskNotice(script);
+    script.dangerStyle = script.usesPrivilegedApis;
+    if (!script.riskNotice.empty()) {
+        if (!script.notice.empty()) script.notice += L"  ";
+        script.notice += script.riskNotice;
+    }
+
+    if (!script.privilegedAllowed) {
+        script.continuous = false;
+        if (showDialogs && s_owner) {
+            std::wstring msg = L"该脚本包含高权限函数，但没有声明当前 Windows 用户为作者：\n\n"
+                L"请在脚本头部添加类似\n// @modifier: self_user=" + GetWindowsUserName() +
+                L"\n\n或切换到 nightly / eng 运行能力后再挂载。";
+            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本挂载被拒绝", MB_OK | MB_ICONWARNING);
+        }
+        return false;
+    }
+    return true;
 }
 
 bool ScriptHasEdgeGuard(const std::wstring& path)
@@ -731,7 +884,7 @@ std::wstring ProcessNameFromWindow(HWND hwnd)
 
 struct top_request {
     std::wstring process;
-    bool topmost = true;
+    bool activate = true;
     bool firstOnly = false;
 };
 
@@ -741,18 +894,20 @@ BOOL CALLBACK EnumTopProcess(HWND hwnd, LPARAM lp)
     std::wstring name = ProcessNameFromWindow(hwnd);
     if (name.empty()) return TRUE;
     if (_wcsicmp(name.c_str(), req->process.c_str()) != 0) return TRUE;
-    SetWindowPos(hwnd, req->topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    if (req->topmost) {
+    SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    if (req->activate) {
         ShowWindow(hwnd, SW_SHOW);
         SetForegroundWindow(hwnd);
     }
     return req->firstOnly ? FALSE : TRUE;
 }
 
-bool TopProcess(const std::wstring& process, bool topmost)
+bool TopProcess(const std::wstring& process, bool activate)
 {
-    top_request req{ process, topmost, false };
+    top_request req{ process, activate, false };
     EnumWindows(EnumTopProcess, reinterpret_cast<LPARAM>(&req));
     return true;
 }
@@ -951,8 +1106,9 @@ bool RequiresUserDebug(const std::wstring& name)
 
 bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
 {
-    if (RequiresUserDebug(name) && !HasUserDebugCapability()) {
-        std::wcout << L"[脚本权限] 拒绝 userdebug 命令: " << name << std::endl;
+    if (RequiresUserDebug(name) && !s_currentPrivilegedAllowed) {
+        std::wcout << L"[脚本权限] 当前脚本无权执行高权限命令: " << name
+                   << L"  脚本=" << s_currentScriptPath << std::endl;
         return false;
     }
 
@@ -1288,26 +1444,53 @@ void UpdateFromGsi(const nlohmann::json& state)
     SetPrevAlias(L"prev_weapon_type", L"weapon_type");
     SetPrevAlias(L"prev_weapon_state", L"weapon_state");
     SetPrevAlias(L"prev_weapon_ammo_clip", L"weapon_ammo_clip");
+    SetPrevAlias(L"prev_weapon_ammo_reserve", L"weapon_ammo_reserve");
 
     if (state.contains("provider") && state["provider"].is_object()) {
         SetJsonVar(L"provider_name", state["provider"], "name");
         SetJsonVar(L"provider_appid", state["provider"], "appid");
         SetJsonVar(L"provider_version", state["provider"], "version");
         SetJsonVar(L"provider_steamid", state["provider"], "steamid");
+        SetJsonVar(L"provider_timestamp", state["provider"], "timestamp");
     } else {
         SetStateVar(L"provider_name", TextValue(L"void"));
         SetStateVar(L"provider_appid", TextValue(L"void"));
         SetStateVar(L"provider_version", TextValue(L"void"));
         SetStateVar(L"provider_steamid", TextValue(L"void"));
+        SetStateVar(L"provider_timestamp", TextValue(L"void"));
     }
     if (state.contains("map") && state["map"].is_object()) {
         SetJsonVar(L"map", state["map"], "name");
         SetJsonVar(L"map_mode", state["map"], "mode");
         SetJsonVar(L"map_phase", state["map"], "phase");
+        SetJsonVar(L"map_round", state["map"], "round");
+        if (state["map"].contains("team_ct") && state["map"]["team_ct"].is_object()) {
+            SetJsonVar(L"team_ct_score", state["map"]["team_ct"], "score");
+            SetJsonVar(L"team_ct_consecutive_round_losses", state["map"]["team_ct"], "consecutive_round_losses");
+            SetJsonVar(L"team_ct_timeouts_remaining", state["map"]["team_ct"], "timeouts_remaining");
+            SetJsonVar(L"team_ct_matches_won_this_series", state["map"]["team_ct"], "matches_won_this_series");
+        }
+        if (state["map"].contains("team_t") && state["map"]["team_t"].is_object()) {
+            SetJsonVar(L"team_t_score", state["map"]["team_t"], "score");
+            SetJsonVar(L"team_t_consecutive_round_losses", state["map"]["team_t"], "consecutive_round_losses");
+            SetJsonVar(L"team_t_timeouts_remaining", state["map"]["team_t"], "timeouts_remaining");
+            SetJsonVar(L"team_t_matches_won_this_series", state["map"]["team_t"], "matches_won_this_series");
+        }
+        SetJsonVar(L"map_num_matches_to_win_series", state["map"], "num_matches_to_win_series");
     } else {
         SetStateVar(L"map", TextValue(L"void"));
         SetStateVar(L"map_mode", TextValue(L"void"));
         SetStateVar(L"map_phase", TextValue(L"void"));
+        SetStateVar(L"map_round", TextValue(L"void"));
+        SetStateVar(L"team_ct_score", TextValue(L"void"));
+        SetStateVar(L"team_ct_consecutive_round_losses", TextValue(L"void"));
+        SetStateVar(L"team_ct_timeouts_remaining", TextValue(L"void"));
+        SetStateVar(L"team_ct_matches_won_this_series", TextValue(L"void"));
+        SetStateVar(L"team_t_score", TextValue(L"void"));
+        SetStateVar(L"team_t_consecutive_round_losses", TextValue(L"void"));
+        SetStateVar(L"team_t_timeouts_remaining", TextValue(L"void"));
+        SetStateVar(L"team_t_matches_won_this_series", TextValue(L"void"));
+        SetStateVar(L"map_num_matches_to_win_series", TextValue(L"void"));
     }
     if (state.contains("round") && state["round"].is_object()) {
         SetJsonVar(L"round_phase", state["round"], "phase");
@@ -1324,21 +1507,46 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetJsonVar(L"activity", player, "activity");
         SetJsonVar(L"steamid", player, "steamid");
         SetJsonVar(L"team", player, "team");
+        SetJsonVar(L"observer_slot", player, "observer_slot");
         if (player.contains("state") && player["state"].is_object()) {
             SetJsonVar(L"kills", player["state"], "round_kills");
             SetJsonVar(L"health", player["state"], "health");
             SetJsonVar(L"flashed", player["state"], "flashed");
+            SetJsonVar(L"armor", player["state"], "armor");
+            SetJsonVar(L"helmet", player["state"], "helmet");
+            SetJsonVar(L"smoked", player["state"], "smoked");
+            SetJsonVar(L"burning", player["state"], "burning");
+            SetJsonVar(L"money", player["state"], "money");
+            SetJsonVar(L"round_killhs", player["state"], "round_killhs");
+            SetJsonVar(L"equip_value", player["state"], "equip_value");
             SetStateVar(L"death_mute", BoolValue(ToNumber(GetVar(L"health")) <= 0));
         } else {
             SetStateVar(L"kills", TextValue(L"void"));
             SetStateVar(L"health", TextValue(L"void"));
             SetStateVar(L"flashed", TextValue(L"void"));
+            SetStateVar(L"armor", TextValue(L"void"));
+            SetStateVar(L"helmet", TextValue(L"void"));
+            SetStateVar(L"smoked", TextValue(L"void"));
+            SetStateVar(L"burning", TextValue(L"void"));
+            SetStateVar(L"money", TextValue(L"void"));
+            SetStateVar(L"round_killhs", TextValue(L"void"));
+            SetStateVar(L"equip_value", TextValue(L"void"));
             SetStateVar(L"death_mute", TextValue(L"void"));
         }
-        if (player.contains("match_stats") && player["match_stats"].is_object())
+        if (player.contains("match_stats") && player["match_stats"].is_object()) {
             SetJsonVar(L"mvps", player["match_stats"], "mvps");
-        else
+            SetJsonVar(L"match_kills", player["match_stats"], "kills");
+            SetJsonVar(L"match_assists", player["match_stats"], "assists");
+            SetJsonVar(L"match_deaths", player["match_stats"], "deaths");
+            SetJsonVar(L"match_score", player["match_stats"], "score");
+        }
+        else {
             SetStateVar(L"mvps", TextValue(L"void"));
+            SetStateVar(L"match_kills", TextValue(L"void"));
+            SetStateVar(L"match_assists", TextValue(L"void"));
+            SetStateVar(L"match_deaths", TextValue(L"void"));
+            SetStateVar(L"match_score", TextValue(L"void"));
+        }
 
         SetStateVar(L"weapon_name", TextValue(L"void"));
         SetStateVar(L"weapon_type", TextValue(L"void"));
@@ -1349,6 +1557,11 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"weapon_fired", BoolValue(false));
         SetStateVar(L"weapon_reloading", BoolValue(false));
         SetStateVar(L"weapon_switched", BoolValue(false));
+        SetStateVar(L"weapon_clip_delta", NumberValue(0.0));
+        SetStateVar(L"weapon_reserve_delta", NumberValue(0.0));
+        SetStateVar(L"weapon_fire_count", NumberValue((double)s_weaponFireCount));
+        SetStateVar(L"weapon_reload_count", NumberValue((double)s_weaponReloadCount));
+        SetStateVar(L"weapon_reserve_drop_count", NumberValue((double)s_weaponReserveDropCount));
         if (player.contains("weapons") && player["weapons"].is_object()) {
             for (auto it = player["weapons"].begin(); it != player["weapons"].end(); ++it) {
                 const auto& weapon = it.value();
@@ -1369,22 +1582,69 @@ void UpdateFromGsi(const nlohmann::json& state)
         const std::wstring nowWeaponState = ToText(GetVar(L"weapon_state"));
         const double prevClip = ToNumber(GetVarFromMap(s_prevVars, L"weapon_ammo_clip"));
         const double nowClip = ToNumber(GetVar(L"weapon_ammo_clip"));
+        const double prevReserve = ToNumber(GetVarFromMap(s_prevVars, L"weapon_ammo_reserve"));
+        const double nowReserve = ToNumber(GetVar(L"weapon_ammo_reserve"));
         const bool sameWeapon = !nowWeaponName.empty() && nowWeaponName != L"void" && prevWeaponName == nowWeaponName;
         const bool switched = nowWeaponName != prevWeaponName;
         const bool fired = sameWeapon && prevClip > nowClip && nowClip >= 0.0 && nowWeaponState != L"reloading";
+        const bool reserveDropped = sameWeapon && prevReserve > nowReserve && nowReserve >= 0.0;
         const bool reloading = sameWeapon && nowClip > prevClip;
+        const bool roundJustWentLive = ToText(GetVar(L"round_phase")) == L"live" && ToText(GetVarFromMap(s_prevVars, L"round_phase")) != L"live";
+        if (roundJustWentLive) {
+            s_weaponFireCount = 0;
+            s_weaponReloadCount = 0;
+            s_weaponReserveDropCount = 0;
+        }
+        if (fired) ++s_weaponFireCount;
+        if (reloading) ++s_weaponReloadCount;
+        if (reserveDropped) ++s_weaponReserveDropCount;
         SetStateVar(L"weapon_switched", BoolValue(switched));
         SetStateVar(L"weapon_fired", BoolValue(fired));
         SetStateVar(L"weapon_reloading", BoolValue(reloading));
+        SetStateVar(L"weapon_clip_delta", NumberValue(prevClip - nowClip));
+        SetStateVar(L"weapon_reserve_delta", NumberValue(prevReserve - nowReserve));
+        SetStateVar(L"weapon_fire_count", NumberValue((double)s_weaponFireCount));
+        SetStateVar(L"weapon_reload_count", NumberValue((double)s_weaponReloadCount));
+        SetStateVar(L"weapon_reserve_drop_count", NumberValue((double)s_weaponReserveDropCount));
+
+        SetStateVar(L"internal_last_phase", TextValue(Utf8ToWide(gsi::runtime::last_phase)));
+        SetStateVar(L"internal_last_kills", NumberValue((double)gsi::runtime::last_kills));
+        SetStateVar(L"internal_last_mvps", NumberValue((double)gsi::runtime::last_mvps));
+        SetStateVar(L"internal_dead_muted", BoolValue(gsi::runtime::dead_muted));
+        SetStateVar(L"internal_waiting_for_live", BoolValue(gsi::runtime::waiting_for_live));
+        SetStateVar(L"internal_round_started", BoolValue(gsi::runtime::round_started));
+        SetStateVar(L"internal_mvp_candidate_kills", NumberValue((double)gsi::runtime::mvp_candidate_kills));
+        SetStateVar(L"internal_mvp_pushed_this_round", BoolValue(gsi::runtime::mvp_pushed_this_round));
+        SetStateVar(L"internal_mvps_at_round_start", NumberValue((double)gsi::runtime::mvps_at_round_start));
+        SetStateVar(L"internal_gameover_pushed", BoolValue(gsi::runtime::gameover_pushed));
+        SetStateVar(L"internal_bomb_planted_this_round", BoolValue(gsi::runtime::bomb_planted_this_round));
+        SetStateVar(L"internal_player_team", TextValue(Utf8ToWide(gsi::runtime::player_team)));
+        SetStateVar(L"internal_map_mode", TextValue(Utf8ToWide(gsi::runtime::map_mode)));
+        SetStateVar(L"internal_activity", TextValue(Utf8ToWide(gsi::runtime::activity)));
+        SetStateVar(L"internal_round_kills", NumberValue((double)gsi::runtime::round_kills));
+        SetStateVar(L"internal_health", NumberValue((double)gsi::runtime::health));
+        SetStateVar(L"internal_in_lobby", BoolValue(gsi::runtime::in_lobby));
     } else {
         SetStateVar(L"player_name", TextValue(L"void"));
         SetStateVar(L"activity", TextValue(L"void"));
         SetStateVar(L"steamid", TextValue(L"void"));
         SetStateVar(L"team", TextValue(L"void"));
+        SetStateVar(L"observer_slot", TextValue(L"void"));
         SetStateVar(L"kills", TextValue(L"void"));
         SetStateVar(L"health", TextValue(L"void"));
         SetStateVar(L"flashed", TextValue(L"void"));
+        SetStateVar(L"armor", TextValue(L"void"));
+        SetStateVar(L"helmet", TextValue(L"void"));
+        SetStateVar(L"smoked", TextValue(L"void"));
+        SetStateVar(L"burning", TextValue(L"void"));
+        SetStateVar(L"money", TextValue(L"void"));
+        SetStateVar(L"round_killhs", TextValue(L"void"));
+        SetStateVar(L"equip_value", TextValue(L"void"));
         SetStateVar(L"mvps", TextValue(L"void"));
+        SetStateVar(L"match_kills", TextValue(L"void"));
+        SetStateVar(L"match_assists", TextValue(L"void"));
+        SetStateVar(L"match_deaths", TextValue(L"void"));
+        SetStateVar(L"match_score", TextValue(L"void"));
         SetStateVar(L"death_mute", TextValue(L"void"));
         SetStateVar(L"weapon_name", TextValue(L"void"));
         SetStateVar(L"weapon_type", TextValue(L"void"));
@@ -1395,19 +1655,46 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"weapon_fired", BoolValue(false));
         SetStateVar(L"weapon_reloading", BoolValue(false));
         SetStateVar(L"weapon_switched", BoolValue(false));
+        SetStateVar(L"weapon_clip_delta", NumberValue(0.0));
+        SetStateVar(L"weapon_reserve_delta", NumberValue(0.0));
+        SetStateVar(L"weapon_fire_count", NumberValue((double)s_weaponFireCount));
+        SetStateVar(L"weapon_reload_count", NumberValue((double)s_weaponReloadCount));
+        SetStateVar(L"weapon_reserve_drop_count", NumberValue((double)s_weaponReserveDropCount));
+        SetStateVar(L"internal_last_phase", TextValue(Utf8ToWide(gsi::runtime::last_phase)));
+        SetStateVar(L"internal_last_kills", NumberValue((double)gsi::runtime::last_kills));
+        SetStateVar(L"internal_last_mvps", NumberValue((double)gsi::runtime::last_mvps));
+        SetStateVar(L"internal_dead_muted", BoolValue(gsi::runtime::dead_muted));
+        SetStateVar(L"internal_waiting_for_live", BoolValue(gsi::runtime::waiting_for_live));
+        SetStateVar(L"internal_round_started", BoolValue(gsi::runtime::round_started));
+        SetStateVar(L"internal_mvp_candidate_kills", NumberValue((double)gsi::runtime::mvp_candidate_kills));
+        SetStateVar(L"internal_mvp_pushed_this_round", BoolValue(gsi::runtime::mvp_pushed_this_round));
+        SetStateVar(L"internal_mvps_at_round_start", NumberValue((double)gsi::runtime::mvps_at_round_start));
+        SetStateVar(L"internal_gameover_pushed", BoolValue(gsi::runtime::gameover_pushed));
+        SetStateVar(L"internal_bomb_planted_this_round", BoolValue(gsi::runtime::bomb_planted_this_round));
+        SetStateVar(L"internal_player_team", TextValue(Utf8ToWide(gsi::runtime::player_team)));
+        SetStateVar(L"internal_map_mode", TextValue(Utf8ToWide(gsi::runtime::map_mode)));
+        SetStateVar(L"internal_activity", TextValue(Utf8ToWide(gsi::runtime::activity)));
+        SetStateVar(L"internal_round_kills", NumberValue((double)gsi::runtime::round_kills));
+        SetStateVar(L"internal_health", NumberValue((double)gsi::runtime::health));
+        SetStateVar(L"internal_in_lobby", BoolValue(gsi::runtime::in_lobby));
     }
 }
 
 void TickContinuousScripts()
 {
     std::lock_guard<std::recursive_mutex> lock(s_mutex);
-    for (const auto& script : s_mounted) {
+    for (auto& script : s_mounted) {
         if (script.continuous) {
+            if (!RefreshScriptState(script, false)) continue;
             std::wstring text = LoadScriptCached(script.path);
             if (!text.empty()) {
+                s_currentPrivilegedAllowed = script.privilegedAllowed;
+                s_currentScriptPath = script.path;
                 s_returnRequested = false;
                 s_gotoTarget.reset();
                 ExecuteBlock(StripComments(text));
+                s_currentPrivilegedAllowed = false;
+                s_currentScriptPath.clear();
             }
         }
     }
@@ -1417,6 +1704,9 @@ void TickContinuousScripts()
 bool ExecuteScriptFile(const std::wstring& path)
 {
     std::lock_guard<std::recursive_mutex> lock(s_mutex);
+    mounted_script temp;
+    temp.path = path;
+    if (!RefreshScriptState(temp, true)) return false;
     std::wstring script = ReadAllWide(path);
     if (script.empty()) {
         std::wcout << L"[脚本] 脚本为空或读取失败: " << path << std::endl;
@@ -1424,9 +1714,13 @@ bool ExecuteScriptFile(const std::wstring& path)
     }
     s_scriptCache[path] = script;
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
+    s_currentPrivilegedAllowed = temp.privilegedAllowed;
+    s_currentScriptPath = path;
     s_returnRequested = false;
     s_gotoTarget.reset();
     ExecuteBlock(StripComments(script));
+    s_currentPrivilegedAllowed = false;
+    s_currentScriptPath.clear();
     return true;
 }
 
@@ -1444,7 +1738,7 @@ std::wstring GetDefaultScriptDir()
 
 std::wstring GetExampleScriptPath()
 {
-    return (fs::path(GetDefaultScriptDir()) / L"death_douyin.vscrpit").wstring();
+    return (fs::path(GetDefaultScriptDir()) / L"syntax_showcase.vscrpit").wstring();
 }
 
 void LoadMountedScripts()
@@ -1465,10 +1759,11 @@ void LoadMountedScripts()
                 if (item.contains("path") && item["path"].is_string()) s.path = Utf8ToWide(item["path"].get<std::string>());
                 if (item.contains("continuous") && item["continuous"].is_boolean()) s.continuous = item["continuous"].get<bool>();
                 if (!s.path.empty()) {
-                    s_scriptCache[s.path] = ReadAllWide(s.path);
-                    LoadScriptMetadata(s);
+                    RefreshScriptState(s, false);
                     if (s.continuous && !ConfirmContinuousAllowed(s.path)) s.continuous = false;
-                    s_mounted.push_back(s);
+                    if (!s.usesPrivilegedApis || s.privilegedAllowed || GetRuntimeCapability() >= buildcode::userdebug) {
+                        s_mounted.push_back(s);
+                    }
                 }
             }
         }
@@ -1495,12 +1790,13 @@ void SaveMountedScripts()
 void AddMountedScript(const std::wstring& path)
 {
     auto it = std::find_if(s_mounted.begin(), s_mounted.end(), [&](const mounted_script& s) { return s.path == path; });
-    s_scriptCache[path] = ReadAllWide(path);
     if (it == s_mounted.end()) {
         mounted_script script;
         script.path = path;
-        LoadScriptMetadata(script);
+        if (!RefreshScriptState(script, true)) return;
         s_mounted.push_back(script);
+    } else {
+        if (!RefreshScriptState(*it, true)) return;
     }
     SaveMountedScripts();
 }
@@ -1516,6 +1812,10 @@ void RemoveMountedScript(size_t index)
 void ToggleContinuous(size_t index)
 {
     if (index >= s_mounted.size()) return;
+    if (!RefreshScriptState(s_mounted[index], true)) {
+        SaveMountedScripts();
+        return;
+    }
     if (!s_mounted[index].continuous && !ConfirmContinuousAllowed(s_mounted[index].path)) {
         std::wcout << L"[脚本权限] 已拒绝开启持续执行: " << s_mounted[index].path << std::endl;
         return;

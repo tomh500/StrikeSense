@@ -51,6 +51,26 @@ namespace gsi {
         std::unordered_map<std::string, std::string> flat;
     }
 
+    namespace runtime {
+        std::string last_phase;
+        int last_kills = 0;
+        int last_mvps = 0;
+        bool dead_muted = false;
+        bool waiting_for_live = true;
+        bool round_started = false;
+        int mvp_candidate_kills = 0;
+        bool mvp_pushed_this_round = false;
+        int mvps_at_round_start = 0;
+        bool gameover_pushed = false;
+        bool bomb_planted_this_round = false;
+        std::string player_team;
+        std::string map_mode;
+        std::string activity;
+        int round_kills = 0;
+        int health = 100;
+        bool in_lobby = false;
+    }
+
     namespace {
         std::string JsonLeafToString(const nlohmann::json& value)
         {
@@ -123,9 +143,7 @@ namespace gsi {
         std::cout << "[GSI] 已同步全部原型字段到命名空间缓存，字段数=" << flat.size() << std::endl;
     }
 
-
-
-    int g_debug = 0;
+    int g_debug = 1;
 
     static httplib::Server* s_server = nullptr;
     static std::thread s_serverThread;
@@ -158,6 +176,32 @@ namespace gsi {
     static int s_lastMenuState = 0;
     // ======= 在内存中缓存配置的变量 =============
     static config::Settings s_cachedCfg;
+
+    void runtime::SyncDerived(
+        const std::string& currentMapMode,
+        const std::string& currentActivity,
+        int currentRoundKills,
+        int currentHealth,
+        bool currentInLobby)
+    {
+        last_phase = s_lastPhase;
+        last_kills = s_lastKills;
+        last_mvps = s_lastMvps;
+        dead_muted = s_deadMuted;
+        waiting_for_live = s_waitingForLive;
+        round_started = s_roundStarted;
+        mvp_candidate_kills = s_mvpCandidateKills;
+        mvp_pushed_this_round = s_mvpPushedThisRound;
+        mvps_at_round_start = s_mvpsAtRoundStart;
+        gameover_pushed = s_gameoverPushed;
+        bomb_planted_this_round = s_bombPlantedThisRound;
+        player_team = s_playerTeam;
+        map_mode = currentMapMode;
+        activity = currentActivity;
+        round_kills = currentRoundKills;
+        health = currentHealth;
+        in_lobby = currentInLobby;
+    }
     // ===========================================
 
     // ===== 事件队列 =====
@@ -709,6 +753,9 @@ namespace gsi {
                     << " gamemap=" << gamemap
                     << std::endl;
             }
+
+            s_lastMvps = mvps;
+            runtime::SyncDerived(mapMode, activity, roundKills, health, currentInLobby);
 
             if (GetQSConfig().enabled)
                 ProcessQuickStopCommand(rawJson);

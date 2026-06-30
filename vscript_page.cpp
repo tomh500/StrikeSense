@@ -75,17 +75,20 @@ std::wstring SummaryText(const vscrpit::mounted_script& script)
 {
     std::wstring out;
     if (!script.provider.empty()) out += L"Provider: " + script.provider + L"  ";
+    if (!script.author.empty()) out += L"Author: " + script.author + L"  ";
     if (!script.version.empty()) out += L"Version: " + script.version;
+    if (script.dangerStyle) out += L"  [高权限]";
+    if (script.missing) out += L"  [文件丢失]";
     if (out.empty()) out = script.path;
     return out;
 }
 
-void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r)
+void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r, bool danger)
 {
     using namespace Gdiplus;
-    SolidBrush bg(Color(255, 255, 244, 190));
-    SolidBrush fg(Color(255, 150, 95, 25));
-    Pen border(Color(255, 220, 170, 80), 1.0f);
+    SolidBrush bg(danger ? Color(255, 255, 224, 224) : Color(255, 255, 244, 190));
+    SolidBrush fg(danger ? Color(255, 180, 40, 40) : Color(255, 150, 95, 25));
+    Pen border(danger ? Color(255, 220, 90, 90) : Color(255, 220, 170, 80), 1.0f);
     Font f(L"Microsoft YaHei", 9, FontStyleBold);
     g.FillEllipse(&bg, r);
     g.DrawEllipse(&border, r);
@@ -151,8 +154,11 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     SolidBrush dim(Color(255, 90, 115, 145));
     SolidBrush meta(Color(255, 35, 125, 170));
     SolidBrush rowBg(Color(255, 232, 244, 252));
+    SolidBrush rowDangerBg(Color(255, 255, 238, 238));
     SolidBrush warn(Color(255, 170, 80, 50));
+    SolidBrush dangerText(Color(255, 180, 50, 50));
     Pen rowPen(Color(255, 170, 210, 235));
+    Pen rowDangerPen(Color(255, 220, 110, 110));
 
     g_mountRect = RectF((REAL)cx + 10, 56, 116, 28);
     g_openDirRect = RectF((REAL)cx + 136, 56, 116, 28);
@@ -182,16 +188,17 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     int y = 132;
     for (size_t i = 0; i < scripts.size(); ++i) {
         RectF row((REAL)cx + 8, (REAL)y, (REAL)cw - 16, 48);
-        g.FillRectangle(&rowBg, row);
-        g.DrawRectangle(&rowPen, row);
+        const bool danger = scripts[i].dangerStyle;
+        g.FillRectangle(danger ? &rowDangerBg : &rowBg, row);
+        g.DrawRectangle(danger ? &rowDangerPen : &rowPen, row);
 
         std::wstring name = DisplayName(scripts[i]);
-        g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), scripts[i].hasMetadataName ? &meta : &text);
+        g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), danger ? &dangerText : (scripts[i].hasMetadataName ? &meta : &text));
         std::wstring sub = scripts[i].hasMetadataName ? SummaryText(scripts[i]) : scripts[i].path;
         g.DrawString(sub.c_str(), -1, &smallFont, PointF((REAL)cx + 18, (REAL)y + 25), &dim);
 
         RectF notice((REAL)cx + 260, (REAL)y + 7, 18, 18);
-        if (!scripts[i].notice.empty()) DrawNoticeIcon(g, notice);
+        if (!scripts[i].notice.empty()) DrawNoticeIcon(g, notice, danger);
         g_noticeRects.push_back(notice);
 
         RectF cont((REAL)cx + cw - 230, (REAL)y + 12, 50, 24);

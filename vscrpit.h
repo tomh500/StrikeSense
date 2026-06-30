@@ -18,10 +18,19 @@ struct mounted_script {
     std::wstring path;
     bool continuous = false;
     std::wstring name;
+    std::wstring author;
     std::wstring provider;
     std::wstring version;
     std::wstring notice;
+    std::wstring modifier;
+    std::wstring selfUser;
+    std::wstring riskNotice;
     bool hasMetadataName = false;
+    bool usesPrivilegedApis = false;
+    bool selfAuthoredPrivileged = false;
+    bool privilegedAllowed = false;
+    bool dangerStyle = false;
+    bool missing = false;
 };
 
 void Initialize(HINSTANCE instance, HWND owner);
