@@ -1,0 +1,16 @@
+// @name: 死后刷抖音
+// @provider: StrikeSense
+// @version: 1.3.0
+// @notice: 仅在自己本回合首次死亡时切到抖音，freezetime 自动切回游戏并静音浏览器。
+if(on:self_dead_this_round==true && self_alive==false){
+    SetProcessMute("msedge.exe", false);
+    SetProcessMute("chrome.exe", false);
+    CloseGameWindow();
+    Browser("https://www.douyin.com/", true, true);
+};
+
+if(on:round_phase=="freezetime"){
+    SetProcessMute("msedge.exe", true);
+    SetProcessMute("chrome.exe", true);
+    ShowGameProcess();
+};

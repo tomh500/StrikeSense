@@ -9,7 +9,7 @@ const RESOURCE_DATABASE = [
         filename: "音乐操作台",
         img: "img/rescenter/musictool.png", // 示范音乐盒图
         desc: "一个可视化的音乐操作台，可以快速剪切音频和导出音频，需要安装FFmpeg、Python3.13更新版本和PyQt6 PyQt6-multimedia依赖库，本脚本由AI辅助编写。",
-        tags: ["官方", "脚本", "其他"],
+        tags: ["官方", "其他"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/musictool.py"
     },
@@ -82,6 +82,54 @@ const RESOURCE_DATABASE = [
         tags: ["官方", "音乐盒"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/触摸能量.7z"
+    },
+     {   id: 10,
+        filename: "官方击杀图标-nano",
+        img: "img/rescenter/nano.png",
+        desc: "需要搭配官方脚本使用",
+        tags: ["官方", "其他"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/nano.7z"
+    },
+            {   id: 1001,
+        filename: "死后自动刷抖音",
+        img: "img/rescenter/vscripts.png",
+        desc: "死后自动打开抖音网站，下回合切回游戏，请先确保您关闭浏览器或者手动打开了抖音网站。",
+        tags: ["社区", "脚本"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/vscripts/死后自动刷抖音.vscript"
+    },
+    {   id: 1002,
+        filename: "死后自动打开wallpaper",
+        img: "img/rescenter/vscripts.png",
+        desc: "死后自动打开wallpaper，下回合切回游戏。需要你在脚本编辑实际程序路径",
+        tags: ["社区", "脚本"],
+        provider: "无损平方集团",
+        downloadUrl: "app/rescenter/vscripts/死后自动打开wallpaper.vscript"
+    },
+    {   id: 1003,
+        filename: "智能即时音量调整",
+        img: "img/rescenter/vscripts.png",
+        desc: "死后自动打开即时音量降低器，下回合恢复。",
+        tags: ["官方", "脚本"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/vscripts/death_volume.vscript"
+    },
+        {   id: 1004,
+        filename: "智能狙击准星开关",
+        img: "img/rescenter/vscripts.png",
+        desc: "手持狙击枪的时候，自动开启外置准星，其余时候关闭。",
+        tags: ["官方", "脚本"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/vscripts/sniper_crosshair.vscript"
+    },     
+     {   id: 1005,
+        filename: "击杀图标反馈显示",
+        img: "img/rescenter/vscripts.png",
+        desc: "击杀敌人的时候，不仅可以播放音效，用这个脚本还可以显示击杀图标。",
+        tags: ["官方", "脚本"],
+        provider: "StrikeSense 运营团队",
+        downloadUrl: "app/rescenter/vscripts/kill_icons.vscript"
     },
 ];
 

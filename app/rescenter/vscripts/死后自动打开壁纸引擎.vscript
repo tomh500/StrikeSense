@@ -1,0 +1,12 @@
+// @name: 死后自动打开壁纸引擎
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 自己本回合首次死亡时切到 壁纸引擎，不存在就启动；freezetime 自动切回游戏。
+if(on:self_dead_this_round==true && self_alive==false){
+    CloseGameWindow();
+    EnsureProcessWindow("wallpaperui.exe", "C:/Program Files (x86)/Steam/steamapps/common/wallpaper_engine/wallpaper64.exe", true);
+};
+
+if(on:round_phase=="freezetime"){
+    ShowGameProcess();
+};
