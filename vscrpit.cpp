@@ -1180,6 +1180,13 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         std::wcout << L"[脚本] " << ToText(args[0]) << std::endl;
         return true;
     }
+    if (name == L"SetProcessVolume" && args.size() >= 2) {
+        const std::wstring processName = ToText(args[0]);
+        const float volumePercent = (float)ToNumber(args[1]);
+        std::wcout << L"[脚本] 请求设置进程音量，进程=" << processName
+                   << L"，目标百分比=" << volumePercent << std::endl;
+        return SetProcessVolumeByName(processName, volumePercent);
+    }
     if (name == L"SetDeathVolume" && args.size() >= 1) {
         g_death_vol = (float)std::clamp(ToNumber(args[0]), 0.0, 1.0);
         SaveEvolutionParams();

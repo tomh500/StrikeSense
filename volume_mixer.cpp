@@ -3,6 +3,9 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <algorithm>
+#include <cwctype>
+#include <functional>
 #include <audiopolicy.h>
 #include <mmdeviceapi.h>
 #include "gsi_server.h"
@@ -33,6 +36,34 @@ namespace {
         if (factor < 0.0f) return 0.0f;
         if (factor > 1.0f) return 1.0f;
         return factor;
+    }
+
+    static float ClampVolumePercent(float volumePercent)
+    {
+        if (volumePercent < 0.0f) return 0.0f;
+        if (volumePercent > 100.0f) return 100.0f;
+        return volumePercent;
+    }
+
+    static std::wstring ToLowerCopy(std::wstring text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(),
+            [](wchar_t ch) { return static_cast<wchar_t>(std::towlower(ch)); });
+        return text;
+    }
+
+    static std::wstring ExtractProcessFileName(const std::wstring& processName)
+    {
+        const size_t pos = processName.find_last_of(L"\\/");
+        if (pos == std::wstring::npos) return processName;
+        return processName.substr(pos + 1);
+    }
+
+    static bool MatchProcessName(const std::wstring& candidatePath, const std::wstring& expectedProcessName)
+    {
+        const std::wstring candidateName = ToLowerCopy(ExtractProcessFileName(candidatePath));
+        const std::wstring expectedName = ToLowerCopy(ExtractProcessFileName(expectedProcessName));
+        return !candidateName.empty() && !expectedName.empty() && candidateName == expectedName;
     }
 
     static void ApplyGsiVolumeReduction(float factor)
@@ -134,6 +165,155 @@ namespace {
         pEnum->Release();
         return result;
     }
+
+    static bool ForEachProcessAudioSession(
+        const std::wstring& processName,
+        const std::function<void(ISimpleAudioVolume*, float)>& callback,
+        int* matchedCount = nullptr)
+    {
+        if (matchedCount) *matchedCount = 0;
+
+        IMMDeviceEnumerator* pEnum = nullptr;
+        HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+            __uuidof(IMMDeviceEnumerator), (void**)&pEnum);
+        if (FAILED(hr))
+        {
+            std::wcout << L"[音量] 创建设备枚举器失败，HRESULT=" << hr << std::endl;
+            return false;
+        }
+
+        IMMDevice* pDevice = nullptr;
+        hr = pEnum->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
+        if (FAILED(hr))
+        {
+            std::wcout << L"[音量] 获取默认音频输出设备失败，HRESULT=" << hr << std::endl;
+            pEnum->Release();
+            return false;
+        }
+
+        IAudioSessionManager2* pMgr = nullptr;
+        hr = pDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, nullptr, (void**)&pMgr);
+        pDevice->Release();
+        if (FAILED(hr))
+        {
+            std::wcout << L"[音量] 激活音频会话管理器失败，HRESULT=" << hr << std::endl;
+            pEnum->Release();
+            return false;
+        }
+
+        IAudioSessionEnumerator* pSessionEnum = nullptr;
+        hr = pMgr->GetSessionEnumerator(&pSessionEnum);
+        if (FAILED(hr))
+        {
+            std::wcout << L"[音量] 获取音频会话枚举器失败，HRESULT=" << hr << std::endl;
+            pMgr->Release();
+            pEnum->Release();
+            return false;
+        }
+
+        int count = 0;
+        pSessionEnum->GetCount(&count);
+        bool anyMatched = false;
+
+        for (int i = 0; i < count; ++i)
+        {
+            IAudioSessionControl* pCtrl = nullptr;
+            if (FAILED(pSessionEnum->GetSession(i, &pCtrl))) continue;
+
+            IAudioSessionControl2* pCtrl2 = nullptr;
+            if (SUCCEEDED(pCtrl->QueryInterface(__uuidof(IAudioSessionControl2), (void**)&pCtrl2)))
+            {
+                DWORD pid = 0;
+                pCtrl2->GetProcessId(&pid);
+                HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                if (hProc)
+                {
+                    wchar_t exePath[MAX_PATH] = {};
+                    DWORD size = MAX_PATH;
+                    if (QueryFullProcessImageNameW(hProc, 0, exePath, &size) &&
+                        MatchProcessName(exePath, processName))
+                    {
+                        ISimpleAudioVolume* pVol = nullptr;
+                        if (SUCCEEDED(pCtrl->QueryInterface(__uuidof(ISimpleAudioVolume), (void**)&pVol)))
+                        {
+                            float currentVolume = 0.0f;
+                            if (SUCCEEDED(pVol->GetMasterVolume(&currentVolume)))
+                            {
+                                callback(pVol, currentVolume);
+                                anyMatched = true;
+                                if (matchedCount) ++(*matchedCount);
+                            }
+                            pVol->Release();
+                        }
+                    }
+                    CloseHandle(hProc);
+                }
+                pCtrl2->Release();
+            }
+            pCtrl->Release();
+        }
+
+        pSessionEnum->Release();
+        pMgr->Release();
+        pEnum->Release();
+        return anyMatched;
+    }
+}
+
+bool SetProcessVolumeByName(const std::wstring& processName, float volumePercent)
+{
+    if (processName.empty())
+    {
+        std::wcout << L"[音量] 进程名为空，无法设置音量" << std::endl;
+        return false;
+    }
+
+    const float clampedPercent = ClampVolumePercent(volumePercent);
+    const float normalizedVolume = clampedPercent / 100.0f;
+    const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool shouldUninitialize = SUCCEEDED(initHr);
+
+    if (FAILED(initHr) && initHr != RPC_E_CHANGED_MODE)
+    {
+        std::wcout << L"[音量] COM 初始化失败，HRESULT=" << initHr << std::endl;
+        return false;
+    }
+
+    int matchedCount = 0;
+    int appliedCount = 0;
+    const bool foundSession = ForEachProcessAudioSession(
+        processName,
+        [&](ISimpleAudioVolume* pVol, float currentVolume)
+        {
+            const HRESULT hr = pVol->SetMasterVolume(normalizedVolume, nullptr);
+            if (SUCCEEDED(hr))
+            {
+                ++appliedCount;
+                std::wcout << L"[音量] 已设置进程 " << processName
+                           << L" 音量: " << (int)(currentVolume * 100.0f)
+                           << L"% -> " << (int)clampedPercent << L"%" << std::endl;
+            }
+            else
+            {
+                std::wcout << L"[音量] 设置进程 " << processName
+                           << L" 音量失败，HRESULT=" << hr << std::endl;
+            }
+        },
+        &matchedCount);
+
+    if (!foundSession)
+    {
+        std::wcout << L"[音量] 未找到进程音频会话: " << processName << std::endl;
+    }
+    else
+    {
+        std::wcout << L"[音量] 进程 " << processName
+                   << L" 共匹配到 " << matchedCount << L" 个音频会话，成功设置 "
+                   << appliedCount << L" 个" << std::endl;
+    }
+
+    if (shouldUninitialize) CoUninitialize();
+    return appliedCount > 0;
 }
 
 void StopCS2VolumeControl()

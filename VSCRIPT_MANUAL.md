@@ -318,6 +318,21 @@ return;
     - 类型：`float`
     - 范围：`0.0 ~ 1.0`
 
+`SetProcessVolume(process_name, volume_percent)`
+
+- 用途：直接修改指定进程当前音频会话的系统合成器音量。
+- 参数：
+  - `process_name`
+    - 类型：`string`
+    - 示例：`"cs2.exe"`、`"chrome.exe"`、`"Spotify.exe"`
+  - `volume_percent`
+    - 类型：`float`
+    - 范围：`0.0 ~ 100.0`
+- 说明：
+  - 这里传的是百分比，不是 `0.0 ~ 1.0` 的系数。
+  - 该函数等同于 C++ 层的 `SetProcessVolumeByName(processName, volumePercent)`。
+  - 只有目标进程已经创建了音频会话时，系统合成器音量才能被改到。
+
 `SetDeathMute(enabled)`
 
 - 用途：开启或关闭“死亡后即时降低”。
