@@ -1,8 +1,12 @@
 #include "vscrpit.h"
+#include "pages.h"
+#include "volume_mixer.h"
+#include "normalgen.h"
 
 #include <TlHelp32.h>
 #include <Shellapi.h>
 #include <Shlwapi.h>
+#include <Psapi.h>
 #include <SDL_mixer.h>
 #include <gdiplus.h>
 #include <algorithm>
@@ -19,6 +23,7 @@
 #include <unordered_map>
 
 #pragma comment(lib, "Shlwapi.lib")
+#pragma comment(lib, "Psapi.lib")
 
 namespace fs = std::filesystem;
 
@@ -65,6 +70,8 @@ std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 
 constexpr const wchar_t* k_imageClass = L"StrikeSenseVscrpitImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+
+std::wstring Trim(std::wstring s);
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -240,6 +247,75 @@ std::wstring LoadScriptCached(const std::wstring& path)
     return text;
 }
 
+std::wstring StripComments(const std::wstring& script)
+{
+    std::wstring out;
+    bool line = false;
+    bool block = false;
+    bool text = false;
+    for (size_t i = 0; i < script.size(); ++i) {
+        wchar_t c = script[i];
+        wchar_t n = (i + 1 < script.size()) ? script[i + 1] : L'\0';
+        if (line) {
+            if (c == L'\n' || c == L'\r') {
+                line = false;
+                out.push_back(c);
+            }
+            continue;
+        }
+        if (block) {
+            if (c == L'*' && n == L'/') {
+                block = false;
+                ++i;
+            }
+            continue;
+        }
+        if (!text && c == L'/' && n == L'/') {
+            line = true;
+            ++i;
+            continue;
+        }
+        if (!text && c == L'/' && n == L'*') {
+            block = true;
+            ++i;
+            continue;
+        }
+        if (c == L'"' && (i == 0 || script[i - 1] != L'\\')) text = !text;
+        out.push_back(c);
+    }
+    return out;
+}
+
+std::wstring ReadMetaValue(const std::wstring& line, const std::wstring& key)
+{
+    std::wstring t = Trim(line);
+    if (t.rfind(L"//", 0) == 0) t = Trim(t.substr(2));
+    if (t.rfind(key, 0) != 0) return L"";
+    size_t pos = t.find(L':');
+    if (pos == std::wstring::npos) return L"";
+    return Trim(t.substr(pos + 1));
+}
+
+void LoadScriptMetadata(mounted_script& script)
+{
+    std::wstring raw = LoadScriptCached(script.path);
+    std::wstringstream ss(raw);
+    std::wstring line;
+    while (std::getline(ss, line)) {
+        std::wstring name = ReadMetaValue(line, L"@name");
+        std::wstring provider = ReadMetaValue(line, L"@provider");
+        std::wstring version = ReadMetaValue(line, L"@version");
+        std::wstring notice = ReadMetaValue(line, L"@notice");
+        if (!name.empty()) {
+            script.name = name;
+            script.hasMetadataName = true;
+        }
+        if (!provider.empty()) script.provider = provider;
+        if (!version.empty()) script.version = version;
+        if (!notice.empty()) script.notice = notice;
+    }
+}
+
 bool ScriptHasEdgeGuard(const std::wstring& path)
 {
     std::wstring script = LoadScriptCached(path);
@@ -320,6 +396,16 @@ std::wstring ToText(const value& v)
         return oss.str();
     }
     return L"void";
+}
+
+std::wstring ExpandEnvText(const std::wstring& text)
+{
+    DWORD need = ExpandEnvironmentStringsW(text.c_str(), nullptr, 0);
+    if (need == 0) return text;
+    std::wstring out(need, L'\0');
+    ExpandEnvironmentStringsW(text.c_str(), out.data(), need);
+    if (!out.empty() && out.back() == L'\0') out.pop_back();
+    return out;
 }
 
 double ToNumber(const value& v)
@@ -481,6 +567,76 @@ BOOL CALLBACK EnumMinimizeCs2(HWND hwnd, LPARAM)
         return FALSE;
     }
     return TRUE;
+}
+
+std::wstring ProcessNameFromWindow(HWND hwnd)
+{
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (!pid || !IsWindowVisible(hwnd)) return L"";
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) return L"";
+    wchar_t path[MAX_PATH]{};
+    DWORD size = MAX_PATH;
+    std::wstring name;
+    if (QueryFullProcessImageNameW(h, 0, path, &size)) name = PathFindFileNameW(path);
+    CloseHandle(h);
+    return name;
+}
+
+struct top_request {
+    std::wstring process;
+    bool topmost = true;
+    bool firstOnly = false;
+};
+
+BOOL CALLBACK EnumTopProcess(HWND hwnd, LPARAM lp)
+{
+    auto* req = reinterpret_cast<top_request*>(lp);
+    std::wstring name = ProcessNameFromWindow(hwnd);
+    if (name.empty()) return TRUE;
+    if (_wcsicmp(name.c_str(), req->process.c_str()) != 0) return TRUE;
+    SetWindowPos(hwnd, req->topmost ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    if (req->topmost) {
+        ShowWindow(hwnd, SW_SHOW);
+        SetForegroundWindow(hwnd);
+    }
+    return req->firstOnly ? FALSE : TRUE;
+}
+
+bool TopProcess(const std::wstring& process, bool topmost)
+{
+    top_request req{ process, topmost, false };
+    EnumWindows(EnumTopProcess, reinterpret_cast<LPARAM>(&req));
+    return true;
+}
+
+bool LaunchUrlExternal(const std::wstring& url)
+{
+    std::wstring cmd = L"rundll32.exe url.dll,FileProtocolHandler \"" + url + L"\"";
+    STARTUPINFOW si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+    std::vector<wchar_t> buffer(cmd.begin(), cmd.end());
+    buffer.push_back(L'\0');
+    BOOL ok = CreateProcessW(nullptr, buffer.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+    if (ok) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    }
+    return ok == TRUE;
+}
+
+void TopBrowserSoon()
+{
+    std::thread([]() {
+        Sleep(1200);
+        for (const wchar_t* proc : { L"msedge.exe", L"chrome.exe", L"firefox.exe", L"browser.exe", L"iexplore.exe" }) {
+            top_request req{ proc, true, true };
+            EnumWindows(EnumTopProcess, reinterpret_cast<LPARAM>(&req));
+        }
+    }).detach();
 }
 
 BOOL CALLBACK EnumShowCs2(HWND hwnd, LPARAM)
@@ -651,22 +807,27 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         return true;
     }
     if (name == L"KillGameProcess") return KillProcessByName(L"cs2.exe");
-    if (name == L"RunGameProcess") return (INT_PTR)ShellExecuteW(nullptr, L"open", L"steam://run/730", nullptr, nullptr, SW_SHOWNORMAL) > 32;
+    if (name == L"RunGameProcess") return LaunchUrlExternal(L"steam://run/730");
     if (name == L"ShowGameProcess") {
         EnumWindows(EnumShowCs2, 0);
         return true;
     }
-    if (name == L"Browser" && args.size() >= 1) return (INT_PTR)ShellExecuteW(nullptr, L"open", ToText(args[0]).c_str(), nullptr, nullptr, SW_SHOWNORMAL) > 32;
-    if (name == L"Drawimg" && args.size() >= 7) return DrawImageCommand(ToText(args[0]), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6]));
+    if (name == L"Browser" && args.size() >= 1) {
+        bool ok = LaunchUrlExternal(ToText(args[0]));
+        if (ok && args.size() >= 2 && Truthy(args[1])) TopBrowserSoon();
+        return ok;
+    }
+    if (name == L"Top" && args.size() >= 1) return TopProcess(ToText(args[0]), args.size() < 2 || Truthy(args[1]));
+    if (name == L"Drawimg" && args.size() >= 7) return DrawImageCommand(ExpandEnvText(ToText(args[0])), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6]));
     if (name == L"Closeimg" && args.size() >= 1) { CloseImage((int)ToNumber(args[0])); return true; }
-    if (name == L"Playsnd" && args.size() >= 3) return PlaySoundCommand(ToText(args[0]), (float)ToNumber(args[1]), (int)ToNumber(args[2]));
+    if (name == L"Playsnd" && args.size() >= 3) return PlaySoundCommand(ExpandEnvText(ToText(args[0])), (float)ToNumber(args[1]), (int)ToNumber(args[2]));
     if (name == L"Stopsnd" && args.size() >= 1) { StopSoundCommand((int)ToNumber(args[0])); return true; }
     if (name == L"ShellExecute" && args.size() >= 1) {
         std::wstring cmd = L"/C " + ToText(args[0]);
         return (INT_PTR)ShellExecuteW(nullptr, L"open", L"cmd.exe", cmd.c_str(), nullptr, SW_HIDE) > 32;
     }
     if ((name == L"CFile" || name == L"OwriteFile" || name == L"AwriteFile") && args.size() >= 2) {
-        fs::path p = ToText(args[0]);
+        fs::path p = ExpandEnvText(ToText(args[0]));
         fs::create_directories(p.parent_path());
         std::ofstream out(p, std::ios::binary | (name == L"AwriteFile" ? std::ios::app : std::ios::trunc));
         out << WideToUtf8(ToText(args[1]));
@@ -674,12 +835,43 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
     }
     if (name == L"DFile" && args.size() >= 1) {
         std::error_code ec;
-        return fs::remove(ToText(args[0]), ec);
+        return fs::remove(ExpandEnvText(ToText(args[0])), ec);
     }
     if (name == L"Sleep" && args.size() >= 1) {
         int waitMs = (int)ToNumber(args[0]);
         if (waitMs < 0) waitMs = 0;
         Sleep((DWORD)waitMs);
+        return true;
+    }
+    if (name == L"SetDeathVolume" && args.size() >= 1) {
+        g_death_vol = (float)std::clamp(ToNumber(args[0]), 0.0, 1.0);
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return true;
+    }
+    if (name == L"SetDeathMute" && args.size() >= 1) {
+        bool next = Truthy(args[0]);
+        if (next) {
+            if (!normalgen::CheckAdminPermission()) return true;
+            StartCS2VolumeControl(g_death_vol);
+        } else {
+            StopCS2VolumeControl();
+        }
+        g_deathMute = next;
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return true;
+    }
+    if (name == L"SetCrosshair" && args.size() >= 7) {
+        g_crosshairEnabled = Truthy(args[0]);
+        g_crosshairR = std::clamp((int)ToNumber(args[1]), 0, 255);
+        g_crosshairG = std::clamp((int)ToNumber(args[2]), 0, 255);
+        g_crosshairB = std::clamp((int)ToNumber(args[3]), 0, 255);
+        g_crosshairStyle = std::clamp((int)ToNumber(args[4]), 0, 2);
+        g_crosshairThickness = std::clamp((int)ToNumber(args[5]), 1, 10);
+        g_crosshairScale = (float)std::clamp(ToNumber(args[6]), 0.1, 0.6);
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return true;
     }
     std::wcout << L"[脚本] 未知函数: " << name << std::endl;
@@ -870,7 +1062,7 @@ void TickContinuousScripts()
     for (const auto& script : s_mounted) {
         if (script.continuous) {
             std::wstring text = LoadScriptCached(script.path);
-            if (!text.empty()) ExecuteBlock(text);
+            if (!text.empty()) ExecuteBlock(StripComments(text));
         }
     }
     s_prevVars = s_vars;
@@ -886,7 +1078,7 @@ bool ExecuteScriptFile(const std::wstring& path)
     }
     s_scriptCache[path] = script;
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
-    ExecuteBlock(script);
+    ExecuteBlock(StripComments(script));
     return true;
 }
 
@@ -926,6 +1118,7 @@ void LoadMountedScripts()
                 if (item.contains("continuous") && item["continuous"].is_boolean()) s.continuous = item["continuous"].get<bool>();
                 if (!s.path.empty()) {
                     s_scriptCache[s.path] = ReadAllWide(s.path);
+                    LoadScriptMetadata(s);
                     if (s.continuous && !ConfirmContinuousAllowed(s.path)) s.continuous = false;
                     s_mounted.push_back(s);
                 }
@@ -955,7 +1148,12 @@ void AddMountedScript(const std::wstring& path)
 {
     auto it = std::find_if(s_mounted.begin(), s_mounted.end(), [&](const mounted_script& s) { return s.path == path; });
     s_scriptCache[path] = ReadAllWide(path);
-    if (it == s_mounted.end()) s_mounted.push_back({ path, false });
+    if (it == s_mounted.end()) {
+        mounted_script script;
+        script.path = path;
+        LoadScriptMetadata(script);
+        s_mounted.push_back(script);
+    }
     SaveMountedScripts();
 }
 
@@ -980,18 +1178,67 @@ void ToggleContinuous(size_t index)
 
 void EnsureExampleScript()
 {
-    fs::path path = GetExampleScriptPath();
-    if (fs::exists(path)) return;
-    WriteUtf8(path,
+    fs::path dir = GetDefaultScriptDir();
+    fs::create_directories(dir / L"assets" / L"kills");
+    auto writeSample = [](const fs::path& path, const std::wstring& text, bool overwrite) {
+        if (!overwrite && fs::exists(path)) return;
+        WriteUtf8(path, text);
+        std::wcout << L"[脚本] 已创建示范脚本: " << path.wstring() << std::endl;
+    };
+    writeSample(dir / L"death_douyin.vscrpit",
+        L"// @name: 死后刷抖音\n"
+        L"// @provider: StrikeSense\n"
+        L"// @version: 1.1.0\n"
+        L"// @notice: 死亡时切到抖音，freeze time 自动切回游戏。\n"
         L"if(on:death_mute==true){\n"
         L"    CloseGameWindow();\n"
-        L"    Browser(\"https://www.douyin.com/\");\n"
+        L"    Browser(\"https://www.douyin.com/\", true);\n"
         L"};\n"
         L"\n"
-        L"if(on:round_phase==\"live\"){\n"
+        L"if(on:round_phase==\"freezetime\"){\n"
         L"    ShowGameProcess();\n"
-        L"};\n");
-    std::wcout << L"[脚本] 已创建示范脚本: " << path.wstring() << std::endl;
+        L"};\n", true);
+    writeSample(dir / L"kill_icons.vscrpit",
+        L"// @name: 连杀图标提示\n"
+        L"// @provider: StrikeSense\n"
+        L"// @version: 1.0.0\n"
+        L"// @notice: 将 1.png~5.png 放入 script/assets/kills 后，1~5 杀会在屏幕正下显示 3 秒。\n"
+        L"if(on:kills==1){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/1.png\", 0, 360, true, 1.0, 3000, 101); };\n"
+        L"if(on:kills==2){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/2.png\", 0, 360, true, 1.0, 3000, 102); };\n"
+        L"if(on:kills==3){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/3.png\", 0, 360, true, 1.0, 3000, 103); };\n"
+        L"if(on:kills==4){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/4.png\", 0, 360, true, 1.0, 3000, 104); };\n"
+        L"if(on:kills==5){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/5.png\", 0, 360, true, 1.0, 3000, 105); };\n", false);
+    writeSample(dir / L"nuke_focus.vscrpit",
+        L"// @name: Nuke 专注模式\n"
+        L"// @provider: StrikeSense\n"
+        L"// @version: 1.0.0\n"
+        L"// @notice: 切到 nuke 时把 CS2 窗口置顶。\n"
+        L"if(on:map==\"de_nuke\"){\n"
+        L"    ShowGameProcess();\n"
+        L"    Top(\"cs2.exe\", true);\n"
+        L"};\n", false);
+    writeSample(dir / L"low_hp_quiet.vscrpit",
+        L"// @name: 残血静音提醒\n"
+        L"// @provider: StrikeSense\n"
+        L"// @version: 1.0.0\n"
+        L"// @notice: 血量低于 20 时降低 CS2 音量，死亡或新回合重置。\n"
+        L"if(on:health<20){ SetDeathVolume(0.35); };\n"
+        L"if(on:death_mute==true){ SetDeathVolume(0.8); };\n"
+        L"if(on:round_phase==\"freezetime\"){ SetDeathVolume(0.8); };\n", false);
+}
+
+const std::wstring& GetScriptDisplayName(const mounted_script& script)
+{
+    return script.hasMetadataName ? script.name : script.path;
+}
+
+std::wstring GetScriptNotice(const mounted_script& script)
+{
+    std::wstring out;
+    if (!script.provider.empty()) out += L"Provider: " + script.provider + L"  ";
+    if (!script.version.empty()) out += L"Version: " + script.version + L"  ";
+    if (!script.notice.empty()) out += script.notice;
+    return out;
 }
 
 } // namespace vscrpit

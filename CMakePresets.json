@@ -46,6 +46,11 @@
             "name": "release",
             "configurePreset": "default",
             "configuration": "Release"
+        },
+        {
+            "name": "nightly",
+            "configurePreset": "default",
+            "configuration": "Nightly"
         }
     ]
 }

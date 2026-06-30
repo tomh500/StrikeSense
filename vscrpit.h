@@ -17,6 +17,11 @@ enum class buildcode {
 struct mounted_script {
     std::wstring path;
     bool continuous = false;
+    std::wstring name;
+    std::wstring provider;
+    std::wstring version;
+    std::wstring notice;
+    bool hasMetadataName = false;
 };
 
 void Initialize(HINSTANCE instance, HWND owner);
@@ -43,5 +48,7 @@ std::wstring GetScriptConfigPath();
 std::wstring GetDefaultScriptDir();
 std::wstring GetExampleScriptPath();
 void EnsureExampleScript();
+const std::wstring& GetScriptDisplayName(const mounted_script& script);
+std::wstring GetScriptNotice(const mounted_script& script);
 
 } // namespace vscrpit

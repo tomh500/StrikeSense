@@ -32,7 +32,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
     g.DrawString(L"StrikeSense", -1, &tF, PointF(4, 12), &tb);
 
-    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER), L"自定脚本"};
+    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER), i18n::T("SIDEBAR_VSCRIPT")};
     int idx = 0;
     for (auto& it : g_sidebarItems) {
         if (g_currentPage == it.page)

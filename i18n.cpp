@@ -11,6 +11,7 @@ void i18n::Init() {
     cn[Keys::SIDEBAR_LEGAL] = L"合法配置"; en[Keys::SIDEBAR_LEGAL] = L"Legit Config";
     cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Semi Rage";
     cn[Keys::SIDEBAR_ITEMHELPER] = L"道具助手"; en[Keys::SIDEBAR_ITEMHELPER] = L"Items Helper";
+    cn["SIDEBAR_VSCRIPT"] = L"自定脚本"; en["SIDEBAR_VSCRIPT"] = L"Scripts";
     
     cn[Keys::SOUNDS_TITLE] = L"文件位置"; en[Keys::SOUNDS_TITLE] = L"File Location";
     cn[Keys::SOUNDS_GSI_RUNNING] = L"运行中"; en[Keys::SOUNDS_GSI_RUNNING] = L"Running";
@@ -135,6 +136,18 @@ void i18n::Init() {
     cn["ITEM_KEY_NEXT"] = L"下一项快捷键: %s"; en["ITEM_KEY_NEXT"] = L"Next Item Key: %s";
     cn["ITEM_KEY_SEL"] = L"确认/预览快捷键: %s"; en["ITEM_KEY_SEL"] = L"Select/Preview Key: %s";
     cn["ITEM_MSG_REC"] = L"确认将参数都设置为默认值吗？"; en["ITEM_MSG_REC"] = L"recovery setting?";
+
+    cn["VSCRIPT_TITLE"] = L"自定脚本"; en["VSCRIPT_TITLE"] = L"Scripts";
+    cn["VSCRIPT_MOUNT"] = L"挂载脚本"; en["VSCRIPT_MOUNT"] = L"Mount";
+    cn["VSCRIPT_OPEN_DIR"] = L"打开目录"; en["VSCRIPT_OPEN_DIR"] = L"Open Dir";
+    cn["VSCRIPT_BUILD"] = L"构建"; en["VSCRIPT_BUILD"] = L"Build";
+    cn["VSCRIPT_CAPABILITY"] = L"能力"; en["VSCRIPT_CAPABILITY"] = L"Capability";
+    cn["VSCRIPT_MOUNTED"] = L"已挂载脚本"; en["VSCRIPT_MOUNTED"] = L"Mounted Scripts";
+    cn["VSCRIPT_CONTINUOUS"] = L"持续"; en["VSCRIPT_CONTINUOUS"] = L"Loop";
+    cn["VSCRIPT_RUN"] = L"执行"; en["VSCRIPT_RUN"] = L"Run";
+    cn["VSCRIPT_REMOVE"] = L"卸载"; en["VSCRIPT_REMOVE"] = L"Remove";
+    cn["VSCRIPT_POLLING"] = L"轮询中"; en["VSCRIPT_POLLING"] = L"Polling";
+    cn["VSCRIPT_EMPTY"] = L"暂无挂载脚本。示范脚本已生成在脚本目录。"; en["VSCRIPT_EMPTY"] = L"No mounted scripts. Samples are in the script folder.";
 
     //刀
 // 刀型翻译定义

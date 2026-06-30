@@ -5,6 +5,8 @@ project(StrikeSense
     LANGUAGES CXX RC
 )
 
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;Nightly" CACHE STRING "" FORCE)
+set(CMAKE_MAP_IMPORTED_CONFIG_NIGHTLY Release)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
@@ -19,15 +21,19 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(MSVC)
     add_compile_options(
         /W3 /utf-8 /permissive- /Zc:__cplusplus
-        $<$<CONFIG:Release>:/O2> $<$<CONFIG:Release>:/GS->
+        $<$<OR:$<CONFIG:Release>,$<CONFIG:Nightly>>:/O2> $<$<OR:$<CONFIG:Release>,$<CONFIG:Nightly>>:/GS->
         $<$<CONFIG:Debug>:/Od> $<$<CONFIG:Debug>:/Zi>
-        $<$<CONFIG:Release>:/MT> $<$<CONFIG:Debug>:/MTd>
+        $<$<OR:$<CONFIG:Release>,$<CONFIG:Nightly>>:/MT> $<$<CONFIG:Debug>:/MTd>
     )
     add_link_options($<$<CONFIG:Debug>:/DEBUG>)
 endif()
 
 add_definitions(-D_WINDOWS -DUNICODE -D_UNICODE)
-add_compile_definitions(STRIKESENSE_BUILD_CODE=2)
+add_compile_definitions(
+    $<$<CONFIG:Release>:STRIKESENSE_BUILD_CODE=0>
+    $<$<CONFIG:Nightly>:STRIKESENSE_BUILD_CODE=1>
+    $<$<CONFIG:Debug>:STRIKESENSE_BUILD_CODE=2>
+)
 
 # 寻找第三方包
 find_package(nlohmann_json CONFIG REQUIRED)
