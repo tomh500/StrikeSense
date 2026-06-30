@@ -5,45 +5,839 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StrikeSense - 脚本文档</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .docs-container { max-width: 900px; margin: 80px auto; padding: 20px; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; overflow-x: auto; }
+        code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; color: #c7254e; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 10px; }
+    </style>
 </head>
 <body>
     <header class="navbar">
         <div class="container nav-container">
-            <a href="index.html" class="logo">StrikeSense</a>
+            <a href="#" class="logo">StrikeSense</a>
             <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
                 <span></span><span></span><span></span>
             </button>
             <nav class="nav-links" id="navLinks">
-                <a href="index.html">返回首页</a>
-                <a href="rescenter.html">资源下载中心</a>
-                <a href="oemkeygen.html">OEM申请</a>
-                <a href="scriptdocs.html" class="active-link">脚本文档</a>
-            </nav>
+                <a href="index.html">返回主页</a>
+   
+             <a href=""></a> 
         </div>
     </header>
+    <main class="docs-container markdown-body">
+        <h1>StrikeSense VScript 手册</h1>
+<h2>1. 目标</h2>
+<p>VScript 是 StrikeSense 的轻量脚本系统。</p>
+<p>它做两件事：</p>
+<ol>
+<li>把游戏通过 GSI 发来的原始状态同步成脚本变量。</li>
+<li>把 StrikeSense 自己推导出来的内部结论，同样同步成脚本变量。</li>
+</ol>
+<p>脚本目录：</p>
+<p><code>%UserProfile%/StrikeSense/script</code></p>
+<p>程序只会确保脚本目录存在，不会额外生成 <code>assets</code> 之类的发布资源目录。仓库里的 <code>vscript_examples</code> 只是示范源码。</p>
+<h2>2. 运行能力</h2>
+<ul>
+<li><code>user</code></li>
+<li>稳定版能力。</li>
+<li>默认只能执行安全函数。</li>
+<li>如果脚本使用高权限函数，必须在元信息里声明当前 Windows 用户是作者，才能挂载和执行。</li>
+<li><code>userdebug</code></li>
+<li>对应 nightly / OEM 解锁。</li>
+<li>可以挂载和执行高权限脚本。</li>
+<li>界面会把高权限脚本标成危险样式。</li>
+<li><code>eng</code></li>
+<li>测试专用。</li>
+<li>具备最高脚本能力。</li>
+</ul>
+<h2>3. 元信息</h2>
+<p>脚本头部支持以下元信息：</p>
+<pre><code class="language-cpp">// @name: 语法总览脚本
+// @author: jingy
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 这个脚本只用于说明语法，不建议直接拿来做实际功能。
+// @modifier: self_user=jingy
+</code></pre>
+<p>字段说明：</p>
+<ul>
+<li><code>@name</code></li>
+<li>用途：挂载列表显示名。</li>
+<li><code>@author</code></li>
+<li>用途：显示作者信息。</li>
+<li><code>@provider</code></li>
+<li>用途：显示脚本来源提供者。</li>
+<li><code>@version</code></li>
+<li>用途：显示脚本版本。</li>
+<li><code>@notice</code></li>
+<li>用途：鼠标悬停 <code>!</code> 时显示说明。</li>
+<li><code>@modifier</code></li>
+<li>用途：声明修饰符。</li>
+<li>当前支持：<ul>
+<li><code>self_user=&lt;Windows用户名&gt;</code></li>
+</ul>
+</li>
+<li>作用：<ul>
+<li>当脚本包含高权限函数时，<code>user</code> 模式会检查这个用户名是否等于当前 Windows 用户。</li>
+<li>相等则允许挂载和执行，但 UI 会显示危险样式。</li>
+<li>不相等则 <code>user</code> 模式拒绝挂载。</li>
+</ul>
+</li>
+</ul>
+<h2>4. 基本语法</h2>
+<ul>
+<li>语句必须以 <code>;</code> 结尾。</li>
+<li>支持 <code>//</code> 行注释。</li>
+<li>支持 <code>/* ... */</code> 块注释。</li>
+<li>支持 <code>if / else / while / for / goto / return</code>。</li>
+<li>支持变量声明：</li>
+<li><code>int</code></li>
+<li><code>float</code></li>
+<li><code>string</code></li>
+<li>支持条件运算：</li>
+<li><code>==</code></li>
+<li><code>!=</code></li>
+<li><code>&gt;</code></li>
+<li><code>&lt;</code></li>
+<li><code>&gt;=</code></li>
+<li><code>&lt;=</code></li>
+<li><code>&amp;&amp;</code></li>
+<li><code>||</code></li>
+<li><code>!</code></li>
+<li><code>on:</code> 表示整个条件从假变真时只触发一次。</li>
+</ul>
+<h2>5. 唯一示范脚本</h2>
+<p>下面这个脚本只用于讲透语法，不追求实用：</p>
+<pre><code class="language-cpp">// @name: 语法总览脚本
+// @author: jingy
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 用一份脚本展示变量、流程控制、字符串、边沿触发和函数调用。
+// @modifier: self_user=jingy
 
-    <main class="docs-page">
-        <div class="container">
-            <article class="markdown-body" id="markdownBody">
-                <p>正在加载脚本文档...</p>
-            </article>
-        </div>
+int i = 0;
+float total = 0;
+string tag = &quot;demo&quot;;
+
+if(on:round_phase==&quot;live&quot;){
+    Log(&quot;回合刚进入 live&quot;);
+    i = 0;
+    total = 0;
+};
+
+while(i&lt;3){
+    total = total + 0.5;
+    i = i + 1;
+};
+
+for(int k=0; k&lt;2; k=k+1){
+    Log(&quot;for 循环仍在运行&quot;);
+};
+
+if(weapon_name==&quot;weapon_hkp2000&quot; &amp;&amp; weapon_clip_delta&gt;0){
+    Log(&quot;检测到一发开火&quot;);
+}else{
+    Log(&quot;当前没有满足 P2000 开火条件&quot;);
+};
+
+if(!internal_in_lobby &amp;&amp; (health&gt;0 || death_mute==false)){
+    Top(&quot;cs2.exe&quot;, true);
+};
+
+return;
+</code></pre>
+<h2>6. 函数总表</h2>
+<h3>6.1 基础控制函数</h3>
+<p><code>CloseGameWindow()</code></p>
+<ul>
+<li>用途：把 CS2 窗口最小化。</li>
+<li>参数：无。</li>
+<li>说明：</li>
+<li>当前实现会优先尝试把焦点切到现有浏览器窗口，避免直接最小化独占全屏游戏导致窗口状态异常。</li>
+<li>如果没有可安全切出的目标窗口，它会跳过强制最小化。</li>
+</ul>
+<p><code>KillGameProcess()</code></p>
+<ul>
+<li>用途：结束 <code>cs2.exe</code> 进程。</li>
+<li>参数：无。</li>
+</ul>
+<p><code>RunGameProcess()</code></p>
+<ul>
+<li>用途：通过 <code>steam://run/730</code> 启动游戏。</li>
+<li>参数：无。</li>
+</ul>
+<p><code>ShowGameProcess()</code></p>
+<ul>
+<li>用途：恢复并激活 CS2 窗口。</li>
+<li>参数：无。</li>
+<li>说明：</li>
+<li>当前实现会先定位 CS2 主窗口，再走安全激活流程，尽量降低切回失败或窗口尺寸异常的概率。</li>
+</ul>
+<p><code>Browser(url, top_after_open, prefer_existing_browser)</code></p>
+<ul>
+<li>用途：用系统默认浏览器打开链接。</li>
+<li>参数：</li>
+<li><code>url</code><ul>
+<li>类型：<code>string</code></li>
+<li>用途：目标地址。</li>
+</ul>
+</li>
+<li><code>top_after_open</code><ul>
+<li>类型：<code>bool</code></li>
+<li>用途：是否在打开后，单次把浏览器窗口抬到最前。</li>
+<li>说明：这是单次抬前，不是持续置顶。</li>
+</ul>
+</li>
+<li><code>prefer_existing_browser</code><ul>
+<li>类型：<code>bool</code></li>
+<li>用途：是否优先复用已经打开的浏览器窗口。</li>
+<li>说明：传 <code>true</code> 时，会先尝试切到已打开的 Edge / Chrome / Firefox 等窗口；只有没找到现成窗口时才打开新链接。</li>
+</ul>
+</li>
+</ul>
+<p><code>Open(target)</code></p>
+<ul>
+<li>用途：用系统默认方式打开目标路径、程序或链接。</li>
+<li>参数：</li>
+<li><code>target</code><ul>
+<li>类型：<code>string</code></li>
+<li>示例：<code>"C:/Program Files/PotPlayer/PotPlayerMini64.exe"</code>、<code>"https://www.douyin.com/"</code></li>
+</ul>
+</li>
+</ul>
+<p><code>EnsureProcessWindow(process_name, launch_target, activate)</code></p>
+<ul>
+<li>用途：如果目标进程已存在，就切到它的窗口；如果不存在，就先启动再切过去。</li>
+<li>参数：</li>
+<li><code>process_name</code><ul>
+<li>类型：<code>string</code></li>
+<li>示例：<code>"PotPlayerMini64.exe"</code></li>
+</ul>
+</li>
+<li><code>launch_target</code><ul>
+<li>类型：<code>string</code></li>
+<li>用途：当进程不存在时用于启动的程序路径、快捷方式或链接。</li>
+</ul>
+</li>
+<li><code>activate</code><ul>
+<li>类型：<code>bool</code></li>
+<li>用途：是否在找到窗口后激活它。</li>
+</ul>
+</li>
+<li>说明：</li>
+<li>适合配合 <code>ShowGameProcess()</code> 做“死后切到播放器 / freezetime 切回游戏”这类脚本。</li>
+</ul>
+<p><code>Top(process_name, activate)</code></p>
+<ul>
+<li>用途：单次把指定进程的窗口抬到最前。</li>
+<li>参数：</li>
+<li><code>process_name</code><ul>
+<li>类型：<code>string</code></li>
+<li>示例：<code>"cs2.exe"</code>、<code>"chrome.exe"</code></li>
+</ul>
+</li>
+<li><code>activate</code><ul>
+<li>类型：<code>bool</code></li>
+<li><code>true</code>：抬前并尝试激活。</li>
+<li><code>false</code>：只做一次窗口层级提升，不强制抢焦点。</li>
+</ul>
+</li>
+<li>说明：</li>
+<li>不是持续 <code>TOPMOST</code>。</li>
+<li>只是一次性抬前。</li>
+</ul>
+<p><code>Drawimg(path, x, y, alpha_channel, opacity, ttl_ms, id)</code></p>
+<ul>
+<li>用途：在屏幕上绘制临时图片窗口。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+<li>用途：图片路径。</li>
+</ul>
+</li>
+<li><code>x</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：相对屏幕中心的 X 偏移。</li>
+</ul>
+</li>
+<li><code>y</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：相对屏幕中心的 Y 偏移。</li>
+</ul>
+</li>
+<li><code>alpha_channel</code><ul>
+<li>类型：<code>bool</code></li>
+<li>用途：是否按透明通道处理。</li>
+</ul>
+</li>
+<li><code>opacity</code><ul>
+<li>类型：<code>float</code></li>
+<li>范围：<code>0.0 ~ 1.0</code></li>
+</ul>
+</li>
+<li><code>ttl_ms</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：显示时长，毫秒。</li>
+</ul>
+</li>
+<li><code>id</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：图片实例 ID。</li>
+</ul>
+</li>
+</ul>
+<p><code>Closeimg(id)</code></p>
+<ul>
+<li>用途：关闭指定图片实例。</li>
+<li>参数：</li>
+<li><code>id</code><ul>
+<li>类型：<code>int</code></li>
+</ul>
+</li>
+</ul>
+<p><code>Playsnd(path, volume, id)</code></p>
+<ul>
+<li>用途：播放音频。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+<li>用途：音频路径。</li>
+</ul>
+</li>
+<li><code>volume</code><ul>
+<li>类型：<code>float</code></li>
+<li>范围：<code>0.0 ~ 1.0</code></li>
+</ul>
+</li>
+<li><code>id</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：音频实例 ID。</li>
+</ul>
+</li>
+</ul>
+<p><code>Stopsnd(id)</code></p>
+<ul>
+<li>用途：停止指定音频实例。</li>
+<li>参数：</li>
+<li><code>id</code><ul>
+<li>类型：<code>int</code></li>
+</ul>
+</li>
+</ul>
+<p><code>Sleep(ms)</code></p>
+<ul>
+<li>用途：暂停脚本执行。</li>
+<li>参数：</li>
+<li><code>ms</code><ul>
+<li>类型：<code>int</code></li>
+<li>用途：等待毫秒数。</li>
+</ul>
+</li>
+</ul>
+<p><code>Log(text)</code></p>
+<ul>
+<li>用途：向控制台输出中文调试日志。</li>
+<li>参数：</li>
+<li><code>text</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<h3>6.2 高权限函数</h3>
+<p>这组函数属于危险函数：</p>
+<ul>
+<li><code>ShellExecute(command)</code></li>
+<li><code>CFile(path, content)</code></li>
+<li><code>DFile(path)</code></li>
+<li><code>OwriteFile(path, content)</code></li>
+<li><code>AwriteFile(path, content)</code></li>
+</ul>
+<p>说明：</p>
+<ul>
+<li><code>userdebug / eng</code> 可以执行。</li>
+<li><code>user</code> 模式只有在脚本声明了 <code>@modifier: self_user=&lt;当前Windows用户名&gt;</code> 时才允许。</li>
+<li>这些脚本在 UI 中会显示危险样式。</li>
+</ul>
+<p>参数说明：</p>
+<p><code>ShellExecute(command)</code></p>
+<ul>
+<li>用途：调用 <code>cmd /C</code> 执行命令。</li>
+<li>参数：</li>
+<li><code>command</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<p><code>CFile(path, content)</code></p>
+<ul>
+<li>用途：创建或覆盖文件。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+<li><code>content</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<p><code>DFile(path)</code></p>
+<ul>
+<li>用途：删除文件。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<p><code>OwriteFile(path, content)</code></p>
+<ul>
+<li>用途：覆写文件。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+<li><code>content</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<p><code>AwriteFile(path, content)</code></p>
+<ul>
+<li>用途：追加写入文件。</li>
+<li>参数：</li>
+<li><code>path</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+<li><code>content</code><ul>
+<li>类型：<code>string</code></li>
+</ul>
+</li>
+</ul>
+<h3>6.3 StrikeSense 状态函数</h3>
+<p><code>SetDeathVolume(value)</code></p>
+<ul>
+<li>用途：修改“死亡后即时降低”音量。</li>
+<li>参数：</li>
+<li><code>value</code><ul>
+<li>类型：<code>float</code></li>
+<li>范围：<code>0.0 ~ 1.0</code></li>
+</ul>
+</li>
+</ul>
+<p><code>SetProcessVolume(process_name, volume_percent)</code></p>
+<ul>
+<li>用途：直接修改指定进程当前音频会话的系统合成器音量。</li>
+<li>参数：</li>
+<li><code>process_name</code><ul>
+<li>类型：<code>string</code></li>
+<li>示例：<code>"cs2.exe"</code>、<code>"chrome.exe"</code>、<code>"Spotify.exe"</code></li>
+</ul>
+</li>
+<li><code>volume_percent</code><ul>
+<li>类型：<code>float</code></li>
+<li>范围：<code>0.0 ~ 100.0</code></li>
+</ul>
+</li>
+<li>说明：</li>
+<li>这里传的是百分比，不是 <code>0.0 ~ 1.0</code> 的系数。</li>
+<li>该函数等同于 C++ 层的 <code>SetProcessVolumeByName(processName, volumePercent)</code>。</li>
+<li>只有目标进程已经创建了音频会话时，系统合成器音量才能被改到。</li>
+</ul>
+<p><code>SetProcessMute(process_name, muted)</code></p>
+<ul>
+<li>用途：直接修改指定进程当前音频会话的静音状态。</li>
+<li>参数：</li>
+<li><code>process_name</code><ul>
+<li>类型：<code>string</code></li>
+<li>示例：<code>"msedge.exe"</code>、<code>"chrome.exe"</code></li>
+</ul>
+</li>
+<li><code>muted</code><ul>
+<li>类型：<code>bool</code></li>
+<li><code>true</code> 表示静音，<code>false</code> 表示取消静音。</li>
+</ul>
+</li>
+<li>说明：</li>
+<li>该函数等同于 C++ 层的 <code>SetProcessMuteByName(processName, muted)</code>。</li>
+<li>适合配合 <code>ShowGameProcess()</code> / <code>Browser(...)</code> 做浏览器静音与取消静音。</li>
+</ul>
+<p><code>SetDeathMute(enabled)</code></p>
+<ul>
+<li>用途：开启或关闭“死亡后即时降低”。</li>
+<li>参数：</li>
+<li><code>enabled</code><ul>
+<li>类型：<code>bool</code></li>
+</ul>
+</li>
+</ul>
+<p><code>SetCrosshairEnabled(enabled)</code></p>
+<ul>
+<li>用途：只控制脚本准星开关。</li>
+<li>参数：</li>
+<li><code>enabled</code><ul>
+<li>类型：<code>bool</code></li>
+</ul>
+</li>
+</ul>
+<p><code>SetCrosshairVisual(r, g, b, style, thickness, scale)</code></p>
+<ul>
+<li>用途：只更新脚本准星外观，不负责开关。</li>
+<li>参数：</li>
+<li><code>r</code><ul>
+<li>类型：<code>int</code></li>
+<li>范围：<code>0 ~ 255</code></li>
+</ul>
+</li>
+<li><code>g</code><ul>
+<li>类型：<code>int</code></li>
+<li>范围：<code>0 ~ 255</code></li>
+</ul>
+</li>
+<li><code>b</code><ul>
+<li>类型：<code>int</code></li>
+<li>范围：<code>0 ~ 255</code></li>
+</ul>
+</li>
+<li><code>style</code><ul>
+<li>类型：<code>int</code></li>
+<li>可能值：</li>
+<li><code>0</code> 空心圆</li>
+<li><code>1</code> 实心圆</li>
+<li><code>2</code> 经典十字</li>
+</ul>
+</li>
+<li><code>thickness</code><ul>
+<li>类型：<code>int</code></li>
+<li>范围：<code>1 ~ 10</code></li>
+</ul>
+</li>
+<li><code>scale</code><ul>
+<li>类型：<code>float</code></li>
+<li>范围：<code>0.1 ~ 0.6</code></li>
+</ul>
+</li>
+</ul>
+<p><code>SetCrosshair(enabled, r, g, b, style, thickness, scale)</code></p>
+<ul>
+<li>用途：兼容旧写法，一次同时设置开关和外观。</li>
+<li>建议：新脚本优先拆成 <code>SetCrosshairEnabled</code> 和 <code>SetCrosshairVisual</code>。</li>
+</ul>
+<h2>7. 变量来源分类</h2>
+<p>变量分两大类：</p>
+<ol>
+<li><code>GSI 原始变量</code></li>
+<li>来源：游戏直接发来的 JSON。</li>
+<li>特征：能从 GSI 原文里直接找到。</li>
+<li><code>内部变量</code></li>
+<li>来源：StrikeSense 根据 GSI 和自身状态机推导出的二级结论。</li>
+<li>特征：不是游戏直接给的，而是程序算出来的。</li>
+</ol>
+<h2>8. GSI 原始变量</h2>
+<h3>8.1 原始展开变量</h3>
+<p>任何收到的 GSI 字段，都会尽量同步成 <code>gsi_...</code> 变量。</p>
+<p>例如：</p>
+<ul>
+<li><code>gsi_provider_name</code></li>
+<li><code>gsi_map_team_ct_score</code></li>
+<li><code>gsi_player_state_health</code></li>
+<li><code>gsi_player_weapons_weapon_1_ammo_clip</code></li>
+</ul>
+<p>补充：</p>
+<ul>
+<li><code>gsi_field_count</code></li>
+<li>作用：当前已同步的叶子字段数量。</li>
+<li>来源：内部统计，但统计对象是 GSI 原始字段。</li>
+</ul>
+<h3>8.2 便捷别名变量</h3>
+<p>这些变量本质仍然来自游戏 GSI，但名字更短，脚本更方便写。</p>
+<ul>
+<li><code>provider_name</code></li>
+<li>作用：游戏名称。</li>
+<li>可能值：<code>Counter-Strike: Global Offensive</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>provider_appid</code></li>
+<li>作用：游戏 AppID。</li>
+<li>可能值：<code>730</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>provider_version</code></li>
+<li>作用：GSI 提供的版本号。</li>
+<li>来源：游戏 GSI</li>
+<li><code>provider_steamid</code></li>
+<li>作用：当前玩家 SteamID。</li>
+<li>来源：游戏 GSI</li>
+<li><code>provider_timestamp</code></li>
+<li>作用：GSI 数据时间戳。</li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>map</code></p>
+</li>
+<li>作用：地图名。</li>
+<li>可能值：<code>de_nuke</code>、<code>de_mirage</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>map_mode</code></li>
+<li>作用：模式名。</li>
+<li>可能值：<code>competitive</code>、<code>casual</code>、<code>deathmatch</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>map_phase</code></li>
+<li>作用：地图阶段。</li>
+<li>来源：游戏 GSI</li>
+<li><code>map_round</code></li>
+<li>作用：当前总回合编号。</li>
+<li>来源：游戏 GSI</li>
+<li><code>team_ct_score</code></li>
+<li><code>team_ct_consecutive_round_losses</code></li>
+<li><code>team_ct_timeouts_remaining</code></li>
+<li><code>team_ct_matches_won_this_series</code></li>
+<li><code>team_t_score</code></li>
+<li><code>team_t_consecutive_round_losses</code></li>
+<li><code>team_t_timeouts_remaining</code></li>
+<li><code>team_t_matches_won_this_series</code></li>
+<li><code>map_num_matches_to_win_series</code></li>
+<li>作用：都是比分与系列赛相关值。</li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>round_phase</code></p>
+</li>
+<li>作用：当前回合阶段。</li>
+<li>可能值：<code>freezetime</code>、<code>live</code>、<code>over</code>、<code>gameover</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>round_win_team</code></li>
+<li>作用：回合获胜方。</li>
+<li>可能值：<code>CT</code>、<code>T</code></li>
+<li>来源：游戏 GSI / added.round</li>
+<li><code>bomb</code></li>
+<li>作用：炸弹状态。</li>
+<li>可能值：<code>planted</code></li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>player_name</code></p>
+</li>
+<li><code>steamid</code></li>
+<li><code>team</code></li>
+<li><code>activity</code></li>
+<li><code>observer_slot</code></li>
+<li>作用：当前玩家身份与活动状态。</li>
+<li><code>activity</code> 可能值：<code>menu</code>、<code>playing</code></li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>health</code></p>
+</li>
+<li><code>armor</code></li>
+<li><code>helmet</code></li>
+<li><code>flashed</code></li>
+<li><code>smoked</code></li>
+<li><code>burning</code></li>
+<li><code>money</code></li>
+<li><code>kills</code></li>
+<li><code>round_killhs</code></li>
+<li><code>equip_value</code></li>
+<li>作用：当前玩家状态值。</li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>mvps</code></p>
+</li>
+<li><code>match_kills</code></li>
+<li><code>match_assists</code></li>
+<li><code>match_deaths</code></li>
+<li><code>match_score</code></li>
+<li>作用：整场比赛统计值。</li>
+<li>
+<p>来源：游戏 GSI</p>
+</li>
+<li>
+<p><code>weapon_name</code></p>
+</li>
+<li>作用：当前激活武器名。</li>
+<li>可能值：<code>weapon_hkp2000</code>、<code>weapon_awp</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>weapon_type</code></li>
+<li>作用：当前激活武器类型。</li>
+<li>可能值：<code>Pistol</code>、<code>SniperRifle</code>、<code>Knife</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>weapon_state</code></li>
+<li>作用：当前激活武器状态。</li>
+<li>可能值：<code>active</code>、<code>holstered</code>、<code>reloading</code></li>
+<li>来源：游戏 GSI</li>
+<li><code>weapon_ammo_clip</code></li>
+<li><code>weapon_ammo_clip_max</code></li>
+<li><code>weapon_ammo_reserve</code></li>
+<li>作用：当前武器弹药信息。</li>
+<li>来源：游戏 GSI</li>
+</ul>
+<h3>8.3 上一帧别名变量</h3>
+<ul>
+<li><code>prev_round_phase</code></li>
+<li><code>prev_kills</code></li>
+<li><code>prev_health</code></li>
+<li><code>prev_weapon_name</code></li>
+<li><code>prev_weapon_type</code></li>
+<li><code>prev_weapon_state</code></li>
+<li><code>prev_weapon_ammo_clip</code></li>
+<li><code>prev_weapon_ammo_reserve</code></li>
+</ul>
+<p>作用：</p>
+<ul>
+<li>提供上一帧的便捷快照，方便直接写比较逻辑。</li>
+</ul>
+<p>来源：</p>
+<ul>
+<li>内部缓存，但内容来自上一帧 GSI。</li>
+</ul>
+<h2>9. 内部变量</h2>
+<p>这些变量不是游戏直接给的，而是 StrikeSense 根据 GSI 或状态机推导出来的二级结论。</p>
+<h3>9.1 武器事件内部变量</h3>
+<ul>
+<li><code>weapon_fired</code></li>
+<li>作用：这一帧检测到当前武器打出子弹。</li>
+<li>判定：<code>weapon_ammo_clip</code> 比上一帧减少。</li>
+<li>可能值：<code>true / false</code></li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_reloading</code></p>
+</li>
+<li>作用：这一帧检测到当前武器完成一次装填变化。</li>
+<li>判定：<code>weapon_ammo_clip</code> 比上一帧增加。</li>
+<li>可能值：<code>true / false</code></li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_switched</code></p>
+</li>
+<li>作用：这一帧检测到切枪。</li>
+<li>判定：当前 <code>weapon_name</code> 与上一帧不同。</li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_clip_delta</code></p>
+</li>
+<li>作用：弹匣子弹变化量。</li>
+<li>判定：<code>上一帧 ammo_clip - 当前 ammo_clip</code></li>
+<li>常见数值：<ul>
+<li><code>1</code> 表示打出一发</li>
+<li><code>0</code> 表示没有变化</li>
+<li>负数常见于装弹</li>
+</ul>
+</li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_reserve_delta</code></p>
+</li>
+<li>作用：备用弹药变化量。</li>
+<li>判定：<code>上一帧 ammo_reserve - 当前 ammo_reserve</code></li>
+<li>常见数值：<ul>
+<li>正数表示备用弹减少</li>
+<li><code>0</code> 表示无变化</li>
+</ul>
+</li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_fire_count</code></p>
+</li>
+<li>作用：本回合累计开火次数。</li>
+<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_reload_count</code></p>
+</li>
+<li>作用：本回合累计检测到的装填次数。</li>
+<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>weapon_reserve_drop_count</code></p>
+</li>
+<li>作用：本回合累计检测到的备用弹药下降次数。</li>
+<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
+<li>来源：内部推导</li>
+</ul>
+<h3>9.2 程序状态内部变量</h3>
+<ul>
+<li><code>death_mute</code></li>
+<li>作用：表示“本回合已判定死亡且当前仍处于死亡状态”的程序级结论。</li>
+<li>
+<p>来源：内部推导</p>
+</li>
+<li>
+<p><code>self_alive</code></p>
+</li>
+<li>作用：当前自己是否存活。</li>
+<li>
+<p>来源：程序内部状态机</p>
+</li>
+<li>
+<p><code>self_dead_this_round</code></p>
+</li>
+<li>作用：当前回合内自己是否已经被程序判定为死过一次。</li>
+<li>
+<p>来源：程序内部状态机</p>
+</li>
+<li>
+<p><code>internal_last_phase</code></p>
+</li>
+<li><code>internal_last_kills</code></li>
+<li><code>internal_last_mvps</code></li>
+<li><code>internal_dead_muted</code></li>
+<li><code>internal_waiting_for_live</code></li>
+<li><code>internal_round_started</code></li>
+<li><code>internal_mvp_candidate_kills</code></li>
+<li><code>internal_mvp_pushed_this_round</code></li>
+<li><code>internal_mvps_at_round_start</code></li>
+<li><code>internal_gameover_pushed</code></li>
+<li><code>internal_bomb_planted_this_round</code></li>
+<li><code>internal_player_team</code></li>
+<li><code>internal_map_mode</code></li>
+<li><code>internal_activity</code></li>
+<li><code>internal_round_kills</code></li>
+<li><code>internal_health</code></li>
+<li><code>internal_in_lobby</code></li>
+</ul>
+<p>这些变量的共同说明：</p>
+<ul>
+<li>作用：暴露 StrikeSense 在 <code>gsi_server</code> 内部维护的状态机结果。</li>
+<li>来源：内部变量，不是游戏直接字段。</li>
+<li>用法：</li>
+<li>当你想复用程序现成判断，而不是自己重新用一堆 GSI 字段写条件时，可以直接用它们。</li>
+</ul>
+<h2>10. 缺失值</h2>
+<p>如果字段当前不存在，会写成：</p>
+<p><code>void</code></p>
+<p>脚本里判断时要留意这一点。</p>
     </main>
-
-    <footer class="footer">
+    <footer id="download" class="footer">
         <div class="container footer-content">
+            <h3>开启你的全新 StrikeSense 竞技之旅</h3>
+            <p>环境要求：Windows 10 / 11 64位系统 | 完美支持 CS2 官方纯净环境</p>
+            <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg js-download-choice">立即免费下载</a>
+            
             <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
         </div>
     </footer>
-
-    <script src="scriptdocs.js"></script>
-    <script>
-        const menuToggle = document.getElementById('menuToggle');
-        const navLinks = document.getElementById('navLinks');
-        menuToggle.addEventListener('click', () => {
-            menuToggle.classList.toggle('open');
-            navLinks.classList.toggle('open');
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
