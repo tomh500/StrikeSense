@@ -9,7 +9,7 @@ const RESOURCE_DATABASE = [
         filename: "音乐操作台",
         img: "img/rescenter/musictool.png", // 示范音乐盒图
         desc: "一个可视化的音乐操作台，可以快速剪切音频和导出音频，需要安装FFmpeg、Python3.13更新版本和PyQt6 PyQt6-multimedia依赖库，本脚本由AI辅助编写。",
-        tags: ["官方", "其他"],
+        tags: ["官方", "脚本", "其他"],
         provider: "StrikeSense 运营团队",
         downloadUrl: "app/rescenter/musictool.py"
     },
