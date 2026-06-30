@@ -79,17 +79,6 @@ void LoadEvolutionParams() {
         gv("hotkey_mod", g_hotkeyMod); gv("hotkey_vk", g_hotkeyVk);
         gb("crosshair_enabled", g_crosshairEnabled);
         gb("item_helper_enabled", g_itemHelperEnabled);
-        // --- 核心修复：加载后同步触发准星启动 ---
-        if (g_crosshairEnabled) {
-            // 如果已在加载，先确保线程状态正确
-            if (!g_crossThreadRunning) {
-                StartCrosshair(hInst); 
-            }
-        } else {
-            // 确保如果配置是关闭，线程处于停止状态
-            StopCrosshair();
-        }
-        // ------------------------------------
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
@@ -115,6 +104,9 @@ void LoadEvolutionParams() {
         gv("item_helper_key_prev", g_itemHelperKeyPrev);
         gv("item_helper_key_next", g_itemHelperKeyNext);
         gv("item_helper_key_sel", g_itemHelperKeySelect);
+
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale);
+        ApplyCrosshairEnabled(g_crosshairEnabled);
         
     } catch (...) {
         // 异常捕获时也保险起见重置
@@ -192,6 +184,34 @@ static void StopCrosshair() {
 }
 
 void DestroyCrosshairInternal() { StopCrosshair(); }
+
+void RefreshCrosshairOverlay()
+{
+    if (!g_crossHWnd) return;
+    RedrawWindow(g_crossHWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+}
+
+void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale)
+{
+    g_crosshairR = std::clamp(r, 0, 255);
+    g_crosshairG = std::clamp(g, 0, 255);
+    g_crosshairB = std::clamp(b, 0, 255);
+    g_crosshairStyle = std::clamp(style, 0, 2);
+    g_crosshairThickness = std::clamp(thickness, 1, 10);
+    g_crosshairScale = std::clamp(scale, 0.1f, 0.6f);
+    RefreshCrosshairOverlay();
+}
+
+void ApplyCrosshairEnabled(bool enabled)
+{
+    g_crosshairEnabled = enabled;
+    if (g_crosshairEnabled) {
+        if (!g_crossThreadRunning) StartCrosshair(hInst);
+        RefreshCrosshairOverlay();
+        return;
+    }
+    StopCrosshair();
+}
 
 // ===== UI 绘制层 =====
 void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
@@ -402,28 +422,26 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     for (int i = 0; i < 3; ++i) {
         int bx = rgbLabelX + i * rgbSpacing;
         int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
-        if (ui::CheckSliderClick(mx, my, bx + 20, yRgb, rgbBarW, val)) { *rgbV[i] = (int)(val * 255.f); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+        if (ui::CheckSliderClick(mx, my, bx + 20, yRgb, rgbBarW, val)) { *rgbV[i] = (int)(val * 255.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     }
     int thBarX = cx + 10 + 40, thBarW = 80;
-    if (ui::CheckSliderClick(mx, my, thBarX, yRow2, thBarW, val)) { g_crosshairThickness = 1 + (int)(val * 9.f); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, thBarX, yRow2, thBarW, val)) { g_crosshairThickness = 1 + (int)(val * 9.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int scBarX = thBarX + thBarW + 40 + 40, scBarW = 100;
-    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.1f + val * 0.5f; SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.1f + val * 0.5f; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int ddX = scBarX + scBarW + 40 + 40, ddW = 100;
     if (my >= yRow2 - 2 && my <= yRow2 + 18 && mx >= ddX && mx <= ddX + ddW) { g_styleDropdownOpen = !g_styleDropdownOpen; InvalidateRect(hw, nullptr, FALSE); return; }
     if (g_styleDropdownOpen) {
         for (int j = 0; j < 3; ++j) {
             if (mx >= ddX && mx <= ddX + ddW && my >= yRow2 + 16 + j * 18 && my <= yRow2 + 34 + j * 18) {
-                g_crosshairStyle = j; g_styleDropdownOpen = false; SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return;
+                g_crosshairStyle = j; g_styleDropdownOpen = false; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return;
             }
         }
         g_styleDropdownOpen = false; InvalidateRect(hw, nullptr, FALSE); return;
     }
     int enableX = ddX + ddW + 40, tx = enableX + 40, tye = yRow2 - 4;
     if (ui::CheckToggleClick(mx, my, tx, tye)) {
-        g_crosshairEnabled = !g_crosshairEnabled; SaveEvolutionParams();
-        // 这里修正了宏调用或局部 hInst 未声明的情况，直接使用全局/外层的 hInst
-        if (g_crosshairEnabled && !g_crossThreadRunning) StartCrosshair(hInst);
-        else if (!g_crosshairEnabled) StopCrosshair();
+        ApplyCrosshairEnabled(!g_crosshairEnabled);
+        SaveEvolutionParams();
         InvalidateRect(hw, nullptr, FALSE);
     }
 }

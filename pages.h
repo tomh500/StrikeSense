@@ -52,6 +52,9 @@ extern float g_crosshairScale;
 // ===== 进化参数持久化 =====
 void SaveEvolutionParams();
 void LoadEvolutionParams();
+void ApplyCrosshairEnabled(bool enabled);
+void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale);
+void RefreshCrosshairOverlay();
 
 // ===== 通用 UI 工具 =====
 namespace ui {

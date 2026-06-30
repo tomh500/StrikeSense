@@ -2,6 +2,7 @@
 #include "vscrpit.h"
 #include "i18n.h"
 
+#include <algorithm>
 #include <commdlg.h>
 #include <filesystem>
 #include <iostream>
@@ -99,7 +100,26 @@ void DrawTooltip(Gdiplus::Graphics& g, const std::wstring& text, int x, int y)
     SolidBrush bg(Color(245, 255, 255, 255));
     SolidBrush fg(Color(255, 35, 65, 95));
     Pen border(Color(255, 145, 190, 220), 1.0f);
-    RectF box((REAL)x + 14, (REAL)y + 16, 320.f, 54.f);
+    StringFormat fmt;
+    fmt.SetTrimming(StringTrimmingWord);
+    fmt.SetFormatFlags(StringFormatFlagsLineLimit);
+    constexpr REAL kMinWidth = 180.f;
+    constexpr REAL kMaxWidth = 420.f;
+    constexpr REAL kPaddingX = 10.f;
+    constexpr REAL kPaddingY = 8.f;
+
+    RectF measureSingle(0.f, 0.f, 4096.f, 200.f);
+    RectF singleBound;
+    g.MeasureString(text.c_str(), -1, &f, measureSingle, &fmt, &singleBound);
+
+    REAL innerWidth = std::clamp(singleBound.Width + 6.f, kMinWidth, kMaxWidth);
+    RectF measureWrap(0.f, 0.f, innerWidth, 240.f);
+    RectF wrapBound;
+    g.MeasureString(text.c_str(), -1, &f, measureWrap, &fmt, &wrapBound);
+
+    REAL boxWidth = innerWidth + kPaddingX * 2.f;
+    REAL boxHeight = (std::max)(32.f, wrapBound.Height + kPaddingY * 2.f);
+    RectF box((REAL)x + 14, (REAL)y + 16, boxWidth, boxHeight);
     GraphicsPath p;
     p.AddArc(box.X, box.Y, 10.f, 10.f, 180.f, 90.f);
     p.AddArc(box.X + box.Width - 10.f, box.Y, 10.f, 10.f, 270.f, 90.f);
@@ -108,9 +128,7 @@ void DrawTooltip(Gdiplus::Graphics& g, const std::wstring& text, int x, int y)
     p.CloseFigure();
     g.FillPath(&bg, &p);
     g.DrawPath(&border, &p);
-    RectF textBox(box.X + 10, box.Y + 8, box.Width - 20, box.Height - 16);
-    StringFormat fmt;
-    fmt.SetTrimming(StringTrimmingEllipsisWord);
+    RectF textBox(box.X + kPaddingX, box.Y + kPaddingY, box.Width - kPaddingX * 2.f, box.Height - kPaddingY * 2.f);
     g.DrawString(text.c_str(), -1, &f, textBox, &fmt, &fg);
 }
 
