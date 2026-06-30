@@ -51,6 +51,7 @@ struct image_window {
     int width = 0;
     int height = 0;
     float alpha = 1.0f;
+    bool layeredAlpha = false;
 };
 
 struct sound_slot {
@@ -1204,6 +1205,73 @@ void CloseImage(int id)
     std::cout << "[脚本] 已关闭图片 ID=" << id << std::endl;
 }
 
+bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int height, int x, int y, float opacity)
+{
+    if (!hwnd || !image || width <= 0 || height <= 0) return false;
+
+    Gdiplus::Bitmap surface(width, height, PixelFormat32bppPARGB);
+    Gdiplus::Graphics graphics(&surface);
+    graphics.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
+    graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+    graphics.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+    graphics.Clear(Gdiplus::Color(0, 0, 0, 0));
+    graphics.DrawImage(image, 0, 0, width, height);
+
+    Gdiplus::Rect rect(0, 0, width, height);
+    Gdiplus::BitmapData bitmapData{};
+    if (surface.LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &bitmapData) != Gdiplus::Ok) {
+        std::wcout << L"[脚本] 锁定位图像素失败，无法应用真 alpha 通道" << std::endl;
+        return false;
+    }
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    HDC screenDc = GetDC(nullptr);
+    HDC memDc = CreateCompatibleDC(screenDc);
+    void* dibPixels = nullptr;
+    HBITMAP dib = CreateDIBSection(screenDc, &bmi, DIB_RGB_COLORS, &dibPixels, nullptr, 0);
+    HBITMAP oldBitmap = nullptr;
+
+    bool ok = false;
+    if (screenDc && memDc && dib && dibPixels) {
+        oldBitmap = (HBITMAP)SelectObject(memDc, dib);
+        const size_t rowBytes = (size_t)width * 4;
+        for (int row = 0; row < height; ++row) {
+            std::memcpy(
+                static_cast<unsigned char*>(dibPixels) + row * rowBytes,
+                static_cast<unsigned char*>(bitmapData.Scan0) + row * bitmapData.Stride,
+                rowBytes);
+        }
+
+        POINT dstPt{ x, y };
+        SIZE size{ width, height };
+        POINT srcPt{ 0, 0 };
+        BLENDFUNCTION blend{};
+        blend.BlendOp = AC_SRC_OVER;
+        blend.SourceConstantAlpha = (BYTE)std::clamp((int)(opacity * 255.0f), 0, 255);
+        blend.AlphaFormat = AC_SRC_ALPHA;
+
+        ok = UpdateLayeredWindow(hwnd, screenDc, &dstPt, &size, memDc, &srcPt, 0, &blend, ULW_ALPHA) == TRUE;
+    }
+
+    surface.UnlockBits(&bitmapData);
+    if (oldBitmap) SelectObject(memDc, oldBitmap);
+    if (dib) DeleteObject(dib);
+    if (memDc) DeleteDC(memDc);
+    if (screenDc) ReleaseDC(nullptr, screenDc);
+
+    if (!ok) {
+        std::wcout << L"[脚本] UpdateLayeredWindow 失败，无法显示真 alpha 图片" << std::endl;
+    }
+    return ok;
+}
+
 bool DrawImageCommand(const fs::path& path, int offsetX, int offsetY, bool alphaChannel, float opacity, int ttlMs, int id)
 {
     CloseImage(id);
@@ -1221,11 +1289,22 @@ bool DrawImageCommand(const fs::path& path, int offsetX, int offsetY, bool alpha
         k_imageClass, L"", WS_POPUP, x, y, w, h, nullptr, nullptr, s_instance, nullptr);
     if (!hwnd) return false;
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, id);
-    BYTE a = (BYTE)std::clamp((int)(opacity * 255.0f), 0, 255);
-    SetLayeredWindowAttributes(hwnd, alphaChannel ? RGB(0, 0, 0) : 0, a, LWA_ALPHA);
-    s_images[id] = image_window{ hwnd, std::move(img), w, h, opacity };
-    ShowWindow(hwnd, SW_SHOW);
-    InvalidateRect(hwnd, nullptr, FALSE);
+    s_images[id] = image_window{ hwnd, std::move(img), w, h, opacity, alphaChannel };
+    ShowWindow(hwnd, SW_SHOWNA);
+
+    if (alphaChannel) {
+        if (!ApplyPerPixelAlphaImage(hwnd, s_images[id].image.get(), w, h, x, y, opacity)) {
+            DestroyWindow(hwnd);
+            s_images.erase(id);
+            return false;
+        }
+    }
+    else {
+        BYTE a = (BYTE)std::clamp((int)(opacity * 255.0f), 0, 255);
+        SetLayeredWindowAttributes(hwnd, 0, a, LWA_ALPHA);
+        InvalidateRect(hwnd, nullptr, FALSE);
+    }
+
     if (ttlMs > 0) {
         std::thread([id, ttlMs]() {
             Sleep((DWORD)ttlMs);
