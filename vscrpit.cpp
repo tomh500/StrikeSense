@@ -869,24 +869,6 @@ std::optional<std::pair<std::wstring, std::wstring>> ParseFunction(const std::ws
     return std::make_pair(Trim(stmt.substr(0, p)), stmt.substr(p + 1, q - p - 1));
 }
 
-BOOL CALLBACK EnumMinimizeCs2(HWND hwnd, LPARAM)
-{
-    DWORD pid = 0;
-    GetWindowThreadProcessId(hwnd, &pid);
-    if (!pid || !IsWindowVisible(hwnd)) return TRUE;
-    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (!h) return TRUE;
-    wchar_t path[MAX_PATH]{};
-    DWORD size = MAX_PATH;
-    bool match = QueryFullProcessImageNameW(h, 0, path, &size) && _wcsicmp(PathFindFileNameW(path), L"cs2.exe") == 0;
-    CloseHandle(h);
-    if (match) {
-        ShowWindow(hwnd, SW_MINIMIZE);
-        return FALSE;
-    }
-    return TRUE;
-}
-
 std::wstring ProcessNameFromWindow(HWND hwnd)
 {
     DWORD pid = 0;
@@ -908,19 +890,104 @@ struct top_request {
     bool firstOnly = false;
 };
 
-BOOL CALLBACK EnumTopProcess(HWND hwnd, LPARAM lp)
+bool IsLikelyMainWindow(HWND hwnd)
 {
-    auto* req = reinterpret_cast<top_request*>(lp);
-    std::wstring name = ProcessNameFromWindow(hwnd);
-    if (name.empty()) return TRUE;
-    if (_wcsicmp(name.c_str(), req->process.c_str()) != 0) return TRUE;
+    if (!IsWindowVisible(hwnd)) return false;
+    if (GetWindow(hwnd, GW_OWNER) != nullptr) return false;
+    if (GetAncestor(hwnd, GA_ROOT) != hwnd) return false;
+    LONG_PTR exStyle = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+    if ((exStyle & WS_EX_TOOLWINDOW) != 0) return false;
+    return true;
+}
+
+std::wstring NormalizeProcessName(const std::wstring& process)
+{
+    if (process.empty()) return process;
+    if (process.find(L'\\') != std::wstring::npos || process.find(L'/') != std::wstring::npos)
+        return PathFindFileNameW(process.c_str());
+    return process;
+}
+
+bool WindowMatchesProcess(HWND hwnd, const std::wstring& process)
+{
+    if (!IsLikelyMainWindow(hwnd)) return false;
+    const std::wstring name = ProcessNameFromWindow(hwnd);
+    if (name.empty()) return false;
+    const std::wstring target = NormalizeProcessName(process);
+    return _wcsicmp(name.c_str(), target.c_str()) == 0;
+}
+
+bool ActivateWindowSafely(HWND hwnd)
+{
+    if (!hwnd || !IsWindow(hwnd)) return false;
+
+    if (IsIconic(hwnd)) ShowWindowAsync(hwnd, SW_RESTORE);
+    else ShowWindowAsync(hwnd, SW_SHOW);
+
+    DWORD currentThreadId = GetCurrentThreadId();
+    DWORD foregroundThreadId = 0;
+    if (HWND fg = GetForegroundWindow()) foregroundThreadId = GetWindowThreadProcessId(fg, nullptr);
+
+    if (foregroundThreadId && foregroundThreadId != currentThreadId)
+        AttachThreadInput(currentThreadId, foregroundThreadId, TRUE);
+
+    BringWindowToTop(hwnd);
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-    if (req->activate) {
-        ShowWindow(hwnd, SW_SHOW);
-        SetForegroundWindow(hwnd);
+    SetForegroundWindow(hwnd);
+    SetActiveWindow(hwnd);
+    SetFocus(hwnd);
+
+    if (foregroundThreadId && foregroundThreadId != currentThreadId)
+        AttachThreadInput(currentThreadId, foregroundThreadId, FALSE);
+
+    return GetForegroundWindow() == hwnd;
+}
+
+std::optional<HWND> FindProcessMainWindow(const std::wstring& process)
+{
+    struct find_request {
+        std::wstring process;
+        std::optional<HWND> result;
+    } req{ process, std::nullopt };
+
+    EnumWindows([](HWND hwnd, LPARAM lp) -> BOOL {
+        auto* request = reinterpret_cast<find_request*>(lp);
+        if (!WindowMatchesProcess(hwnd, request->process)) return TRUE;
+        request->result = hwnd;
+        return FALSE;
+        }, reinterpret_cast<LPARAM>(&req));
+
+    return req.result;
+}
+
+bool FocusKnownBrowserWindow()
+{
+    for (const wchar_t* process : { L"msedge.exe", L"chrome.exe", L"firefox.exe", L"browser.exe", L"iexplore.exe" }) {
+        if (auto hwnd = FindProcessMainWindow(process)) {
+            const bool ok = ActivateWindowSafely(*hwnd);
+            std::wcout << L"[脚本] 已尝试切到浏览器窗口，进程=" << process
+                       << L"，结果=" << (ok ? L"成功" : L"未完全成功") << std::endl;
+            return true;
+        }
+    }
+    std::wcout << L"[脚本] 当前未找到已打开的浏览器窗口" << std::endl;
+    return false;
+}
+
+BOOL CALLBACK EnumTopProcess(HWND hwnd, LPARAM lp)
+{
+    auto* req = reinterpret_cast<top_request*>(lp);
+    if (!WindowMatchesProcess(hwnd, req->process)) return TRUE;
+    if (req->activate) ActivateWindowSafely(hwnd);
+    else {
+        BringWindowToTop(hwnd);
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
     return req->firstOnly ? FALSE : TRUE;
 }
@@ -959,23 +1026,33 @@ void TopBrowserSoon()
     }).detach();
 }
 
-BOOL CALLBACK EnumShowCs2(HWND hwnd, LPARAM)
+bool HideGameWindowSafely()
 {
-    DWORD pid = 0;
-    GetWindowThreadProcessId(hwnd, &pid);
-    if (!pid || !IsWindowVisible(hwnd)) return TRUE;
-    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (!h) return TRUE;
-    wchar_t path[MAX_PATH]{};
-    DWORD size = MAX_PATH;
-    bool match = QueryFullProcessImageNameW(h, 0, path, &size) && _wcsicmp(PathFindFileNameW(path), L"cs2.exe") == 0;
-    CloseHandle(h);
-    if (match) {
-        ShowWindow(hwnd, SW_RESTORE);
-        SetForegroundWindow(hwnd);
-        return FALSE;
+    if (FocusKnownBrowserWindow()) {
+        std::wcout << L"[脚本] 已优先切到浏览器，避免直接最小化 CS2 导致窗口状态异常" << std::endl;
+        return true;
     }
-    return TRUE;
+
+    if (auto hwnd = FindProcessMainWindow(L"cs2.exe")) {
+        std::wcout << L"[脚本] 检测到 CS2 主窗口，但为了安全未执行强制最小化，请配合 Browser(...) 使用" << std::endl;
+        return true;
+    }
+
+    std::wcout << L"[脚本] 未找到 CS2 主窗口，无法切出游戏" << std::endl;
+    return false;
+}
+
+bool ShowGameProcessSafely()
+{
+    auto hwnd = FindProcessMainWindow(L"cs2.exe");
+    if (!hwnd) {
+        std::wcout << L"[脚本] 未找到 CS2 主窗口，无法切回游戏" << std::endl;
+        return false;
+    }
+
+    const bool ok = ActivateWindowSafely(*hwnd);
+    std::wcout << L"[脚本] 已尝试安全切回 CS2，结果=" << (ok ? L"成功" : L"未完全成功") << std::endl;
+    return true;
 }
 
 bool KillProcessByName(const std::wstring& exe)
@@ -1135,18 +1212,20 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
     std::vector<value> args;
     for (const auto& a : rawArgs) args.push_back(EvalExpr(a));
 
-    if (name == L"CloseGameWindow") {
-        EnumWindows(EnumMinimizeCs2, 0);
-        return true;
-    }
+    if (name == L"CloseGameWindow") return HideGameWindowSafely();
     if (name == L"KillGameProcess") return KillProcessByName(L"cs2.exe");
     if (name == L"RunGameProcess") return LaunchUrlExternal(L"steam://run/730");
-    if (name == L"ShowGameProcess") {
-        EnumWindows(EnumShowCs2, 0);
-        return true;
-    }
+    if (name == L"ShowGameProcess") return ShowGameProcessSafely();
     if (name == L"Browser" && args.size() >= 1) {
-        bool ok = LaunchUrlExternal(ToText(args[0]));
+        const bool preferExisting = args.size() >= 3 && Truthy(args[2]);
+        bool ok = false;
+        if (preferExisting) {
+            ok = FocusKnownBrowserWindow();
+            if (!ok) {
+                std::wcout << L"[脚本] 未找到现有浏览器窗口，准备打开目标网址" << std::endl;
+            }
+        }
+        if (!ok) ok = LaunchUrlExternal(ToText(args[0]));
         if (ok && args.size() >= 2 && Truthy(args[1])) TopBrowserSoon();
         return ok;
     }
@@ -1186,6 +1265,13 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         std::wcout << L"[脚本] 请求设置进程音量，进程=" << processName
                    << L"，目标百分比=" << volumePercent << std::endl;
         return SetProcessVolumeByName(processName, volumePercent);
+    }
+    if (name == L"SetProcessMute" && args.size() >= 2) {
+        const std::wstring processName = ToText(args[0]);
+        const bool muted = Truthy(args[1]);
+        std::wcout << L"[脚本] 请求设置进程静音，进程=" << processName
+                   << L"，静音=" << (muted ? L"true" : L"false") << std::endl;
+        return SetProcessMuteByName(processName, muted);
     }
     if (name == L"SetDeathVolume" && args.size() >= 1) {
         g_death_vol = (float)std::clamp(ToNumber(args[0]), 0.0, 1.0);

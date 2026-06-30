@@ -316,6 +316,59 @@ bool SetProcessVolumeByName(const std::wstring& processName, float volumePercent
     return appliedCount > 0;
 }
 
+bool SetProcessMuteByName(const std::wstring& processName, bool muted)
+{
+    if (processName.empty())
+    {
+        std::wcout << L"[音量] 进程名为空，无法设置静音状态" << std::endl;
+        return false;
+    }
+
+    const HRESULT initHr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    const bool shouldUninitialize = SUCCEEDED(initHr);
+
+    if (FAILED(initHr) && initHr != RPC_E_CHANGED_MODE)
+    {
+        std::wcout << L"[音量] COM 初始化失败，HRESULT=" << initHr << std::endl;
+        return false;
+    }
+
+    int matchedCount = 0;
+    int appliedCount = 0;
+    const bool foundSession = ForEachProcessAudioSession(
+        processName,
+        [&](ISimpleAudioVolume* pVol, float)
+        {
+            const HRESULT hr = pVol->SetMute(muted, nullptr);
+            if (SUCCEEDED(hr))
+            {
+                ++appliedCount;
+                std::wcout << L"[音量] 已设置进程 " << processName
+                           << (muted ? L" 为静音" : L" 取消静音") << std::endl;
+            }
+            else
+            {
+                std::wcout << L"[音量] 设置进程 " << processName
+                           << L" 静音状态失败，HRESULT=" << hr << std::endl;
+            }
+        },
+        &matchedCount);
+
+    if (!foundSession)
+    {
+        std::wcout << L"[音量] 未找到进程音频会话: " << processName << std::endl;
+    }
+    else
+    {
+        std::wcout << L"[音量] 进程 " << processName
+                   << L" 共匹配到 " << matchedCount << L" 个音频会话，成功设置 "
+                   << appliedCount << L" 个静音状态" << std::endl;
+    }
+
+    if (shouldUninitialize) CoUninitialize();
+    return appliedCount > 0;
+}
+
 void StopCS2VolumeControl()
 {
     // 请求线程退出

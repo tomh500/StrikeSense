@@ -137,6 +137,9 @@ return;
 
 - 用途：把 CS2 窗口最小化。
 - 参数：无。
+- 说明：
+  - 当前实现会优先尝试把焦点切到现有浏览器窗口，避免直接最小化独占全屏游戏导致窗口状态异常。
+  - 如果没有可安全切出的目标窗口，它会跳过强制最小化。
 
 `KillGameProcess()`
 
@@ -152,8 +155,10 @@ return;
 
 - 用途：恢复并激活 CS2 窗口。
 - 参数：无。
+- 说明：
+  - 当前实现会先定位 CS2 主窗口，再走安全激活流程，尽量降低切回失败或窗口尺寸异常的概率。
 
-`Browser(url, top_after_open)`
+`Browser(url, top_after_open, prefer_existing_browser)`
 
 - 用途：用系统默认浏览器打开链接。
 - 参数：
@@ -164,6 +169,10 @@ return;
     - 类型：`bool`
     - 用途：是否在打开后，单次把浏览器窗口抬到最前。
     - 说明：这是单次抬前，不是持续置顶。
+  - `prefer_existing_browser`
+    - 类型：`bool`
+    - 用途：是否优先复用已经打开的浏览器窗口。
+    - 说明：传 `true` 时，会先尝试切到已打开的 Edge / Chrome / Firefox 等窗口；只有没找到现成窗口时才打开新链接。
 
 `Top(process_name, activate)`
 
@@ -332,6 +341,20 @@ return;
   - 这里传的是百分比，不是 `0.0 ~ 1.0` 的系数。
   - 该函数等同于 C++ 层的 `SetProcessVolumeByName(processName, volumePercent)`。
   - 只有目标进程已经创建了音频会话时，系统合成器音量才能被改到。
+
+`SetProcessMute(process_name, muted)`
+
+- 用途：直接修改指定进程当前音频会话的静音状态。
+- 参数：
+  - `process_name`
+    - 类型：`string`
+    - 示例：`"msedge.exe"`、`"chrome.exe"`
+  - `muted`
+    - 类型：`bool`
+    - `true` 表示静音，`false` 表示取消静音。
+- 说明：
+  - 该函数等同于 C++ 层的 `SetProcessMuteByName(processName, muted)`。
+  - 适合配合 `ShowGameProcess()` / `Browser(...)` 做浏览器静音与取消静音。
 
 `SetDeathMute(enabled)`
 
