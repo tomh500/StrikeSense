@@ -174,6 +174,30 @@ return;
     - 用途：是否优先复用已经打开的浏览器窗口。
     - 说明：传 `true` 时，会先尝试切到已打开的 Edge / Chrome / Firefox 等窗口；只有没找到现成窗口时才打开新链接。
 
+`Open(target)`
+
+- 用途：用系统默认方式打开目标路径、程序或链接。
+- 参数：
+  - `target`
+    - 类型：`string`
+    - 示例：`"C:/Program Files/PotPlayer/PotPlayerMini64.exe"`、`"https://www.douyin.com/"`
+
+`EnsureProcessWindow(process_name, launch_target, activate)`
+
+- 用途：如果目标进程已存在，就切到它的窗口；如果不存在，就先启动再切过去。
+- 参数：
+  - `process_name`
+    - 类型：`string`
+    - 示例：`"PotPlayerMini64.exe"`
+  - `launch_target`
+    - 类型：`string`
+    - 用途：当进程不存在时用于启动的程序路径、快捷方式或链接。
+  - `activate`
+    - 类型：`bool`
+    - 用途：是否在找到窗口后激活它。
+- 说明：
+  - 适合配合 `ShowGameProcess()` 做“死后切到播放器 / freezetime 切回游戏”这类脚本。
+
 `Top(process_name, activate)`
 
 - 用途：单次把指定进程的窗口抬到最前。
@@ -617,8 +641,16 @@ return;
 ### 9.2 程序状态内部变量
 
 - `death_mute`
-  - 作用：健康值小于等于 0 时给出的程序级结论。
+  - 作用：表示“本回合已判定死亡且当前仍处于死亡状态”的程序级结论。
   - 来源：内部推导
+
+- `self_alive`
+  - 作用：当前自己是否存活。
+  - 来源：程序内部状态机
+
+- `self_dead_this_round`
+  - 作用：当前回合内自己是否已经被程序判定为死过一次。
+  - 来源：程序内部状态机
 
 - `internal_last_phase`
 - `internal_last_kills`

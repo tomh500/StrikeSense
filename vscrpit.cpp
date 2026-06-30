@@ -1015,6 +1015,84 @@ bool LaunchUrlExternal(const std::wstring& url)
     return ok == TRUE;
 }
 
+bool OpenTargetExternal(const std::wstring& target)
+{
+    if (target.empty()) {
+        std::wcout << L"[脚本] 打开目标失败：目标为空" << std::endl;
+        return false;
+    }
+
+    const std::wstring expanded = ExpandEnvText(target);
+    const INT_PTR result = (INT_PTR)ShellExecuteW(nullptr, L"open", expanded.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    const bool ok = result > 32;
+    std::wcout << L"[脚本] "
+               << (ok ? L"已请求打开目标: " : L"打开目标失败: ")
+               << expanded << std::endl;
+    return ok;
+}
+
+bool IsProcessRunningByName(const std::wstring& processName)
+{
+    const std::wstring normalized = NormalizeProcessName(processName);
+    if (normalized.empty()) return false;
+
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) {
+        std::wcout << L"[脚本] 进程枚举失败，无法检查是否运行: " << normalized << std::endl;
+        return false;
+    }
+
+    bool found = false;
+    PROCESSENTRY32W pe{};
+    pe.dwSize = sizeof(pe);
+    if (Process32FirstW(snap, &pe)) {
+        do {
+            if (_wcsicmp(pe.szExeFile, normalized.c_str()) == 0) {
+                found = true;
+                break;
+            }
+        } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+    std::wcout << L"[脚本] 进程运行检查: " << normalized
+               << L" -> " << (found ? L"存在" : L"不存在") << std::endl;
+    return found;
+}
+
+bool EnsureProcessWindow(const std::wstring& processName, const std::wstring& launchTarget, bool activate)
+{
+    const std::wstring normalized = NormalizeProcessName(processName);
+    if (normalized.empty()) {
+        std::wcout << L"[脚本] EnsureProcessWindow 失败：进程名为空" << std::endl;
+        return false;
+    }
+
+    if (IsProcessRunningByName(normalized)) {
+        std::wcout << L"[脚本] 目标进程已存在，准备切换窗口: " << normalized << std::endl;
+        return TopProcess(normalized, activate);
+    }
+
+    if (launchTarget.empty()) {
+        std::wcout << L"[脚本] 目标进程不存在，且未提供启动目标: " << normalized << std::endl;
+        return false;
+    }
+
+    const bool launched = OpenTargetExternal(launchTarget);
+    if (!launched) return false;
+
+    std::thread([normalized, activate]() {
+        for (int i = 0; i < 20; ++i) {
+            Sleep(300);
+            if (IsProcessRunningByName(normalized)) {
+                TopProcess(normalized, activate);
+                return;
+            }
+        }
+        std::wcout << L"[脚本] 已启动目标，但超时未找到窗口: " << normalized << std::endl;
+    }).detach();
+    return true;
+}
+
 void TopBrowserSoon()
 {
     std::thread([]() {
@@ -1228,6 +1306,13 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         if (!ok) ok = LaunchUrlExternal(ToText(args[0]));
         if (ok && args.size() >= 2 && Truthy(args[1])) TopBrowserSoon();
         return ok;
+    }
+    if (name == L"Open" && args.size() >= 1) return OpenTargetExternal(ToText(args[0]));
+    if (name == L"EnsureProcessWindow" && args.size() >= 2) {
+        return EnsureProcessWindow(
+            ToText(args[0]),
+            ToText(args[1]),
+            args.size() < 3 || Truthy(args[2]));
     }
     if (name == L"Top" && args.size() >= 1) return TopProcess(ToText(args[0]), args.size() < 2 || Truthy(args[1]));
     if (name == L"Drawimg" && args.size() >= 7) return DrawImageCommand(ExpandEnvText(ToText(args[0])), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6]));
@@ -1645,9 +1730,11 @@ void UpdateFromGsi(const nlohmann::json& state)
             SetStateVar(L"smoked", TextValue(L"void"));
             SetStateVar(L"burning", TextValue(L"void"));
             SetStateVar(L"money", TextValue(L"void"));
-            SetStateVar(L"round_killhs", TextValue(L"void"));
-            SetStateVar(L"equip_value", TextValue(L"void"));
-            SetStateVar(L"death_mute", TextValue(L"void"));
+        SetStateVar(L"round_killhs", TextValue(L"void"));
+        SetStateVar(L"equip_value", TextValue(L"void"));
+        SetStateVar(L"death_mute", TextValue(L"void"));
+        SetStateVar(L"self_alive", TextValue(L"void"));
+        SetStateVar(L"self_dead_this_round", TextValue(L"void"));
         }
         if (player.contains("match_stats") && player["match_stats"].is_object()) {
             SetJsonVar(L"mvps", player["match_stats"], "mvps");
@@ -1772,6 +1859,11 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"internal_round_kills", NumberValue((double)gsi::runtime::round_kills));
         SetStateVar(L"internal_health", NumberValue((double)gsi::runtime::health));
         SetStateVar(L"internal_in_lobby", BoolValue(gsi::runtime::in_lobby));
+        const bool selfAlive = gsi::runtime::health > 0;
+        const bool selfDeadThisRound = gsi::runtime::dead_muted;
+        SetStateVar(L"self_alive", BoolValue(selfAlive));
+        SetStateVar(L"self_dead_this_round", BoolValue(selfDeadThisRound));
+        SetStateVar(L"death_mute", BoolValue(selfDeadThisRound && !selfAlive));
     } else {
         SetStateVar(L"player_name", TextValue(L"void"));
         SetStateVar(L"activity", TextValue(L"void"));
@@ -1794,6 +1886,8 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"match_deaths", TextValue(L"void"));
         SetStateVar(L"match_score", TextValue(L"void"));
         SetStateVar(L"death_mute", TextValue(L"void"));
+        SetStateVar(L"self_alive", TextValue(L"void"));
+        SetStateVar(L"self_dead_this_round", TextValue(L"void"));
         SetStateVar(L"weapon_name", TextValue(L"void"));
         SetStateVar(L"weapon_type", TextValue(L"void"));
         SetStateVar(L"weapon_state", TextValue(L"void"));

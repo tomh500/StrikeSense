@@ -1,8 +1,8 @@
 // @name: 死后刷抖音
 // @provider: StrikeSense
 // @version: 1.3.0
-// @notice: 死亡后优先复用已打开的抖音浏览器窗口，freezetime 自动切回游戏并静音浏览器。
-if(on:death_mute==true){
+// @notice: 仅在自己本回合首次死亡时切到抖音，freezetime 自动切回游戏并静音浏览器。
+if(on:self_dead_this_round==true && self_alive==false){
     SetProcessMute("msedge.exe", false);
     SetProcessMute("chrome.exe", false);
     CloseGameWindow();
