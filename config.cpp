@@ -185,7 +185,7 @@ void EnsureDirectory(const fs::path& p)
 
             // 写入/覆盖字段
             j["match"] = true;
-            j["vol"] = 0.88f;
+            j["vol"] = s.volume;
             j["ogg"] = s.ogg;
             j["custom_musickit"] = s.custom_musickit;
             j["custom_flashbang"] = s.custom_flashbang;

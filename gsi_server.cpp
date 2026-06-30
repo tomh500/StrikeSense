@@ -30,7 +30,7 @@ namespace gsi {
 
 
 
-    int g_debug = 1;
+    int g_debug = 0;
 
     static httplib::Server* s_server = nullptr;
     static std::thread s_serverThread;
@@ -68,6 +68,7 @@ namespace gsi {
     // ===== 事件队列 =====
     static std::queue<int> s_eventQueue;
     static std::mutex s_queueMutex;
+    void ProcessEventQueue();
 
     // ======= 线程安全改造：十秒倒计时专属多线程控制元 =======
     static std::thread s_timerThread;
@@ -101,6 +102,18 @@ namespace gsi {
     {
         std::lock_guard<std::mutex> lock(s_queueMutex);
         s_eventQueue.push(id);
+    }
+
+    void QueueEventAfterDelay(int id, std::chrono::milliseconds delay)
+    {
+        std::thread([id, delay]() {
+            std::this_thread::sleep_for(delay);
+            if (!s_running) return;
+
+            QueueEvent(id);
+            ProcessEventQueue();
+            std::cout << "[GSI] 延迟事件已投递: " << id << std::endl;
+            }).detach();
     }
 
     void ProcessEventQueue()
@@ -395,9 +408,11 @@ namespace gsi {
                 if (phase == "freezetime" && s_lastPhase != "freezetime")
                 {
                     if (s_bombPlantedThisRound) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(3500));
+                        QueueEventAfterDelay(-14, std::chrono::milliseconds(3500));
                     }
-                    QueueEvent(-14);
+                    else {
+                        QueueEvent(-14);
+                    }
                     s_bombPlantedThisRound = false;
                 }
 

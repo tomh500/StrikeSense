@@ -2,6 +2,7 @@
 #include <iostream>
 #include <thread>
 #include <atomic>
+#include <mutex>
 #include <audiopolicy.h>
 #include <mmdeviceapi.h>
 #include "gsi_server.h"
@@ -23,8 +24,45 @@ bool IsCS2WindowActive()
 namespace {
     std::thread g_volThread;
     std::atomic<bool> g_volRunning{ false };
-    float g_targetFactor = 0.5f;
+    std::atomic<float> g_targetFactor{ 0.5f };
     static float s_savedGsiOriginalVolume = -1.0f;
+    static std::mutex s_gsiVolumeMutex;
+
+    static float ClampVolumeFactor(float factor)
+    {
+        if (factor < 0.0f) return 0.0f;
+        if (factor > 1.0f) return 1.0f;
+        return factor;
+    }
+
+    static void ApplyGsiVolumeReduction(float factor)
+    {
+        std::lock_guard<std::mutex> lock(s_gsiVolumeMutex);
+        config::Settings& c = gsi::GetConfig();
+        if (s_savedGsiOriginalVolume < 0.0f)
+        {
+            s_savedGsiOriginalVolume = c.volume;
+            std::cout << "[音量] 已记录 StrikeSense 原始音量: "
+                      << (int)(s_savedGsiOriginalVolume * 100) << "%" << std::endl;
+        }
+
+        c.volume = s_savedGsiOriginalVolume * ClampVolumeFactor(factor);
+        std::cout << "[音量] StrikeSense 辅助音量已同步调整至: "
+                  << (int)(c.volume * 100) << "%" << std::endl;
+    }
+
+    static void RestoreGsiVolume()
+    {
+        std::lock_guard<std::mutex> lock(s_gsiVolumeMutex);
+        if (s_savedGsiOriginalVolume >= 0.0f)
+        {
+            config::Settings& c = gsi::GetConfig();
+            c.volume = s_savedGsiOriginalVolume;
+            std::cout << "[音量] StrikeSense 辅助音量已恢复至: "
+                      << (int)(c.volume * 100) << "%" << std::endl;
+            s_savedGsiOriginalVolume = -1.0f;
+        }
+    }
 
 
 
@@ -117,12 +155,21 @@ void StopCS2VolumeControl()
             catch (...) {}
         }
     }
+
+    RestoreGsiVolume();
 }
 
 void StartCS2VolumeControl(float reduction)
 {
+    reduction = ClampVolumeFactor(reduction);
+    g_targetFactor.store(reduction);
+
     // 如果已在运行，直接返回
-    if (g_volRunning) return;
+    if (g_volRunning)
+    {
+        ApplyGsiVolumeReduction(reduction);
+        return;
+    }
 
     // 如果已有未 join 的线程残留，先请求其结束并 join，避免后续赋值触发 terminate
     if (g_volThread.joinable())
@@ -132,17 +179,9 @@ void StartCS2VolumeControl(float reduction)
         catch (...) { try { g_volThread.detach(); } catch (...) {} }
     }
 
-    g_targetFactor = reduction;
     g_volRunning = true;
 
-    // 1. 同步降低 GSI 内存音量（可能抛异常的边界应在调用方或这里捕获）
-    config::Settings& c = gsi::GetConfig();
-    if (s_savedGsiOriginalVolume < 0.0f)
-    {
-        s_savedGsiOriginalVolume = c.volume;
-        c.volume = s_savedGsiOriginalVolume * reduction;
-        std::cout << "[音量] GSI 辅助音量已同步降低至: " << (int)(c.volume * 100) << "%" << std::endl;
-    }
+    ApplyGsiVolumeReduction(reduction);
 
     // 2. 启动系统控制线程（线程内捕获所有异常，防止异常逃逸）
     g_volThread = std::thread([]() {
@@ -153,10 +192,12 @@ void StartCS2VolumeControl(float reduction)
             ISimpleAudioVolume* pVol = nullptr;
             float savedVolume = -1.0f;
             bool isLoweredState = false;
+            float lastAppliedFactor = -1.0f;
 
             while (g_volRunning)
             {
                 bool cs2Active = IsCS2WindowActive();
+                float currentFactor = g_targetFactor.load();
 
                 if (cs2Active)
                 {
@@ -168,12 +209,14 @@ void StartCS2VolumeControl(float reduction)
                         }
                     }
 
-                    if (pVol && savedVolume >= 0 && !isLoweredState)
+                    if (pVol && savedVolume >= 0 &&
+                        (!isLoweredState || currentFactor != lastAppliedFactor))
                     {
-                        float target = savedVolume * g_targetFactor;
+                        float target = savedVolume * currentFactor;
                         pVol->SetMasterVolume(target, nullptr);
                         isLoweredState = true;
-                        std::cout << "[音量] CS2 前台 → 降低至 " << (int)(target * 100) << "%" << std::endl;
+                        lastAppliedFactor = currentFactor;
+                        std::cout << "[音量] CS2 前台音量已调整至 " << (int)(target * 100) << "%" << std::endl;
                     }
                 }
                 else
@@ -182,6 +225,7 @@ void StartCS2VolumeControl(float reduction)
                     {
                         pVol->SetMasterVolume(savedVolume, nullptr);
                         isLoweredState = false;
+                        lastAppliedFactor = -1.0f;
                         std::cout << "[音量] CS2 后台 → 临时恢复至 " << (int)(savedVolume * 100) << "%" << std::endl;
                     }
                 }
@@ -214,12 +258,15 @@ void StartCS2VolumeControl(float reduction)
 
 void SetCS2VolumeReduction(float factor)
 {
-    g_targetFactor = factor;
+    factor = ClampVolumeFactor(factor);
+    g_targetFactor.store(factor);
+    if (g_volRunning)
+        ApplyGsiVolumeReduction(factor);
 }
 
 float GetCS2VolumeReduction()
 {
-    return g_targetFactor;
+    return g_targetFactor.load();
 }
 
 bool IsCS2VolumeActive()

@@ -9,13 +9,14 @@
 #include <cwctype>
 #include <cstdlib>
 #include <unordered_set>
+#include <unordered_map> 
 #include "gsi_server.h"
 #include "itemhelper_page.h"
 namespace fs = std::filesystem;
 
 // 引用外部 GSI 导出的当前游戏地图变量
 namespace gsi {
-    extern std::string gamemap; // 假设为 std::string，如果是 wstring 下面会自动适配
+    extern std::string gamemap;
 }
 
 // 实例化在 itemhelper_page.h 中声明的全局 UI 状态
@@ -29,15 +30,27 @@ namespace itemhelper_overlay
     static HHOOK s_hKeyHook = nullptr;
     static std::unique_ptr<Gdiplus::Image> s_previewImage = nullptr;
 
+    // ====================================================================
+    // 💎 路径导航与多级光标精准记忆映射表
+    // ====================================================================
+    static std::unordered_map<std::wstring, fs::path> s_mapLastDir;   // 记录每个地图最后所在的物理路径
+    static std::unordered_map<std::wstring, int> s_dirLastIndex;      // 💎 新增：精准记录每一个绝对路径路径下最后选中的行索引
+    static fs::path s_currentDir; // 当前正在浏览的绝对路径
+    static fs::path s_rootDir;    // 当前地图的根目录路径
+
     // 前向声明窗口回调
     static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
     // 前向声明低级键盘钩子回调
     static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wp, LPARAM lp);
-    // 扫描地图文件夹下的图片
+    // 扫描地图文件夹下的图片与子文件夹
     static void ScanMapFiles();
 
     void Initialize(HINSTANCE hInst)
     {
+        // 健壮性检查：如果句柄存在但已被系统意外销毁，重置它
+        if (s_hwnd && !IsWindow(s_hwnd)) {
+            s_hwnd = nullptr;
+        }
         if (s_hwnd) return;
 
         WNDCLASSEXW wc = {};
@@ -50,7 +63,6 @@ namespace itemhelper_overlay
         int sw = GetSystemMetrics(SM_CXSCREEN);
         int sh = GetSystemMetrics(SM_CYSCREEN);
 
-        // 创建最高层级、层叠、鼠标穿透的无边框全屏窗口
         s_hwnd = CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW,
             wc.lpszClassName, L"", WS_POPUP,
@@ -58,95 +70,100 @@ namespace itemhelper_overlay
             nullptr, nullptr, hInst, nullptr
         );
 
-        std::cout << "[道具助手] 全屏层叠遮罩窗口初始化成功，句柄: " << s_hwnd << std::endl;
+        std::cout << "[道具助手] 遮罩窗口底层物理创建成功，句柄: " << s_hwnd << std::endl;
 
         if (!s_hwnd) return;
 
-    // ====== 💎 加上这行：启动一个 ID 为 999 且每 200ms 触发一次的定时器 💎 ======
-    SetTimer(s_hwnd, 999, 200, nullptr);
-    // ====================================================================
-
-    ShowWindow(s_hwnd, SW_HIDE); // 初始隐藏
+        SetTimer(s_hwnd, 999, 200, nullptr);
+        ShowWindow(s_hwnd, SW_HIDE);
     }
 
-static void ScanMapFiles()
-{
-    g_itemUI.files.clear();
-    g_itemUI.selectedIndex = 0;
-    g_itemUI.currentImage.clear(); // 清空当前图片路径缓存
+    static void ScanMapFiles()
+    {
+        g_itemUI.files.clear();
+        g_itemUI.currentImage.clear();
 
-    wchar_t profile[MAX_PATH] = {};
-    GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
-    
-    // 自动适配 gsi::gamemap 的 string 或 wstring 状态转换
-    fs::path rawMapPath;
-    if constexpr (std::is_same_v<decltype(gsi::gamemap), std::string>) {
-        rawMapPath = fs::path(gsi::gamemap);
-    } else {
-        rawMapPath = gsi::gamemap;
-    }
+        wchar_t profile[MAX_PATH] = {};
+        GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
 
-    // 1. 提取出纯粹的地图名/ID (例如 "maps/de_office" -> "de_office" 或 "workshop/1234/de_xxx" -> "de_xxx")
-    fs::path mapName = rawMapPath.filename();
-
-    // 2. 定义常规/官方地图的白名单列表
-    static const std::unordered_set<std::wstring> officialMaps = {
-        L"de_dust2", L"de_inferno", L"de_mirage", L"de_nuke", 
-        L"de_overpass", L"de_vertigo", L"de_ancient", L"de_train", 
-        L"de_cache", L"cs_office"
-    };
-
-    // 3. 决定最终扫描的目标文件夹
-    fs::path mapFolder;
-    
-    // 将 mapName 转为 wstring 方便在集合中查找
-    std::wstring mapNameStr = mapName.wstring(); 
-
-    if (officialMaps.count(mapNameStr) > 0) {
-        // 如果在白名单内，走正常文件夹：%UserProfile%\StrikeSense\itemhelper\地图名
-        mapFolder = fs::path(profile) / L"StrikeSense" / L"itemhelper" / mapName;
-    } else {
-        // 如果是社区地图或未知地图，自动定向到 othermaps 文件夹
-        mapFolder = fs::path(profile) / L"StrikeSense" / L"itemhelper" / L"othermaps";
-        std::cout << "[道具助手] 检测到未知或社区地图 [" << mapName.string() << "], 自动重定向至 othermaps" << std::endl;
-    }
-
-    std::cout << "[道具助手] 开始扫描当前地图文件目录: " << mapFolder.string() << std::endl;
-
-    if (!fs::exists(mapFolder)) {
-        std::cout << "[道具助手] 警告: 地图文件夹不存在: " << mapFolder.string() << std::endl;
-        g_itemUI.needRefresh = false; // 关闭刷新标志，防止死循环刷盘
-        return;
-    }
-
-    try {
-        for (const auto& entry : fs::directory_iterator(mapFolder)) {
-            if (entry.is_regular_file()) {
-                auto ext = entry.path().extension().wstring();
-        for (auto& c : ext) c = std::towlower(c); // 确保转成了小写
-
-        if (ext == L".jpg" || ext == L".jpeg" || ext == L".png" || ext == L".bmp") {
-            g_itemUI.files.push_back(entry.path());
-         // 加上这行打印，看看控制台有没有成功吐出 .png 的日志
-         std::cout << "[道具助手] 成功载入PNG/JPG文件: " << entry.path().filename().string() << std::endl;
+        fs::path rawMapPath;
+        if constexpr (std::is_same_v<decltype(gsi::gamemap), std::string>) {
+            rawMapPath = fs::path(gsi::gamemap);
         }
+        else {
+            rawMapPath = gsi::gamemap;
+        }
+
+        fs::path mapName = rawMapPath.filename();
+        std::wstring mapNameStr = mapName.wstring();
+
+        static const std::unordered_set<std::wstring> officialMaps = {
+            L"de_dust2", L"de_inferno", L"de_mirage", L"de_nuke",
+            L"de_overpass", L"de_vertigo", L"de_ancient", L"de_train",
+            L"de_cache", L"cs_office"
+        };
+
+        if (officialMaps.count(mapNameStr) > 0) {
+            s_rootDir = fs::path(profile) / L"StrikeSense" / L"itemhelper" / mapName;
+        }
+        else {
+            s_rootDir = fs::path(profile) / L"StrikeSense" / L"itemhelper" / L"othermaps";
+        }
+
+        // 检查历史路径是否合法
+        if (s_mapLastDir.count(mapNameStr) > 0 && fs::exists(s_mapLastDir[mapNameStr])) {
+            s_currentDir = s_mapLastDir[mapNameStr];
+        }
+        else {
+            s_currentDir = s_rootDir;
+            s_mapLastDir[mapNameStr] = s_rootDir;
+        }
+
+        if (!fs::exists(s_currentDir)) {
+            g_itemUI.needRefresh = false;
+            return;
+        }
+
+        std::vector<fs::path> subDirs;
+        std::vector<fs::path> subFiles;
+
+        try {
+            for (const auto& entry : fs::directory_iterator(s_currentDir)) {
+                if (entry.is_directory()) {
+                    subDirs.push_back(entry.path());
+                }
+                else if (entry.is_regular_file()) {
+                    auto ext = entry.path().extension().wstring();
+                    for (auto& c : ext) c = std::towlower(c);
+
+                    if (ext == L".jpg" || ext == L".jpeg" || ext == L".png" || ext == L".bmp") {
+                        subFiles.push_back(entry.path());
+                    }
+                }
             }
         }
-    }
-    catch (const std::exception& e) {
-        std::cout << "[道具助手] 目录迭代异常: " << e.what() << std::endl;
+        catch (const std::exception& e) {
+            std::cout << "[道具助手] 目录扫描异常: " << e.what() << std::endl;
+        }
+
+        // 1. 压入返回级
+        if (s_currentDir != s_rootDir) {
+            g_itemUI.files.push_back(s_currentDir.parent_path());
+        }
+        // 2. 文件夹置顶
+        g_itemUI.files.insert(g_itemUI.files.end(), subDirs.begin(), subDirs.end());
+        // 3. 图片置后
+        g_itemUI.files.insert(g_itemUI.files.end(), subFiles.begin(), subFiles.end());
+
+        g_itemUI.needRefresh = false;
     }
 
-    // 4. 如果成功扫描到了图片，默认把第一张图赋值给当前展示图
-    if (!g_itemUI.files.empty()) {
-        g_itemUI.currentImage = g_itemUI.files[0];
-    }
-
-    g_itemUI.needRefresh = false; // 扫描完成后，必须关闭刷新标志
-    std::cout << "[道具助手] 扫描完成。有效图片总数: " << g_itemUI.files.size() << std::endl;
-}
     void Toggle(HINSTANCE hInst)
     {
+        // 💎 强力初始化策略：如果窗口已经失效，就原地火化并重新建立一个
+        if (s_hwnd && !IsWindow(s_hwnd)) {
+            s_hwnd = nullptr;
+        }
         if (!s_hwnd) {
             Initialize(hInst);
         }
@@ -154,29 +171,52 @@ static void ScanMapFiles()
         g_itemUI.showOverlay = !g_itemUI.showOverlay;
 
         if (g_itemUI.showOverlay) {
-            std::cout << "[道具助手] 收到开启指令，激活遮罩覆层" << std::endl;
-            ScanMapFiles();
+            std::cout << "[道具助手] 收到唤醒序列：正在初始化并重构一切状态元..." << std::endl;
+
+            // 💎 核心修复：不管以前钩子在不在，先强行撤销，再重新向OS申请新钩子
+            // 这能100%解冻被 Windows 系统因超时而偷偷注销掉的“僵尸钩子”
+            if (s_hKeyHook) {
+                UnhookWindowsHookEx(s_hKeyHook);
+                s_hKeyHook = nullptr;
+            }
+            s_hKeyHook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandle(nullptr), 0);
+            if (s_hKeyHook) {
+                std::cout << "[道具助手] 键盘捕获流热重载成功！" << std::endl;
+            }
+
+            // 清理可能残存的预览图和状态
+            ReleasePreviewImage();
             g_itemUI.state = IH_BROWSE;
 
-            // 以非激活方式显示窗口，严禁抢走游戏窗口的 Focus 焦点
-            ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
+            // 扫描目录
+            ScanMapFiles();
 
-            // 挂载全局低级键盘钩子，用于捕获游戏内上下箭头与回车
-            if (!s_hKeyHook) {
-                s_hKeyHook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandle(nullptr), 0);
-                std::cout << "[道具助手] 全局低级键盘动作捕获钩子已挂载" << std::endl;
+            // 💎 恢复索引：提取当前绝对路径上一次停留在第几个项目
+            std::wstring dirKey = s_currentDir.wstring();
+            if (s_dirLastIndex.count(dirKey) > 0) {
+                g_itemUI.selectedIndex = s_dirLastIndex[dirKey];
+                // 防御性编程：防止磁盘文件被删导致数组越界
+                if (g_itemUI.selectedIndex >= (int)g_itemUI.files.size()) {
+                    g_itemUI.selectedIndex = 0;
+                }
             }
+            else {
+                g_itemUI.selectedIndex = 0;
+            }
+
+            // 强制将层叠窗口拉到屏幕最顶层渲染
+            SetWindowPos(s_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+            ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
             Redraw();
         }
         else {
-            std::cout << "[道具助手] 收到关闭指令，隐藏遮罩覆层" << std::endl;
+            std::cout << "[道具助手] 隐藏指令：安全隐退遮罩" << std::endl;
             g_itemUI.state = IH_IDLE;
             ShowWindow(s_hwnd, SW_HIDE);
 
             if (s_hKeyHook) {
                 UnhookWindowsHookEx(s_hKeyHook);
                 s_hKeyHook = nullptr;
-                std::cout << "[道具助手] 全局低级键盘动作捕获钩子已安全卸载" << std::endl;
             }
             ReleasePreviewImage();
         }
@@ -186,13 +226,9 @@ static void ScanMapFiles()
     {
         s_previewImage.reset();
         if (g_itemUI.state == IH_PREVIEW && !g_itemUI.currentImage.empty()) {
-            std::cout << "[道具助手] 正在加载高清 GDI+ 预览图内存: " << g_itemUI.currentImage.string() << std::endl;
             auto img = std::make_unique<Gdiplus::Image>(g_itemUI.currentImage.c_str());
             if (img->GetLastStatus() == Gdiplus::Ok) {
                 s_previewImage = std::move(img);
-                std::cout << "[道具助手] 内存常驻预览图片加载成功" << std::endl;
-            } else {
-                std::cout << "[道具助手] 错误: 图片解码失败，Gdiplus 状态码: " << img->GetLastStatus() << std::endl;
             }
         }
     }
@@ -201,7 +237,6 @@ static void ScanMapFiles()
     {
         if (s_previewImage) {
             s_previewImage.reset();
-            std::cout << "[道具助手] 预览图内存物理释放完成" << std::endl;
         }
     }
 
@@ -233,7 +268,6 @@ static void ScanMapFiles()
             g.SetSmoothingMode(SmoothingModeAntiAlias);
             g.SetTextRenderingHint(TextRenderingHintAntiAlias);
 
-            // 清空全屏，全透明
             g.Clear(Color(0, 0, 0, 0));
 
             int panelW = 360;
@@ -242,65 +276,75 @@ static void ScanMapFiles()
             int panelX = (int)((sw - panelW) * g_itemHelperX);
             int panelY = (int)((sh - panelH) * g_itemHelperY);
 
-            // ==========================================
-            // 💎 修复 1：将选择器透明度滑块动态应用到 GDI+ 画刷上
-            // ==========================================
-            // 假设 g_itemHelperOpacity 范围是 0.0f 到 1.0f
             float pOpacity = g_itemHelperOpacity;
             if (pOpacity < 0.0f) pOpacity = 0.0f;
             if (pOpacity > 1.0f) pOpacity = 1.0f;
 
-            // 绘制右侧动态透明的菜单底座 (基础Alpha 180 乘以滑块)
             SolidBrush panelBg(Color((BYTE)(180 * pOpacity), 15, 15, 18));
             g.FillRectangle(&panelBg, (REAL)panelX, (REAL)panelY, (REAL)panelW, (REAL)panelH);
 
-            // 绘制菜单边框
             Pen borderPen(Color((BYTE)(255 * pOpacity), 30, 60, 100), 2.f);
             g.DrawRectangle(&borderPen, (REAL)panelX, (REAL)panelY, (REAL)panelW, (REAL)panelH);
 
-            // 标题输出
             Font titleFont(L"Microsoft YaHei", 13, FontStyleBold);
             SolidBrush textWhite(Color((BYTE)(255 * pOpacity), 255, 255, 255));
 
             std::wstring mapWStr = fs::path(gsi::gamemap).wstring();
-            wchar_t headerText[128];
-            swprintf_s(headerText, L"道具助手清单 [%s]", mapWStr.c_str());
+            std::wstring subPathHint = L"";
+            if (s_currentDir != s_rootDir) {
+                try {
+                    subPathHint = L" > " + fs::relative(s_currentDir, s_rootDir).wstring();
+                }
+                catch (...) {
+                    subPathHint = L" > " + s_currentDir.filename().wstring();
+                }
+            }
+            wchar_t headerText[256];
+            swprintf_s(headerText, L"道具助手 [%s%s]", mapWStr.c_str(), subPathHint.c_str());
             g.DrawString(headerText, -1, &titleFont, PointF((REAL)(panelX + 20), (REAL)(panelY + 20)), &textWhite);
 
-            // 分割线
             g.DrawLine(&borderPen, (REAL)(panelX + 15), (REAL)(panelY + 55), (REAL)(panelX + panelW - 15), (REAL)(panelY + 55));
 
-            // 滚动列出文件名
             Font itemFont(L"Microsoft YaHei", 10, FontStyleRegular);
-            SolidBrush activeColor(Color((BYTE)(255 * pOpacity), 255, 215, 0));    // 高亮土豪金
-            SolidBrush inactiveColor(Color((BYTE)(200 * pOpacity), 210, 210, 210)); // 淡灰色
-            SolidBrush highlightBg(Color((BYTE)(90 * pOpacity), 255, 255, 255));   // 选中行背景
+            SolidBrush activeColor(Color((BYTE)(255 * pOpacity), 255, 215, 0));
+            SolidBrush inactiveColor(Color((BYTE)(200 * pOpacity), 210, 210, 210));
+            SolidBrush highlightBg(Color((BYTE)(90 * pOpacity), 255, 255, 255));
 
             int startY = panelY + 70;
             int itemHeight = 28;
             int maxShowCount = (panelH - 95) / itemHeight;
 
             if (g_itemUI.files.empty()) {
-                g.DrawString(L"该地图目录下无有效图片", -1, &itemFont, PointF((REAL)(panelX + 20), (REAL)startY), &inactiveColor);
+                g.DrawString(L"该目录下无有效文件或文件夹", -1, &itemFont, PointF((REAL)(panelX + 20), (REAL)startY), &inactiveColor);
             }
             else {
                 for (int i = 0; i < (int)g_itemUI.files.size() && i < maxShowCount; ++i) {
                     int currentY = startY + i * itemHeight;
-                    std::wstring name = g_itemUI.files[i].filename().wstring();
+
+                    // ====================================================================
+                    // 💎 彻底移除 Emoji 渲染：采用极简高兼容方括号标签，完美拒绝方块乱码
+                    // ====================================================================
+                    std::wstring displayName;
+                    if (s_currentDir != s_rootDir && i == 0) {
+                        displayName = L"[..] 返回上级目录";
+                    }
+                    else if (fs::is_directory(g_itemUI.files[i])) {
+                        displayName = L"[DIR] " + g_itemUI.files[i].filename().wstring();
+                    }
+                    else {
+                        displayName = L"[IMG] " + g_itemUI.files[i].filename().wstring();
+                    }
 
                     if (i == g_itemUI.selectedIndex) {
                         g.FillRectangle(&highlightBg, (REAL)(panelX + 12), (REAL)(currentY - 2), (REAL)(panelW - 24), (REAL)(itemHeight - 2));
-                        g.DrawString(name.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &activeColor);
+                        g.DrawString(displayName.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &activeColor);
                     }
                     else {
-                        g.DrawString(name.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &inactiveColor);
+                        g.DrawString(displayName.c_str(), -1, &itemFont, PointF((REAL)(panelX + 22), (REAL)currentY), &inactiveColor);
                     }
                 }
             }
 
-            // ==========================================
-            // 💎 修复 2：让图片预览区的黑遮罩和边框随图片透明度联动
-            // ==========================================
             if (g_itemUI.state == IH_PREVIEW && s_previewImage) {
                 int previewW = 520;
                 int previewH = 390;
@@ -311,14 +355,12 @@ static void ScanMapFiles()
                 if (imgOpacity < 0.0f) imgOpacity = 0.0f;
                 if (imgOpacity > 1.0f) imgOpacity = 1.0f;
 
-                // 核心改动：黑色遮罩的 Alpha (230) 和 边框的 Alpha (255) 都要乘以图片透明度滑块值
                 SolidBrush previewBg(Color((BYTE)(230 * imgOpacity), 5, 5, 5));
                 g.FillRectangle(&previewBg, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
 
                 Pen previewBorderPen(Color((BYTE)(255 * imgOpacity), 30, 60, 100), 2.f);
                 g.DrawRectangle(&previewBorderPen, (REAL)previewX, (REAL)previewY, (REAL)previewW, (REAL)previewH);
 
-                // 基于颜色矩阵实现图片半透明
                 ImageAttributes imgAttr;
                 ColorMatrix cm = {
                     1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
@@ -334,23 +376,19 @@ static void ScanMapFiles()
                     0.0f, 0.0f, (REAL)s_previewImage->GetWidth(), (REAL)s_previewImage->GetHeight(),
                     UnitPixel, &imgAttr);
 
-                // 提示文字也随之隐退
                 Font hintFont(L"Microsoft YaHei", 9, FontStyleRegular);
                 SolidBrush hintColor(Color((BYTE)(255 * imgOpacity), 255, 215, 0));
                 g.DrawString(L"[Enter] 关闭预览", -1, &hintFont, PointF((REAL)(previewX + 12), (REAL)(previewY + previewH - 24)), &hintColor);
             }
         }
 
-        // ==========================================
-        // 💎 修复 3：确保这里的全局混合透明度永远是 255 
-        // ==========================================
         POINT ptDst = { 0, 0 };
         SIZE sizeDst = { sw, sh };
         POINT ptSrc = { 0, 0 };
         BLENDFUNCTION blend = {};
         blend.BlendOp = AC_SRC_OVER;
         blend.BlendFlags = 0;
-        blend.SourceConstantAlpha = 255; // 严禁改为滑块变量，否则会引发全局缩放
+        blend.SourceConstantAlpha = 255;
         blend.AlphaFormat = AC_SRC_ALPHA;
 
         UpdateLayeredWindow(s_hwnd, hdcScreen, &ptDst, &sizeDst, hdcMem, &ptSrc, 0, &blend, ULW_ALPHA);
@@ -367,40 +405,87 @@ static void ScanMapFiles()
             KBDLLHOOKSTRUCT* pKey = reinterpret_cast<KBDLLHOOKSTRUCT*>(lp);
 
             if (g_itemUI.showOverlay) {
-                // 1. 捕获上箭头
                 if (pKey->vkCode == g_itemHelperKeyPrev) {
                     if (!g_itemUI.files.empty()) {
                         g_itemUI.selectedIndex = (g_itemUI.selectedIndex - 1 + (int)g_itemUI.files.size()) % (int)g_itemUI.files.size();
-                        std::cout << "[道具助手] 按键响应: UP, 当前行索引: " << g_itemUI.selectedIndex << std::endl;
+                        // 💎 实时保存当前文件夹下选中的行数位置
+                        s_dirLastIndex[s_currentDir.wstring()] = g_itemUI.selectedIndex;
                         Redraw();
                     }
-                    return 1; // 吞噬按键信号，不让其传递给游戏造成视角移动
+                    return 1;
                 }
-                // 2. 捕获下箭头
                 else if (pKey->vkCode == g_itemHelperKeyNext) {
                     if (!g_itemUI.files.empty()) {
                         g_itemUI.selectedIndex = (g_itemUI.selectedIndex + 1) % (int)g_itemUI.files.size();
-                        std::cout << "[道具助手] 按键响应: DOWN, 当前行索引: " << g_itemUI.selectedIndex << std::endl;
+                        // 💎 实时保存当前文件夹下选中的行数位置
+                        s_dirLastIndex[s_currentDir.wstring()] = g_itemUI.selectedIndex;
                         Redraw();
                     }
-                    return 1; // 吞噬按键信号
+                    return 1;
                 }
-                // 3. 捕获回车键
                 else if (pKey->vkCode == g_itemHelperKeySelect) {
-                    std::cout << "[道具助手] 按键响应: ENTER" << std::endl;
                     if (g_itemUI.state == IH_BROWSE) {
                         if (!g_itemUI.files.empty() && g_itemUI.selectedIndex >= 0 && g_itemUI.selectedIndex < (int)g_itemUI.files.size()) {
-                            g_itemUI.currentImage = g_itemUI.files[g_itemUI.selectedIndex];
-                            g_itemUI.state = IH_PREVIEW;
-                            LoadPreviewImage();
+
+                            fs::path selectedPath = g_itemUI.files[g_itemUI.selectedIndex];
+
+                            fs::path rawMapPath;
+                            if constexpr (std::is_same_v<decltype(gsi::gamemap), std::string>) {
+                                rawMapPath = fs::path(gsi::gamemap);
+                            }
+                            else {
+                                rawMapPath = gsi::gamemap;
+                            }
+                            std::wstring mapNameStr = rawMapPath.filename().wstring();
+
+                            // 分支一：点击返回上级
+                            if (s_currentDir != s_rootDir && g_itemUI.selectedIndex == 0) {
+                                s_currentDir = selectedPath;
+                                s_mapLastDir[mapNameStr] = s_currentDir;
+
+                                ScanMapFiles();
+
+                                // 💎 恢复上级目录的历史光标行数
+                                std::wstring dirKey = s_currentDir.wstring();
+                                if (s_dirLastIndex.count(dirKey) > 0) {
+                                    g_itemUI.selectedIndex = s_dirLastIndex[dirKey];
+                                    if (g_itemUI.selectedIndex >= (int)g_itemUI.files.size()) g_itemUI.selectedIndex = 0;
+                                }
+                                else {
+                                    g_itemUI.selectedIndex = 0;
+                                }
+                            }
+                            // 分支二：点击进入子文件夹
+                            else if (fs::is_directory(selectedPath)) {
+                                s_currentDir = selectedPath;
+                                s_mapLastDir[mapNameStr] = s_currentDir;
+
+                                ScanMapFiles();
+
+                                // 💎 恢复或者创建该深度文件夹的历史光标行数
+                                std::wstring dirKey = s_currentDir.wstring();
+                                if (s_dirLastIndex.count(dirKey) > 0) {
+                                    g_itemUI.selectedIndex = s_dirLastIndex[dirKey];
+                                    if (g_itemUI.selectedIndex >= (int)g_itemUI.files.size()) g_itemUI.selectedIndex = 0;
+                                }
+                                else {
+                                    g_itemUI.selectedIndex = 0;
+                                }
+                            }
+                            // 分支三：点击展示高清图片
+                            else {
+                                g_itemUI.currentImage = selectedPath;
+                                g_itemUI.state = IH_PREVIEW;
+                                LoadPreviewImage();
+                            }
                         }
-                    } else if (g_itemUI.state == IH_PREVIEW) {
-                        // 再次点击 Enter 销毁渲染的图片，回到文件浏览模式
+                    }
+                    else if (g_itemUI.state == IH_PREVIEW) {
                         g_itemUI.state = IH_BROWSE;
                         ReleasePreviewImage();
                     }
                     Redraw();
-                    return 1; // 吞噬回车键信号，防止在游戏内误触发送空聊天
+                    return 1;
                 }
             }
         }
@@ -410,27 +495,23 @@ static void ScanMapFiles()
     static LRESULT CALLBACK OverlayProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     {
         switch (msg) {
-            // ====== 💎 核心修复：处理定时器消息，自适应隐藏 💎 ======
-            case WM_TIMER:{
-                if (wp == 999) {
-                    // 如果当前道具助手遮罩正显示在屏幕上，但检测到游戏已经不再活跃（切回桌面了）
-                    if (g_itemHelperAutoHide && g_itemUI.showOverlay && !IsCS2WindowActive()) {
-                            // 动态获取当前的实例句柄
-                            HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hwnd, GWLP_HINSTANCE);
-                            // 强制安全隐藏遮罩，并卸载键盘钩子
-                            Toggle(hInst); 
-                            std::cout << "[道具助手] 检测到失去CS2游戏焦点，窗口自动隐退。" << std::endl;
-                        }
+        case WM_TIMER: {
+            if (wp == 999) {
+                if (g_itemHelperAutoHide && g_itemUI.showOverlay && !IsCS2WindowActive()) {
+                    HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hwnd, GWLP_HINSTANCE);
+                    Toggle(hInst);
+                    std::cout << "[道具助手] 检测到失去CS2游戏焦点，窗口自动隐退。" << std::endl;
                 }
-                break;}
-            // =====================================================
-            case WM_ERASEBKGND: return TRUE;
-            case WM_DESTROY:
-               { 
-                KillTimer(hwnd, 999);
-                break;
-               }
-            default: break;
+            }
+            break;
+        }
+        case WM_ERASEBKGND: return TRUE;
+        case WM_DESTROY:
+        {
+            KillTimer(hwnd, 999);
+            break;
+        }
+        default: break;
         }
         return DefWindowProcW(hwnd, msg, wp, lp);
     }

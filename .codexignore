@@ -1,0 +1,37 @@
+# Build output
+build/
+x64/
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.obj
+
+# Visual Studio
+.vs/
+*.sdf
+*.suo
+*.user
+*.userosscache
+*.log
+Debug/
+Release/
+*.VC.db
+*.VC.VC.opendb
+
+# vcpkg
+vcpkg_installed/
+
+# Legacy / reference projects
+legacy/
+CS2MouseHook/
+Everything-SDK/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
