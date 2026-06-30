@@ -58,6 +58,14 @@ struct sound_slot {
     int channel = -1;
 };
 
+struct weapon_snapshot {
+    std::wstring name;
+    std::wstring state;
+    double clip = -1.0;
+    double reserve = -1.0;
+    bool valid = false;
+};
+
 HINSTANCE s_instance = nullptr;
 HWND s_owner = nullptr;
 buildcode s_runtimeCapability = buildcode::user;
@@ -77,6 +85,7 @@ std::wstring s_currentScriptPath;
 int s_weaponFireCount = 0;
 int s_weaponReloadCount = 0;
 int s_weaponReserveDropCount = 0;
+weapon_snapshot s_lastWeaponSnapshot;
 
 constexpr const wchar_t* k_imageClass = L"StrikeSenseVscrpitImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
@@ -1577,24 +1586,25 @@ void UpdateFromGsi(const nlohmann::json& state)
                 break;
             }
         }
-        const std::wstring prevWeaponName = ToText(GetVarFromMap(s_prevVars, L"weapon_name"));
         const std::wstring nowWeaponName = ToText(GetVar(L"weapon_name"));
         const std::wstring nowWeaponState = ToText(GetVar(L"weapon_state"));
-        const double prevClip = ToNumber(GetVarFromMap(s_prevVars, L"weapon_ammo_clip"));
         const double nowClip = ToNumber(GetVar(L"weapon_ammo_clip"));
-        const double prevReserve = ToNumber(GetVarFromMap(s_prevVars, L"weapon_ammo_reserve"));
         const double nowReserve = ToNumber(GetVar(L"weapon_ammo_reserve"));
-        const bool sameWeapon = !nowWeaponName.empty() && nowWeaponName != L"void" && prevWeaponName == nowWeaponName;
-        const bool switched = nowWeaponName != prevWeaponName;
-        const bool fired = sameWeapon && prevClip > nowClip && nowClip >= 0.0 && nowWeaponState != L"reloading";
-        const bool reserveDropped = sameWeapon && prevReserve > nowReserve && nowReserve >= 0.0;
-        const bool reloading = sameWeapon && nowClip > prevClip;
         const bool roundJustWentLive = ToText(GetVar(L"round_phase")) == L"live" && ToText(GetVarFromMap(s_prevVars, L"round_phase")) != L"live";
         if (roundJustWentLive) {
             s_weaponFireCount = 0;
             s_weaponReloadCount = 0;
             s_weaponReserveDropCount = 0;
+            s_lastWeaponSnapshot = weapon_snapshot{};
         }
+        const bool currentWeaponValid = !nowWeaponName.empty() && nowWeaponName != L"void" && nowClip >= 0.0;
+        const bool sameWeapon = currentWeaponValid && s_lastWeaponSnapshot.valid && s_lastWeaponSnapshot.name == nowWeaponName;
+        const bool switched = currentWeaponValid && (!s_lastWeaponSnapshot.valid || s_lastWeaponSnapshot.name != nowWeaponName);
+        const double prevClip = sameWeapon ? s_lastWeaponSnapshot.clip : -1.0;
+        const double prevReserve = sameWeapon ? s_lastWeaponSnapshot.reserve : -1.0;
+        const bool fired = sameWeapon && prevClip > nowClip && nowWeaponState != L"reloading";
+        const bool reserveDropped = sameWeapon && prevReserve > nowReserve && nowReserve >= 0.0;
+        const bool reloading = sameWeapon && nowClip > prevClip;
         if (fired) ++s_weaponFireCount;
         if (reloading) ++s_weaponReloadCount;
         if (reserveDropped) ++s_weaponReserveDropCount;
@@ -1606,6 +1616,16 @@ void UpdateFromGsi(const nlohmann::json& state)
         SetStateVar(L"weapon_fire_count", NumberValue((double)s_weaponFireCount));
         SetStateVar(L"weapon_reload_count", NumberValue((double)s_weaponReloadCount));
         SetStateVar(L"weapon_reserve_drop_count", NumberValue((double)s_weaponReserveDropCount));
+
+        if (currentWeaponValid) {
+            s_lastWeaponSnapshot.name = nowWeaponName;
+            s_lastWeaponSnapshot.state = nowWeaponState;
+            s_lastWeaponSnapshot.clip = nowClip;
+            s_lastWeaponSnapshot.reserve = nowReserve;
+            s_lastWeaponSnapshot.valid = true;
+        } else {
+            s_lastWeaponSnapshot = weapon_snapshot{};
+        }
 
         SetStateVar(L"internal_last_phase", TextValue(Utf8ToWide(gsi::runtime::last_phase)));
         SetStateVar(L"internal_last_kills", NumberValue((double)gsi::runtime::last_kills));
