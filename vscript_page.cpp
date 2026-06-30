@@ -15,6 +15,7 @@ Gdiplus::RectF g_openDirRect;
 std::vector<Gdiplus::RectF> g_contRects;
 std::vector<Gdiplus::RectF> g_runRects;
 std::vector<Gdiplus::RectF> g_removeRects;
+std::vector<Gdiplus::RectF> g_noticeRects;
 
 bool Hit(const Gdiplus::RectF& r, int x, int y)
 {
@@ -69,9 +70,53 @@ std::wstring DisplayName(const vscrpit::mounted_script& script)
     return CompactFileName(script.path);
 }
 
+std::wstring SummaryText(const vscrpit::mounted_script& script)
+{
+    std::wstring out;
+    if (!script.provider.empty()) out += L"Provider: " + script.provider + L"  ";
+    if (!script.version.empty()) out += L"Version: " + script.version;
+    if (out.empty()) out = script.path;
+    return out;
+}
+
+void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r)
+{
+    using namespace Gdiplus;
+    SolidBrush bg(Color(255, 255, 244, 190));
+    SolidBrush fg(Color(255, 150, 95, 25));
+    Pen border(Color(255, 220, 170, 80), 1.0f);
+    Font f(L"Microsoft YaHei", 9, FontStyleBold);
+    g.FillEllipse(&bg, r);
+    g.DrawEllipse(&border, r);
+    g.DrawString(L"!", -1, &f, PointF(r.X + 5, r.Y + 1), &fg);
+}
+
+void DrawTooltip(Gdiplus::Graphics& g, const std::wstring& text, int x, int y)
+{
+    using namespace Gdiplus;
+    if (text.empty()) return;
+    Font f(L"Microsoft YaHei", 9);
+    SolidBrush bg(Color(245, 255, 255, 255));
+    SolidBrush fg(Color(255, 35, 65, 95));
+    Pen border(Color(255, 145, 190, 220), 1.0f);
+    RectF box((REAL)x + 14, (REAL)y + 16, 320.f, 54.f);
+    GraphicsPath p;
+    p.AddArc(box.X, box.Y, 10.f, 10.f, 180.f, 90.f);
+    p.AddArc(box.X + box.Width - 10.f, box.Y, 10.f, 10.f, 270.f, 90.f);
+    p.AddArc(box.X + box.Width - 10.f, box.Y + box.Height - 10.f, 10.f, 10.f, 0.f, 90.f);
+    p.AddArc(box.X, box.Y + box.Height - 10.f, 10.f, 10.f, 90.f, 90.f);
+    p.CloseFigure();
+    g.FillPath(&bg, &p);
+    g.DrawPath(&border, &p);
+    RectF textBox(box.X + 10, box.Y + 8, box.Width - 20, box.Height - 16);
+    StringFormat fmt;
+    fmt.SetTrimming(StringTrimmingEllipsisWord);
+    g.DrawString(text.c_str(), -1, &f, textBox, &fmt, &fg);
+}
+
 } // namespace
 
-void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND)
+void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
 {
     using namespace Gdiplus;
     ui::DrawHeader(g, cx, cw, i18n::T("VSCRIPT_TITLE"));
@@ -79,6 +124,7 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND)
     g_contRects.clear();
     g_runRects.clear();
     g_removeRects.clear();
+    g_noticeRects.clear();
 
     Font textFont(L"Microsoft YaHei", 10);
     Font smallFont(L"Microsoft YaHei", 9);
@@ -123,9 +169,12 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND)
 
         std::wstring name = DisplayName(scripts[i]);
         g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), scripts[i].hasMetadataName ? &meta : &text);
-        std::wstring sub = scripts[i].hasMetadataName ? vscrpit::GetScriptNotice(scripts[i]) : scripts[i].path;
-        if (sub.empty()) sub = scripts[i].path;
+        std::wstring sub = scripts[i].hasMetadataName ? SummaryText(scripts[i]) : scripts[i].path;
         g.DrawString(sub.c_str(), -1, &smallFont, PointF((REAL)cx + 18, (REAL)y + 25), &dim);
+
+        RectF notice((REAL)cx + 260, (REAL)y + 7, 18, 18);
+        if (!scripts[i].notice.empty()) DrawNoticeIcon(g, notice);
+        g_noticeRects.push_back(notice);
 
         RectF cont((REAL)cx + cw - 230, (REAL)y + 12, 50, 24);
         RectF run((REAL)cx + cw - 160, (REAL)y + 10, 56, 28);
@@ -141,6 +190,18 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND)
 
         y += 56;
         if (y > H - 60) break;
+    }
+
+    if (hw) {
+        POINT pt{};
+        GetCursorPos(&pt);
+        ScreenToClient(hw, &pt);
+        for (size_t i = 0; i < g_noticeRects.size() && i < scripts.size(); ++i) {
+            if (Hit(g_noticeRects[i], pt.x, pt.y)) {
+                DrawTooltip(g, scripts[i].notice, pt.x, pt.y);
+                break;
+            }
+        }
     }
 }
 

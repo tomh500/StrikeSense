@@ -440,6 +440,11 @@ case WM_KEYDOWN: {
         }
         break;
     }
+    case WM_MOUSEMOVE:
+        if (g_currentPage == PAGE_VSCRIPT) {
+            InvalidateRect(hw, nullptr, FALSE);
+        }
+        break;
     case WM_TIMER:
         if (wp == 2001) {
             vscrpit::TickContinuousScripts();

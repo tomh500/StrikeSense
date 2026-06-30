@@ -60,7 +60,7 @@ function xorPayload(buf) {
 }
 
 function makeKey(stamp, kind) {
-  if (!/^\d{8}$/.test(stamp)) throw new Error("时间戳必须是 YYYYMMDD");
+  if (!/^\d{12}$/.test(stamp)) throw new Error("时间戳必须是 YYYYMMDDHHMM");
   const normalized = normalizeType(kind);
   const body = `SSOEM1|${stamp}|${normalized}`;
   const check = fnv1a(`${body}|StrikeSense`).toString(16);
@@ -69,7 +69,9 @@ function makeKey(stamp, kind) {
 
 if (typeof module !== "undefined") module.exports = { makeKey, normalizeType };
 if (require.main === module) {
-  const stamp = process.argv[2] || new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const stamp = process.argv[2] || `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`;
   const kind = process.argv[3] || "24小时";
   console.log(makeKey(stamp, kind));
 }

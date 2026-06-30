@@ -1,0 +1,11 @@
+// @name: 死亡后自动即时降低
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 死亡时打开即时降低，freezetime 自动关闭。
+if(on:death_mute==true){
+    SetDeathMute(true);
+};
+
+if(on:round_phase=="freezetime"){
+    SetDeathMute(false);
+};

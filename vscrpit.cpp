@@ -21,6 +21,7 @@
 #include <sstream>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "Psapi.lib")
@@ -67,11 +68,17 @@ std::unordered_map<int, image_window> s_images;
 std::unordered_map<int, sound_slot> s_sounds;
 std::recursive_mutex s_mutex;
 std::unordered_map<std::wstring, std::wstring> s_scriptCache;
+std::unordered_set<std::wstring> s_stateKeys;
+bool s_returnRequested = false;
+std::optional<std::wstring> s_gotoTarget;
 
 constexpr const wchar_t* k_imageClass = L"StrikeSenseVscrpitImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 
 std::wstring Trim(std::wstring s);
+value TextValue(const std::wstring& s);
+value NumberValue(double n);
+value BoolValue(bool b);
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -102,8 +109,8 @@ std::wstring NowStamp()
 {
     SYSTEMTIME st{};
     GetLocalTime(&st);
-    wchar_t buf[16]{};
-    swprintf_s(buf, L"%04u%02u%02u", st.wYear, st.wMonth, st.wDay);
+    wchar_t buf[20]{};
+    swprintf_s(buf, L"%04u%02u%02u%02u%02u", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
     return buf;
 }
 
@@ -130,11 +137,23 @@ int DateToDays(int y, int m, int d)
     return (int)(std::mktime(&t) / 86400);
 }
 
-int CurrentDays()
+std::time_t MakeTime(int y, int m, int d, int hh, int mm)
+{
+    std::tm t{};
+    t.tm_year = y - 1900;
+    t.tm_mon = m - 1;
+    t.tm_mday = d;
+    t.tm_hour = hh;
+    t.tm_min = mm;
+    t.tm_isdst = -1;
+    return std::mktime(&t);
+}
+
+std::time_t CurrentTime()
 {
     SYSTEMTIME st{};
     GetLocalTime(&st);
-    return DateToDays(st.wYear, st.wMonth, st.wDay);
+    return MakeTime(st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
 }
 
 uint32_t Fnv1a(const std::string& s)
@@ -216,16 +235,18 @@ bool ParseOemKey(const std::wstring& key)
     std::ostringstream check;
     check << std::hex << Fnv1a(body + "|StrikeSense");
     if (check.str() != parts[3]) return false;
-    if (parts[1].size() != 8) return false;
+    if (parts[1].size() != 12) return false;
 
     int y = std::stoi(parts[1].substr(0, 4));
     int m = std::stoi(parts[1].substr(4, 2));
     int d = std::stoi(parts[1].substr(6, 2));
+    int hh = std::stoi(parts[1].substr(8, 2));
+    int mm = std::stoi(parts[1].substr(10, 2));
     int days = DaysForType(Utf8ToWide(parts[2]));
     if (days <= 0) return false;
-    int begin = DateToDays(y, m, d);
-    int now = CurrentDays();
-    return now >= begin && now <= begin + days;
+    std::time_t begin = MakeTime(y, m, d, hh, mm);
+    std::time_t now = CurrentTime();
+    return now >= begin && now <= begin + static_cast<std::time_t>(days) * 86400;
 }
 
 std::wstring ReadAllWide(const fs::path& path)
@@ -354,6 +375,45 @@ void WriteUtf8(const fs::path& path, const std::wstring& text)
     out << WideToUtf8(text);
 }
 
+std::wstring SanitizeName(const std::wstring& name)
+{
+    std::wstring out;
+    for (wchar_t c : name) {
+        if ((c >= L'a' && c <= L'z') || (c >= L'A' && c <= L'Z') || (c >= L'0' && c <= L'9')) out.push_back(c);
+        else out.push_back(L'_');
+    }
+    if (!out.empty() && out.front() >= L'0' && out.front() <= L'9') out = L"v_" + out;
+    return out;
+}
+
+void SetStateVar(const std::wstring& name, const value& v)
+{
+    s_vars[name] = v;
+    s_stateKeys.insert(name);
+}
+
+void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j)
+{
+    if (j.is_object()) {
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            std::wstring key = Utf8ToWide(it.key());
+            std::wstring next = prefix.empty() ? SanitizeName(key) : prefix + L"_" + SanitizeName(key);
+            FlattenJsonState(next, it.value());
+        }
+        return;
+    }
+    if (j.is_array()) {
+        for (size_t i = 0; i < j.size(); ++i) {
+            FlattenJsonState(prefix + L"_" + std::to_wstring(i), j[i]);
+        }
+        return;
+    }
+    if (j.is_string()) SetStateVar(prefix, TextValue(Utf8ToWide(j.get<std::string>())));
+    else if (j.is_number()) SetStateVar(prefix, NumberValue(j.get<double>()));
+    else if (j.is_boolean()) SetStateVar(prefix, BoolValue(j.get<bool>()));
+    else SetStateVar(prefix, TextValue(L"void"));
+}
+
 value TextValue(const std::wstring& s)
 {
     value v;
@@ -439,13 +499,16 @@ std::vector<std::wstring> SplitStatements(const std::wstring& script)
     std::wstring cur;
     bool inString = false;
     int brace = 0;
+    int paren = 0;
     for (size_t i = 0; i < script.size(); ++i) {
         wchar_t c = script[i];
         if (c == L'"' && (i == 0 || script[i - 1] != L'\\')) inString = !inString;
         if (!inString) {
+            if (c == L'(') ++paren;
+            if (c == L')' && paren > 0) --paren;
             if (c == L'{') ++brace;
             if (c == L'}') --brace;
-            if (c == L';' && brace == 0) {
+            if (c == L';' && brace == 0 && paren == 0) {
                 out.push_back(Trim(cur));
                 cur.clear();
                 continue;
@@ -484,6 +547,43 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args)
 value EvalExpr(const std::wstring& expr)
 {
     std::wstring e = Trim(expr);
+    auto findOp = [&](const std::wstring& ops) -> std::pair<size_t, wchar_t> {
+        bool inString = false;
+        int paren = 0;
+        for (size_t i = e.size(); i > 0; --i) {
+            size_t idx = i - 1;
+            wchar_t c = e[idx];
+            if (c == L'"' && (idx == 0 || e[idx - 1] != L'\\')) inString = !inString;
+            if (inString) continue;
+            if (c == L')') ++paren;
+            else if (c == L'(' && paren > 0) --paren;
+            if (paren == 0 && ops.find(c) != std::wstring::npos) {
+                if (c == L'-' && (idx == 0 || std::wstring(L"+-*/(").find(e[idx - 1]) != std::wstring::npos)) continue;
+                return { idx, c };
+            }
+        }
+        return { std::wstring::npos, L'\0' };
+    };
+    if (e.size() >= 2 && e.front() == L'(' && e.back() == L')') {
+        return EvalExpr(e.substr(1, e.size() - 2));
+    }
+    auto addOp = findOp(L"+-");
+    if (addOp.first != std::wstring::npos) {
+        value left = EvalExpr(e.substr(0, addOp.first));
+        value right = EvalExpr(e.substr(addOp.first + 1));
+        if (addOp.second == L'+' && (left.type == value::kind::text || right.type == value::kind::text)) {
+            return TextValue(ToText(left) + ToText(right));
+        }
+        return NumberValue(addOp.second == L'+' ? ToNumber(left) + ToNumber(right) : ToNumber(left) - ToNumber(right));
+    }
+    auto mulOp = findOp(L"*/");
+    if (mulOp.first != std::wstring::npos) {
+        value left = EvalExpr(e.substr(0, mulOp.first));
+        value right = EvalExpr(e.substr(mulOp.first + 1));
+        double r = ToNumber(right);
+        if (mulOp.second == L'/' && r == 0.0) return NumberValue(0.0);
+        return NumberValue(mulOp.second == L'*' ? ToNumber(left) * r : ToNumber(left) / r);
+    }
     if (e.size() >= 2 && e.front() == L'"' && e.back() == L'"') {
         std::wstring text;
         for (size_t i = 1; i + 1 < e.size(); ++i) {
@@ -694,6 +794,16 @@ LRESULT CALLBACK ImageProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         EndPaint(hwnd, &ps);
         return 0;
     }
+    if (msg == WM_CLOSE) {
+        DestroyWindow(hwnd);
+        return 0;
+    }
+    if (msg == WM_DESTROY) {
+        int id = (int)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
+        s_images.erase(id);
+        std::cout << "[脚本] 图片窗口已销毁 ID=" << id << std::endl;
+        return 0;
+    }
     if (msg == WM_ERASEBKGND) return TRUE;
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
@@ -715,8 +825,7 @@ void CloseImage(int id)
 {
     auto it = s_images.find(id);
     if (it == s_images.end()) return;
-    if (it->second.hwnd) DestroyWindow(it->second.hwnd);
-    s_images.erase(it);
+    if (it->second.hwnd) PostMessageW(it->second.hwnd, WM_CLOSE, 0, 0);
     std::cout << "[脚本] 已关闭图片 ID=" << id << std::endl;
 }
 
@@ -745,7 +854,10 @@ bool DrawImageCommand(const fs::path& path, int offsetX, int offsetY, bool alpha
     if (ttlMs > 0) {
         std::thread([id, ttlMs]() {
             Sleep((DWORD)ttlMs);
-            CloseImage(id);
+            auto it = s_images.find(id);
+            if (it != s_images.end() && it->second.hwnd) {
+                PostMessageW(it->second.hwnd, WM_CLOSE, 0, 0);
+            }
         }).detach();
     }
     std::wcout << L"[脚本] 已绘制图片: " << path.wstring() << L" ID=" << id << std::endl;
@@ -879,6 +991,20 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
 }
 
 void ExecuteBlock(const std::wstring& script);
+void ExecuteStatement(const std::wstring& stmt);
+
+bool ExtractControlBlock(const std::wstring& s, const std::wstring& keyword, std::wstring& head, std::wstring& body)
+{
+    if (s.rfind(keyword, 0) != 0) return false;
+    size_t lp = s.find(L'(');
+    size_t rp = s.find(L')', lp);
+    size_t lb = s.find(L'{', rp);
+    size_t rb = s.rfind(L'}');
+    if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
+    head = s.substr(lp + 1, rp - lp - 1);
+    body = s.substr(lb + 1, rb - lb - 1);
+    return true;
+}
 
 bool TryExecuteIf(const std::wstring& stmt)
 {
@@ -887,7 +1013,7 @@ bool TryExecuteIf(const std::wstring& stmt)
     size_t lp = s.find(L'(');
     size_t rp = s.find(L')', lp);
     size_t lb = s.find(L'{', rp);
-    size_t rb = s.rfind(L'}');
+    size_t rb = s.find(L'}', lb);
     if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
     std::wstring cond = s.substr(lp + 1, rp - lp - 1);
     std::wstring body = s.substr(lb + 1, rb - lb - 1);
@@ -903,11 +1029,55 @@ bool TryExecuteIf(const std::wstring& stmt)
     return true;
 }
 
+bool TryExecuteWhile(const std::wstring& stmt)
+{
+    std::wstring s = Trim(stmt);
+    std::wstring cond, body;
+    if (!ExtractControlBlock(s, L"while", cond, body)) return false;
+    for (int i = 0; i < 1000 && EvalCondition(cond) && !s_returnRequested; ++i) {
+        ExecuteBlock(body);
+    }
+    return true;
+}
+
+bool TryExecuteFor(const std::wstring& stmt)
+{
+    std::wstring s = Trim(stmt);
+    std::wstring head, body;
+    if (!ExtractControlBlock(s, L"for", head, body)) return false;
+    std::vector<std::wstring> parts;
+    std::wstring cur;
+    for (wchar_t c : head) {
+        if (c == L';') {
+            parts.push_back(Trim(cur));
+            cur.clear();
+        } else {
+            cur.push_back(c);
+        }
+    }
+    parts.push_back(Trim(cur));
+    if (!parts.empty()) ExecuteStatement(parts[0]);
+    for (int i = 0; i < 1000 && !s_returnRequested; ++i) {
+        if (parts.size() > 1 && !parts[1].empty() && !EvalCondition(parts[1])) break;
+        ExecuteBlock(body);
+        if (parts.size() > 2 && !parts[2].empty()) ExecuteStatement(parts[2]);
+    }
+    return true;
+}
+
 void ExecuteStatement(const std::wstring& stmt)
 {
     std::wstring s = Trim(stmt);
     if (s.empty()) return;
+    if (s_returnRequested) return;
+    if (s == L"return") { s_returnRequested = true; return; }
+    if (s.rfind(L"goto ", 0) == 0) {
+        s_gotoTarget = Trim(s.substr(5));
+        return;
+    }
     if (TryExecuteIf(s)) return;
+    if (TryExecuteWhile(s)) return;
+    if (TryExecuteFor(s)) return;
 
     for (const auto& prefix : { L"int ", L"float ", L"string " }) {
         if (s.rfind(prefix, 0) == 0) {
@@ -930,20 +1100,37 @@ void ExecuteStatement(const std::wstring& stmt)
 
 void ExecuteBlock(const std::wstring& script)
 {
-    for (const auto& stmt : SplitStatements(script)) ExecuteStatement(stmt);
+    std::vector<std::wstring> statements = SplitStatements(script);
+    std::unordered_map<std::wstring, size_t> labels;
+    for (size_t i = 0; i < statements.size(); ++i) {
+        std::wstring s = Trim(statements[i]);
+        if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) {
+            labels[Trim(s.substr(0, s.size() - 1))] = i;
+        }
+    }
+    for (size_t pc = 0; pc < statements.size() && !s_returnRequested; ++pc) {
+        std::wstring s = Trim(statements[pc]);
+        if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) continue;
+        ExecuteStatement(s);
+        if (s_gotoTarget) {
+            auto it = labels.find(*s_gotoTarget);
+            s_gotoTarget.reset();
+            if (it != labels.end()) pc = it->second;
+        }
+    }
 }
 
 void SetJsonVar(const std::wstring& name, const nlohmann::json& j, const char* key)
 {
     if (!j.contains(key)) {
-        s_vars[name] = TextValue(L"void");
+        SetStateVar(name, TextValue(L"void"));
         return;
     }
     const auto& v = j[key];
-    if (v.is_string()) s_vars[name] = TextValue(Utf8ToWide(v.get<std::string>()));
-    else if (v.is_number()) s_vars[name] = NumberValue(v.get<double>());
-    else if (v.is_boolean()) s_vars[name] = BoolValue(v.get<bool>());
-    else s_vars[name] = TextValue(L"void");
+    if (v.is_string()) SetStateVar(name, TextValue(Utf8ToWide(v.get<std::string>())));
+    else if (v.is_number()) SetStateVar(name, NumberValue(v.get<double>()));
+    else if (v.is_boolean()) SetStateVar(name, BoolValue(v.get<bool>()));
+    else SetStateVar(name, TextValue(L"void"));
 }
 
 void RegisterBuildWarning()
@@ -1017,21 +1204,24 @@ void UpdateFromGsi(const nlohmann::json& state)
 {
     std::lock_guard<std::recursive_mutex> lock(s_mutex);
     s_prevVars = s_vars;
+    for (const auto& key : s_stateKeys) s_vars.erase(key);
+    s_stateKeys.clear();
+    FlattenJsonState(L"gsi", state);
     if (state.contains("map") && state["map"].is_object()) {
         SetJsonVar(L"map", state["map"], "name");
         SetJsonVar(L"map_mode", state["map"], "mode");
         SetJsonVar(L"map_phase", state["map"], "phase");
     } else {
-        s_vars[L"map"] = TextValue(L"void");
-        s_vars[L"map_mode"] = TextValue(L"void");
-        s_vars[L"map_phase"] = TextValue(L"void");
+        SetStateVar(L"map", TextValue(L"void"));
+        SetStateVar(L"map_mode", TextValue(L"void"));
+        SetStateVar(L"map_phase", TextValue(L"void"));
     }
     if (state.contains("round") && state["round"].is_object()) {
         SetJsonVar(L"round_phase", state["round"], "phase");
         SetJsonVar(L"bomb", state["round"], "bomb");
     } else {
-        s_vars[L"round_phase"] = TextValue(L"void");
-        s_vars[L"bomb"] = TextValue(L"void");
+        SetStateVar(L"round_phase", TextValue(L"void"));
+        SetStateVar(L"bomb", TextValue(L"void"));
     }
     if (state.contains("player") && state["player"].is_object()) {
         const auto& player = state["player"];
@@ -1042,17 +1232,33 @@ void UpdateFromGsi(const nlohmann::json& state)
             SetJsonVar(L"kills", player["state"], "round_kills");
             SetJsonVar(L"health", player["state"], "health");
             SetJsonVar(L"flashed", player["state"], "flashed");
-            s_vars[L"death_mute"] = BoolValue(ToNumber(GetVar(L"health")) <= 0);
+            SetStateVar(L"death_mute", BoolValue(ToNumber(GetVar(L"health")) <= 0));
         } else {
-            s_vars[L"kills"] = TextValue(L"void");
-            s_vars[L"health"] = TextValue(L"void");
-            s_vars[L"flashed"] = TextValue(L"void");
-            s_vars[L"death_mute"] = TextValue(L"void");
+            SetStateVar(L"kills", TextValue(L"void"));
+            SetStateVar(L"health", TextValue(L"void"));
+            SetStateVar(L"flashed", TextValue(L"void"));
+            SetStateVar(L"death_mute", TextValue(L"void"));
         }
         if (player.contains("match_stats") && player["match_stats"].is_object())
             SetJsonVar(L"mvps", player["match_stats"], "mvps");
         else
-            s_vars[L"mvps"] = TextValue(L"void");
+            SetStateVar(L"mvps", TextValue(L"void"));
+
+        SetStateVar(L"weapon_name", TextValue(L"void"));
+        SetStateVar(L"weapon_type", TextValue(L"void"));
+        SetStateVar(L"weapon_state", TextValue(L"void"));
+        if (player.contains("weapons") && player["weapons"].is_object()) {
+            for (auto it = player["weapons"].begin(); it != player["weapons"].end(); ++it) {
+                const auto& weapon = it.value();
+                if (!weapon.is_object()) continue;
+                std::string stateText = weapon.value("state", "");
+                if (stateText != "active") continue;
+                SetJsonVar(L"weapon_name", weapon, "name");
+                SetJsonVar(L"weapon_type", weapon, "type");
+                SetJsonVar(L"weapon_state", weapon, "state");
+                break;
+            }
+        }
     }
 }
 
@@ -1062,7 +1268,11 @@ void TickContinuousScripts()
     for (const auto& script : s_mounted) {
         if (script.continuous) {
             std::wstring text = LoadScriptCached(script.path);
-            if (!text.empty()) ExecuteBlock(StripComments(text));
+            if (!text.empty()) {
+                s_returnRequested = false;
+                s_gotoTarget.reset();
+                ExecuteBlock(StripComments(text));
+            }
         }
     }
     s_prevVars = s_vars;
@@ -1078,6 +1288,8 @@ bool ExecuteScriptFile(const std::wstring& path)
     }
     s_scriptCache[path] = script;
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
+    s_returnRequested = false;
+    s_gotoTarget.reset();
     ExecuteBlock(StripComments(script));
     return true;
 }
@@ -1180,51 +1392,7 @@ void EnsureExampleScript()
 {
     fs::path dir = GetDefaultScriptDir();
     fs::create_directories(dir / L"assets" / L"kills");
-    auto writeSample = [](const fs::path& path, const std::wstring& text, bool overwrite) {
-        if (!overwrite && fs::exists(path)) return;
-        WriteUtf8(path, text);
-        std::wcout << L"[脚本] 已创建示范脚本: " << path.wstring() << std::endl;
-    };
-    writeSample(dir / L"death_douyin.vscrpit",
-        L"// @name: 死后刷抖音\n"
-        L"// @provider: StrikeSense\n"
-        L"// @version: 1.1.0\n"
-        L"// @notice: 死亡时切到抖音，freeze time 自动切回游戏。\n"
-        L"if(on:death_mute==true){\n"
-        L"    CloseGameWindow();\n"
-        L"    Browser(\"https://www.douyin.com/\", true);\n"
-        L"};\n"
-        L"\n"
-        L"if(on:round_phase==\"freezetime\"){\n"
-        L"    ShowGameProcess();\n"
-        L"};\n", true);
-    writeSample(dir / L"kill_icons.vscrpit",
-        L"// @name: 连杀图标提示\n"
-        L"// @provider: StrikeSense\n"
-        L"// @version: 1.0.0\n"
-        L"// @notice: 将 1.png~5.png 放入 script/assets/kills 后，1~5 杀会在屏幕正下显示 3 秒。\n"
-        L"if(on:kills==1){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/1.png\", 0, 360, true, 1.0, 3000, 101); };\n"
-        L"if(on:kills==2){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/2.png\", 0, 360, true, 1.0, 3000, 102); };\n"
-        L"if(on:kills==3){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/3.png\", 0, 360, true, 1.0, 3000, 103); };\n"
-        L"if(on:kills==4){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/4.png\", 0, 360, true, 1.0, 3000, 104); };\n"
-        L"if(on:kills==5){ Drawimg(\"%USERPROFILE%/StrikeSense/script/assets/kills/5.png\", 0, 360, true, 1.0, 3000, 105); };\n", false);
-    writeSample(dir / L"nuke_focus.vscrpit",
-        L"// @name: Nuke 专注模式\n"
-        L"// @provider: StrikeSense\n"
-        L"// @version: 1.0.0\n"
-        L"// @notice: 切到 nuke 时把 CS2 窗口置顶。\n"
-        L"if(on:map==\"de_nuke\"){\n"
-        L"    ShowGameProcess();\n"
-        L"    Top(\"cs2.exe\", true);\n"
-        L"};\n", false);
-    writeSample(dir / L"low_hp_quiet.vscrpit",
-        L"// @name: 残血静音提醒\n"
-        L"// @provider: StrikeSense\n"
-        L"// @version: 1.0.0\n"
-        L"// @notice: 血量低于 20 时降低 CS2 音量，死亡或新回合重置。\n"
-        L"if(on:health<20){ SetDeathVolume(0.35); };\n"
-        L"if(on:death_mute==true){ SetDeathVolume(0.8); };\n"
-        L"if(on:round_phase==\"freezetime\"){ SetDeathVolume(0.8); };\n", false);
+    std::cout << "[脚本] 已确认脚本目录与资源目录存在" << std::endl;
 }
 
 const std::wstring& GetScriptDisplayName(const mounted_script& script)

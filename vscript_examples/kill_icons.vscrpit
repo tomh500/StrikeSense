@@ -1,0 +1,9 @@
+// @name: 连杀图标提示
+// @provider: StrikeSense
+// @version: 1.1.0
+// @notice: 将 1.png 到 5.png 放入 %USERPROFILE%/StrikeSense/script/assets/kills，击杀时在屏幕正下显示 3 秒。
+if(on:kills==1){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/1.png", 0, 360, true, 1.0, 3000, 101); };
+if(on:kills==2){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/2.png", 0, 360, true, 1.0, 3000, 102); };
+if(on:kills==3){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/3.png", 0, 360, true, 1.0, 3000, 103); };
+if(on:kills==4){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/4.png", 0, 360, true, 1.0, 3000, 104); };
+if(on:kills==5){ Drawimg("%USERPROFILE%/StrikeSense/script/assets/kills/5.png", 0, 360, true, 1.0, 3000, 105); };

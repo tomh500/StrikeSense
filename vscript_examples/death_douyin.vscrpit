@@ -1,0 +1,12 @@
+// @name: 死后刷抖音
+// @provider: StrikeSense
+// @version: 1.2.0
+// @notice: 死亡后最小化 CS2 并打开抖音，freezetime 自动切回游戏。
+if(on:death_mute==true){
+    CloseGameWindow();
+    Browser("https://www.douyin.com/", true);
+};
+
+if(on:round_phase=="freezetime"){
+    ShowGameProcess();
+};

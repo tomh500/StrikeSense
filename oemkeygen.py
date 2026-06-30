@@ -62,8 +62,8 @@ def xor_payload(raw: bytes) -> bytes:
 
 
 def make_key(stamp: str, kind: str) -> str:
-    if len(stamp) != 8 or not stamp.isdigit():
-        raise ValueError("时间戳必须是 YYYYMMDD")
+    if len(stamp) != 12 or not stamp.isdigit():
+        raise ValueError("时间戳必须是 YYYYMMDDHHMM")
     normalized = normalize_type(kind)
     body = f"SSOEM1|{stamp}|{normalized}"
     check = format(fnv1a(f"{body}|StrikeSense"), "x")
@@ -72,7 +72,7 @@ def make_key(stamp: str, kind: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="StrikeSense OEM key generator")
-    parser.add_argument("--stamp", default=dt.date.today().strftime("%Y%m%d"), help="YYYYMMDD, default is today")
+    parser.add_argument("--stamp", default=dt.datetime.now().strftime("%Y%m%d%H%M"), help="YYYYMMDDHHMM, default is now")
     parser.add_argument("--type", default=None, help="24小时/7天/一个月/半年/一年/十年/五十年/永不失效")
     args = parser.parse_args()
     kind = args.type or input("请输入期限类型：").strip()

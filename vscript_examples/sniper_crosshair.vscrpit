@@ -1,0 +1,23 @@
+// @name: 狙击枪准星自动开关
+// @provider: StrikeSense
+// @version: 1.0.0
+// @notice: 手持 AWP / SSG08 / SCAR20 / G3SG1 时启用狙击准星，切换到其他武器时关闭。
+if(on:weapon_name=="weapon_awp"){
+    SetCrosshair(true, 255, 40, 40, 2, 2, 0.22);
+};
+
+if(on:weapon_name=="weapon_ssg08"){
+    SetCrosshair(true, 80, 200, 255, 2, 2, 0.22);
+};
+
+if(on:weapon_name=="weapon_scar20"){
+    SetCrosshair(true, 255, 220, 80, 2, 2, 0.22);
+};
+
+if(on:weapon_name=="weapon_g3sg1"){
+    SetCrosshair(true, 255, 220, 80, 2, 2, 0.22);
+};
+
+if(on:weapon_type!="SniperRifle"){
+    SetCrosshair(false, 255, 0, 0, 0, 2, 0.2);
+};
