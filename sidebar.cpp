@@ -10,6 +10,7 @@ const SidebarItem g_sidebarItems[] = {
     {L"合法配置",      PAGE_LEGALCFG,   142},
     {L"超频配置",      PAGE_Rage,  172},
     {L"道具助手",      PAGE_ITEMHELPER, 202},
+    {L"自定脚本",      PAGE_VSCRIPT, 232},
 };
 
 void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
@@ -31,7 +32,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int W, int H) {
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
     g.DrawString(L"StrikeSense", -1, &tF, PointF(4, 12), &tb);
 
-    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER)};
+    const wchar_t* labels[] = {i18n::T(i18n::Keys::SIDEBAR_FILE), i18n::T(i18n::Keys::SIDEBAR_SETTINGS), i18n::T(i18n::Keys::SIDEBAR_EVOLUTION), i18n::T(i18n::Keys::SIDEBAR_LEGAL), i18n::T(i18n::Keys::SIDEBAR_Rage), i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER), L"自定脚本"};
     int idx = 0;
     for (auto& it : g_sidebarItems) {
         if (g_currentPage == it.page)

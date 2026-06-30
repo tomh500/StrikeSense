@@ -76,6 +76,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscrpit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript_page.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h">

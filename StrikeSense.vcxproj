@@ -454,6 +454,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscrpit.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript_page.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h" />

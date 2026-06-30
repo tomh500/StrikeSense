@@ -13,6 +13,7 @@ enum Page {
     PAGE_LEGALCFG = 3,
     PAGE_Rage = 4,
     PAGE_ITEMHELPER = 5,
+    PAGE_VSCRIPT = 6,
     PAGE_COUNT
 };
 
@@ -69,6 +70,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
+void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 
 // ===== 各页面 Click =====
 void CheckSidebarClick(HWND hw, int mx, int my);
@@ -78,6 +80,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my);
 void CheckLegalCfgClick(HWND hw, int mx, int my);
 void CheckRageClick(HWND hw, int mx, int my);
 void CheckItemHelperClick(HWND hw, int mx, int my);
+void CheckVscriptClick(HWND hw, int mx, int my);
 
 // ===== 合法配置键盘输入 =====
 void InitLegalCfgPage();
