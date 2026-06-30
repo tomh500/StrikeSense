@@ -494,8 +494,8 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
         if (showDialogs && s_owner) {
             std::wstring msg = L"该脚本包含高权限函数，但没有声明当前 Windows 用户为作者：\n\n"
                 L"请在脚本头部添加类似\n// @modifier: self_user=" + GetWindowsUserName() +
-                L"\n\n或切换到 nightly / eng 运行能力后再挂载。";
-            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本挂载被拒绝", MB_OK | MB_ICONWARNING);
+                L"\n\n或解锁OEM权限。";
+            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本挂载被拒绝", MB_OK | MB_ICONERROR);
         }
         return false;
     }
