@@ -65,4 +65,76 @@ document.addEventListener('DOMContentLoaded', () => {
             navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.85)';
         }
     });
+
+    // 下载版本选择弹窗
+    const downloadModal = document.getElementById('downloadModal');
+    const nightlyList = document.getElementById('nightlyList');
+    const showNightlyFiles = document.getElementById('showNightlyFiles');
+    const downloadButtons = document.querySelectorAll('.js-download-choice');
+
+    const formatFileSize = (bytes) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return '大小未知';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex += 1;
+        }
+        return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    };
+
+    const openDownloadModal = () => {
+        downloadModal.classList.add('open');
+        downloadModal.setAttribute('aria-hidden', 'false');
+        nightlyList.hidden = true;
+        nightlyList.innerHTML = '';
+    };
+
+    const closeDownloadModal = () => {
+        downloadModal.classList.remove('open');
+        downloadModal.setAttribute('aria-hidden', 'true');
+    };
+
+    downloadButtons.forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            openDownloadModal();
+        });
+    });
+
+    document.querySelectorAll('[data-download-close]').forEach((button) => {
+        button.addEventListener('click', closeDownloadModal);
+    });
+
+    showNightlyFiles.addEventListener('click', async () => {
+        nightlyList.hidden = false;
+        nightlyList.innerHTML = '<p class="nightly-list__status">正在检测夜间版文件...</p>';
+
+        try {
+            const response = await fetch('app/nightly-manifest.json', { cache: 'no-store' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const manifest = await response.json();
+            const files = Array.isArray(manifest.files) ? manifest.files : [];
+
+            if (files.length === 0) {
+                nightlyList.innerHTML = '<p class="nightly-list__status">当前没有检测到夜间版文件。</p>';
+                return;
+            }
+
+            const fileRows = files.map((file) => `
+                <a class="nightly-file" href="${file.path}" download>
+                    <span>
+                        <strong>${file.name}</strong>
+                        <small>${formatFileSize(file.size)}</small>
+                    </span>
+                    <span class="nightly-file__download">下载</span>
+                </a>
+            `).join('');
+            nightlyList.innerHTML = `<div class="nightly-list__header">检测到 ${files.length} 个夜间版文件</div>${fileRows}`;
+        } catch (error) {
+            nightlyList.innerHTML = '<p class="nightly-list__status">夜间版清单读取失败，请稍后再试。</p>';
+            console.log('夜间版清单读取失败：', error);
+        }
+    });
 });

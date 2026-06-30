@@ -34,7 +34,7 @@
             <h1>释放你的身法与竞技潜能</h1>
             <p class="subtitle">100% 纯净无篡改！不读写游戏内存，不绕过反作弊。集自定义连杀音效、物理级急停辅助、实战高清道具教学遮罩于一体的综合增强面板。</p>
             <div class="hero-btns">
-                <a href="#download" class="btn btn-primary btn-lg">下载客户端</a>
+                <a href="#download" class="btn btn-primary btn-lg js-download-choice">下载客户端</a>
                 <a href="https://discord.gg/A2KHJkY9V6" class="btn btn-secondary btn-lg">加入不和谐</a>
             </div>
         </div>
@@ -249,11 +249,25 @@
         <div class="container footer-content">
             <h3>开启你的全新 StrikeSense 竞技之旅</h3>
             <p>环境要求：Windows 10 / 11 64位系统 | 完美支持 CS2 官方纯净环境</p>
-            <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg">立即免费下载</a>
+            <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg js-download-choice">立即免费下载</a>
             
             <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
         </div>
     </footer>
+
+    <div class="download-modal" id="downloadModal" aria-hidden="true">
+        <div class="download-modal__backdrop" data-download-close></div>
+        <div class="download-modal__panel" role="dialog" aria-modal="true" aria-labelledby="downloadModalTitle">
+            <button class="download-modal__close" type="button" data-download-close aria-label="关闭">×</button>
+            <h2 id="downloadModalTitle">选择下载版本</h2>
+            <p class="download-modal__hint">发布版更稳定，夜间版会先检测当前可用文件。</p>
+            <div class="download-modal__actions">
+                <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg" download>下载发布版</a>
+                <button class="btn btn-secondary btn-lg" type="button" id="showNightlyFiles">检测夜间版</button>
+            </div>
+            <div class="nightly-list" id="nightlyList" hidden></div>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
