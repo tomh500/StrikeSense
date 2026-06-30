@@ -22,6 +22,7 @@
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "itemhelper_page.h"   
+#include "vscrpit.h"
 #include <regex>
 #include <sstream>
 #include <vector>
@@ -161,6 +162,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
     if (!hwMain) return FALSE;
     g_hwnd = hwMain;
+    vscrpit::Initialize(hInst, hwMain);
+    SetTimer(hwMain, 2001, 200, nullptr);
 
     // 页面初始化
     InitLegalCfgPage();
@@ -195,7 +198,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
-    gsi::StopServer(); gsi::Cleanup(); sound::Quit();
+    gsi::StopServer(); gsi::Cleanup(); vscrpit::Shutdown(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);
     if (g_hMutex) CloseHandle(g_hMutex);
     return (int)m.wParam;
@@ -435,11 +438,18 @@ case WM_KEYDOWN: {
         }
         break;
     }
+    case WM_TIMER:
+        if (wp == 2001) {
+            vscrpit::TickContinuousScripts();
+            return 0;
+        }
+        break;
     case WM_CLOSE: DestroyWindow(hw); break;
     case WM_DESTROY:
 {
     flashoverlay::Shutdown();
     itemhelper_overlay::Shutdown();
+    KillTimer(hw, 2001);
     UnregisterHotKey(hw, 1001);
     UnregisterHotKey(hw, 1002);
     PostQuitMessage(0);
