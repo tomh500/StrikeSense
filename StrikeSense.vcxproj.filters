@@ -73,7 +73,7 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscrpit.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript_page.cpp">
@@ -147,7 +147,7 @@
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\SteamHelper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\vscrpit.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\vscript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

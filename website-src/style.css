@@ -1,0 +1,706 @@
+/* ==========================================================================
+   💎 StrikeSense 官方网站 - 极简明亮水色 / 冰晶天蓝浅色系 (Light Aqua Theme) 
+   ========================================================================== */
+:root {
+    --bg-main: #f0f7ff;       /* 极浅的微蓝白底色 */
+    --bg-card: #ffffff;       /* 纯白卡片底色 */
+    --bg-sub: #eef8ff;        /* 柔和的浅天蓝交替块底色 */
+    --text-main: #004a80;     /* 深水蓝 (主标题与正文文字，沉稳清晰) */
+    --text-dim: #5c85a3;      /* 灰蓝色调（辅助文字） */
+    
+    /* 💎 焕然一新的水蓝色系配色 (Sky & Water Blue) */
+    --col-td: #0077cc;        /* 核心水蓝色 (标题与主按钮文字) */
+    --col-tb: #0099ff;        /* 亮天蓝色 (点缀与高光) */
+    --col-bb: #e0f2ff;        /* 冰蓝色填充 (按钮与徽章背景) */
+    --col-bp: #aaddff;        /* 柔和水蓝色高光边框 */
+    --col-warning: #ff6666;   /* 警告淡红 (保持警示性) */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    font-family: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* 导航栏 */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: rgba(243, 250, 252, 0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(9, 114, 122, 0.1);
+    z-index: 1000;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 75px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--col-td);
+    text-decoration: none;
+    letter-spacing: 1px;
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+}
+
+.nav-links a {
+    color: var(--text-main);
+    text-decoration: none;
+    margin: 0 18px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: var(--col-tb);
+}
+
+/* 手机端菜单切换键 */
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 24px;
+    height: 18px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 1100;
+}
+
+.menu-toggle span {
+    width: 100%;
+    height: 2px;
+    background-color: var(--col-td);
+    transition: all 0.3s ease;
+}
+
+.nav-download-btn { display: inline-block; }
+.mobile-download-btn { display: none; }
+
+/* 按钮通用样式 (16px对应源码平滑 AddArc 16 弧度) */
+.btn {
+    display: inline-block;
+    padding: 9px 24px;
+    border-radius: 16px; 
+    font-size: 14px;
+    font-weight: bold;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--col-bb);
+    color: var(--col-td);
+    border: 1px solid var(--col-bp);
+}
+
+.btn-primary:hover {
+    background-color: #bbf3f5;
+    box-shadow: 0 4px 15px rgba(20, 184, 166, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid rgba(9, 114, 122, 0.2);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-main);
+    border-color: var(--col-tb);
+}
+
+.btn-lg {
+    padding: 13px 36px;
+    font-size: 16px;
+    border-radius: 20px;
+}
+
+/* Hero 欢迎区 */
+.hero {
+    padding: 180px 0 110px 0;
+    background: radial-gradient(circle at 50% 30%, rgba(20, 184, 166, 0.1) 0%, transparent 65%);
+    text-align: center;
+}
+
+.badge {
+    display: inline-block;
+    background-color: var(--col-bb);
+    border: 1px solid var(--col-bp);
+    color: var(--col-td);
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+.hero h1 {
+    font-size: 46px;
+    font-weight: 800;
+    margin-bottom: 22px;
+    color: var(--text-main);
+}
+
+.subtitle {
+    max-width: 760px;
+    margin: 0 auto 42px auto;
+    font-size: 17px;
+    color: var(--text-dim);
+}
+
+.hero-btns .btn {
+    margin: 0 10px;
+}
+
+/* 公共标题 */
+.section-header {
+    text-align: center;
+    margin-bottom: 65px;
+}
+
+.section-header h2 {
+    font-size: 32px;
+    color: var(--text-main);
+    margin-bottom: 15px;
+}
+
+.section-header p {
+    color: var(--text-dim);
+}
+
+/* 产品介绍 */
+.about-section {
+    padding: 90px 0;
+    background-color: var(--bg-card);
+    border-top: 1px solid rgba(9, 114, 122, 0.05);
+    border-bottom: 1px solid rgba(9, 114, 122, 0.05);
+}
+
+.about-text {
+    max-width: 820px;
+    margin: 0 auto;
+    text-align: center;
+    font-size: 17px;
+    color: var(--text-main);
+}
+
+.about-text strong {
+    color: var(--col-td);
+}
+
+/* 💎 软件实战截图展示区 */
+.showcase-section {
+    padding: 100px 0;
+}
+
+.showcase-list {
+    display: flex;
+    flex-direction: column;
+    gap: 70px;
+}
+
+.showcase-item {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+}
+
+.showcase-item.reverse {
+    flex-direction: row-reverse;
+}
+
+.showcase-img {
+    flex: 1.2;
+    background-color: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #ffffff;
+    box-shadow: 0 12px 30px rgba(9, 114, 122, 0.1);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.showcase-img:hover {
+    border-color: var(--col-bp);
+    box-shadow: 0 15px 35px rgba(20, 184, 166, 0.15);
+}
+
+.showcase-img img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+}
+
+.showcase-info {
+    flex: 1;
+}
+
+.module-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--col-td);
+    background-color: var(--col-bb);
+    padding: 4px 14px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.warning-tag {
+    color: var(--col-warning);
+    background-color: rgba(255, 77, 77, 0.1);
+}
+
+.showcase-info h3 {
+    font-size: 24px;
+    color: var(--text-main);
+    margin-bottom: 15px;
+}
+
+.showcase-info p {
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+/* 技术特性网格 */
+.features-section {
+    padding: 100px 0;
+    background-color: var(--bg-sub);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    background-color: var(--bg-card);
+    padding: 40px 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(9, 114, 122, 0.03);
+    border: 1px solid rgba(9, 114, 122, 0.02);
+    transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--col-bp);
+    box-shadow: 0 10px 25px rgba(9, 114, 122, 0.08);
+}
+
+/* 矢量SVG图标样式 */
+.icon-wrap {
+    width: 46px;
+    height: 46px;
+    color: var(--col-td);
+    margin-bottom: 22px;
+}
+
+.icon-wrap svg {
+    width: 100%;
+    height: 100%;
+}
+
+.feature-card h3 {
+    font-size: 19px;
+    color: var(--text-main);
+    margin-bottom: 12px;
+}
+
+.feature-card p {
+    color: var(--text-dim);
+    font-size: 14px;
+}
+
+/* 超频警告框 */
+.rage-section {
+    padding: 50px 0;
+}
+
+.rage-box {
+    background-color: var(--bg-card);
+    border: 1px solid rgba(255, 77, 77, 0.3);
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(255, 77, 77, 0.05);
+}
+
+.rage-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--col-warning);
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.icon-inline {
+    width: 18px;
+    height: 18px;
+}
+
+.rage-box h2 {
+    font-size: 25px;
+    color: var(--text-main);
+    margin-bottom: 15px;
+}
+
+.warning-text {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(9, 114, 122, 0.05);
+    color: var(--text-dim);
+}
+
+/* 常见问题 */
+.faq-section {
+    padding: 100px 0;
+    background-color: var(--bg-card);
+}
+
+.faq-list {
+    max-width: 850px;
+    margin: 0 auto;
+}
+
+.faq-item {
+    background-color: var(--bg-main);
+    border-radius: 8px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    border: 1px solid rgba(9, 114, 122, 0.05);
+}
+
+.faq-question {
+    padding: 20px 25px;
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    transition: background-color 0.3s;
+}
+
+.faq-question:hover {
+    background-color: var(--bg-sub);
+}
+
+.faq-question::after {
+    content: '▼';
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: transform 0.3s;
+}
+
+.faq-item.active .faq-question::after {
+    transform: rotate(180deg);
+}
+
+/* 高亮突出选择我们的问题 */
+.faq-question.font-highlight-main {
+    color: #025a61;
+    background-color: var(--col-bb);
+}
+.faq-question.font-highlight-main:hover {
+    background-color: #bbf3f5;
+}
+
+.faq-question.font-highlight {
+    color: var(--col-td);
+}
+
+.faq-answer {
+    padding: 0 25px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+    color: var(--text-main);
+    font-size: 15px;
+}
+
+.faq-item.active .faq-answer {
+    padding: 20px 25px;
+    max-height: 800px; /* 调大以完美容纳长文案内容 */
+    border-top: 1px solid rgba(9, 114, 122, 0.08);
+    background-color: #ffffff;
+}
+
+.faq-answer p {
+    margin-bottom: 12px;
+}
+.faq-answer p:last-child {
+    margin-bottom: 0;
+}
+
+/* 页脚 */
+.footer {
+    padding: 80px 0 40px 0;
+    background-color: #e3eff2;
+    text-align: center;
+    border-top: 1px solid rgba(9, 114, 122, 0.1);
+}
+
+.footer h3 {
+    font-size: 24px;
+    color: var(--text-main);
+    margin-bottom: 10px;
+}
+
+.footer p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 30px;
+}
+
+.copyright {
+    margin-top: 60px;
+    font-size: 12px !important;
+    color: var(--text-dim) !important;
+    opacity: 0.7;
+}
+
+/* ==========================================================================
+   📱 完美手机端与移动端响应式布局适配 (Media Queries)
+   ========================================================================== */
+@media (max-width: 992px) {
+    .showcase-item, .showcase-item.reverse {
+        flex-direction: column;
+        gap: 25px;
+    }
+    .showcase-img, .showcase-info {
+        width: 100%;
+        flex: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: flex;
+    }
+
+    .nav-links {
+        position: fixed;
+        top: 75px;
+        left: 0;
+        width: 100%;
+        height: calc(100vh - 75px);
+        background-color: var(--bg-main);
+        flex-direction: column;
+        padding-top: 40px;
+        gap: 25px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease-in-out;
+        border-top: 1px solid rgba(9, 114, 122, 0.1);
+    }
+
+    .nav-links.open {
+        transform: translateX(0);
+    }
+
+    .nav-links a {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .nav-download-btn { display: none; }
+    .mobile-download-btn { display: inline-block; width: 80%; margin-top: 20px; }
+
+    .menu-toggle.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .menu-toggle.open span:nth-child(2) { opacity: 0; }
+    .menu-toggle.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+
+    .hero { padding: 140px 0 70px 0; }
+    .hero h1 { font-size: 30px; }
+    .subtitle { font-size: 15px; }
+    .section-header { margin-bottom: 40px; }
+    .section-header h2 { font-size: 26px; }
+    
+    .showcase-list { gap: 50px; }
+    .showcase-info h3 { font-size: 20px; }
+    
+    .features-grid { grid-template-columns: 1fr; }
+    .rage-box { padding: 25px; }
+}
+
+/* ==========================================================================
+   📊 QA 任务管理器内存截图对比专属样式 (浅水色系强化)
+   ========================================================================== */
+
+/* 稍微调大整体 FAQ 面板最大高度限制，防止新加的图片内容在动画时被截断 */
+.faq-item.active .faq-answer {
+    max-height: 1200px; /* 从原先的800px扩大到1200px */
+}
+
+.compare-box-wrapper {
+    margin-top: 25px;
+    padding: 20px;
+    background-color: var(--bg-main);
+    border-radius: 10px;
+    border: 1px solid rgba(9, 114, 122, 0.08);
+}
+
+.compare-box-title {
+    font-size: 15px;
+    color: var(--col-td);
+    margin-bottom: 15px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+}
+
+/* PC端采用左右并排双列布局 */
+.compare-flex-container {
+    display: flex;
+    gap: 20px;
+}
+
+.compare-process-card {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(9, 114, 122, 0.03);
+    transition: transform 0.2s;
+}
+
+.compare-process-card:hover {
+    transform: translateY(-2px);
+}
+
+/* 优秀产品亮水色绿/蓝边框，劣质产品警告淡红边框 */
+.compare-process-card.card-good {
+    border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+.compare-process-card.card-bad {
+    border: 1px solid rgba(255, 77, 77, 0.25);
+}
+
+/* 卡片头部名称与SVG */
+.compare-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.compare-process-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+/* 矢量SVG标志容器包装 */
+.compare-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.icon-check {
+    background-color: rgba(20, 184, 166, 0.15);
+    color: var(--col-td); /* 晶莹青色勾 */
+}
+
+.icon-cross {
+    background-color: rgba(255, 77, 77, 0.12);
+    color: var(--col-warning); /* 警告红色叉 */
+}
+
+.compare-icon svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* 任务管理器截图专用外观样式（对应长条矮图） */
+.compare-process-img-box {
+    background-color: #fafbfc;
+    border: 1px solid #e1e8ea;
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 6px; /* 给任务管理器留出一圈好看的内白边 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.compare-process-img-box img {
+    width: 100%;
+    height: auto; /* 自动保持长条矮图比例，不拉伸变形 */
+    display: block;
+    object-fit: contain;
+}
+
+/* 底部结论标签 */
+.compare-status-text {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.text-good {
+    color: #0d8a7f;
+}
+
+.text-bad {
+    color: #d94141;
+}
+
+/* ==========================================================================
+   📱 完美手机端移动响应式重写
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* 手机端空间太窄，两张长条进程截图自动变成上下垂直单列铺满 */
+    .compare-flex-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+    .compare-box-wrapper {
+        padding: 12px;
+    }
+}
+

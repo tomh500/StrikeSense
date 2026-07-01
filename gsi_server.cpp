@@ -20,7 +20,7 @@
 #include "itemhelper_overlay.h"
 #include "itemhelper_page.h"  
 #include "normalgen.h"
-#include "vscrpit.h"
+#include "vscript.h"
 #include <windows.h>
 // =========================
 extern HINSTANCE hInst;
@@ -760,7 +760,7 @@ namespace gsi {
             if (GetQSConfig().enabled)
                 ProcessQuickStopCommand(rawJson);
 
-            vscrpit::UpdateFromGsi(j);
+            vscript::UpdateFromGsi(j);
         }
         catch (const std::exception& e)
         {

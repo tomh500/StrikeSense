@@ -1,5 +1,5 @@
 #include "pages.h"
-#include "vscrpit.h"
+#include "vscript.h"
 #include "i18n.h"
 
 #include <algorithm>
@@ -44,13 +44,13 @@ void DrawButton(Gdiplus::Graphics& g, const Gdiplus::RectF& r, const wchar_t* te
 std::wstring PickScript(HWND owner)
 {
     wchar_t file[MAX_PATH] = {};
-    std::wstring initDir = vscrpit::GetDefaultScriptDir();
+    std::wstring initDir = vscript::GetDefaultScriptDir();
     OPENFILENAMEW ofn{};
     ofn.lStructSize = sizeof(ofn);
     ofn.hwndOwner = owner;
     ofn.lpstrFile = file;
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = L"StrikeSense Script\0*.vscrpit;*.vscript;*.txt\0All Files\0*.*\0";
+    ofn.lpstrFilter = L"StrikeSense Script\0*.vscript;*.vscript;*.txt\0All Files\0*.*\0";
     ofn.lpstrInitialDir = initDir.c_str();
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
     if (GetOpenFileNameW(&ofn)) return file;
@@ -65,13 +65,13 @@ std::wstring CompactFileName(const std::wstring& path)
     return name;
 }
 
-std::wstring DisplayName(const vscrpit::mounted_script& script)
+std::wstring DisplayName(const vscript::mounted_script& script)
 {
-    if (script.hasMetadataName) return vscrpit::GetScriptDisplayName(script);
+    if (script.hasMetadataName) return vscript::GetScriptDisplayName(script);
     return CompactFileName(script.path);
 }
 
-std::wstring SummaryText(const vscrpit::mounted_script& script)
+std::wstring SummaryText(const vscript::mounted_script& script)
 {
     std::wstring out;
     if (!script.provider.empty()) out += L"Provider: " + script.provider + L"  ";
@@ -168,10 +168,10 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     wchar_t cap[128]{};
     swprintf_s(cap, L"%s: %d    %s: %d    OEM: %s",
         i18n::T("VSCRIPT_BUILD"),
-        (int)vscrpit::GetBuildCode(),
+        (int)vscript::GetBuildCode(),
         i18n::T("VSCRIPT_CAPABILITY"),
-        (int)vscrpit::GetRuntimeCapability(),
-        vscrpit::IsOemUnlockValid() ? i18n::T("SOUNDS_ENABLED") : i18n::T("SOUNDS_DISABLED"));
+        (int)vscript::GetRuntimeCapability(),
+        vscript::IsOemUnlockValid() ? i18n::T("SOUNDS_ENABLED") : i18n::T("SOUNDS_DISABLED"));
     g.DrawString(cap, -1, &smallFont, PointF((REAL)cx + 270, 62), &dim);
 
     g.DrawString(i18n::T("VSCRIPT_MOUNTED"), -1, &boldFont, PointF((REAL)cx + 10, 106), &text);
@@ -179,7 +179,7 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     g.DrawString(i18n::T("VSCRIPT_RUN"), -1, &smallFont, PointF((REAL)cx + cw - 155, 106), &dim);
     g.DrawString(i18n::T("VSCRIPT_REMOVE"), -1, &smallFont, PointF((REAL)cx + cw - 80, 106), &dim);
 
-    const auto& scripts = vscrpit::MountedScripts();
+    const auto& scripts = vscript::MountedScripts();
     if (scripts.empty()) {
         g.DrawString(i18n::T("VSCRIPT_EMPTY"), -1, &textFont, PointF((REAL)cx + 10, 140), &dim);
         return;
@@ -235,30 +235,30 @@ void CheckVscriptClick(HWND hw, int mx, int my)
     if (Hit(g_mountRect, mx, my)) {
         std::wstring path = PickScript(hw);
         if (!path.empty()) {
-            vscrpit::AddMountedScript(path);
+            vscript::AddMountedScript(path);
             std::wcout << L"[脚本页面] 已挂载脚本: " << path << std::endl;
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
     if (Hit(g_openDirRect, mx, my)) {
-        ShellExecuteW(hw, L"open", vscrpit::GetDefaultScriptDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        ShellExecuteW(hw, L"open", vscript::GetDefaultScriptDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return;
     }
     for (size_t i = 0; i < g_contRects.size(); ++i) {
         if (Hit(g_contRects[i], mx, my)) {
-            vscrpit::ToggleContinuous(i);
+            vscript::ToggleContinuous(i);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
         if (Hit(g_runRects[i], mx, my)) {
-            auto& scripts = vscrpit::MountedScripts();
-            if (i < scripts.size() && !scripts[i].continuous) vscrpit::ExecuteScriptFile(scripts[i].path);
+            auto& scripts = vscript::MountedScripts();
+            if (i < scripts.size() && !scripts[i].continuous) vscript::ExecuteScriptFile(scripts[i].path);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
         if (Hit(g_removeRects[i], mx, my)) {
-            vscrpit::RemoveMountedScript(i);
+            vscript::RemoveMountedScript(i);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }

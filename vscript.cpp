@@ -88,7 +88,7 @@ int s_weaponReloadCount = 0;
 int s_weaponReserveDropCount = 0;
 weapon_snapshot s_lastWeaponSnapshot;
 
-constexpr const wchar_t* k_imageClass = L"StrikeSenseVscriptImage";
+constexpr const wchar_t* k_imageClass = L"StrikeSensevscriptImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 constexpr const wchar_t* k_privilegedApiNames[] = {
     L"ShellExecute", L"CFile", L"DFile", L"OwriteFile", L"AwriteFile"

@@ -1,0 +1,260 @@
+/* ==========================================================================
+   💎 StrikeSense 道具制作器深度重构版样式表 (itemmaker.css)
+   ========================================================================== */
+
+.itemmaker-main {
+    padding-top: 75px;      /* 👈 从 90px 缩小到 75px，往上提一点 */
+    padding-bottom: 20px;   /* 👈 从 50px 缩小到 20px */
+    display: flex;
+    flex-direction: column;
+    gap: 12px;              /* 👈 从 24px 缩小到 12px，让画布和控制台贴得更近 */
+    max-width: 1440px !important;
+    margin: 0 auto;
+}
+
+/* 🎯 顶部预览区：无限放大策略 */
+.wide-preview {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 20px;
+    background-color: var(--bg-card);
+    border: 1px solid rgba(0, 74, 128, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 10px 35px rgba(0, 74, 128, 0.04);
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.header-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.wide-preview .main-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.wide-preview .tip {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.active-map-badge {
+    background-color: var(--col-bb);
+    color: var(--col-td);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    border: 1px solid var(--col-bp);
+}
+
+.canvas-wrapper {
+    width: 100%;
+    max-width: 1200px;        /* 👈 把原来的 1360px 改小到 800px 左右 */
+    max-height: 450px;       /* 👈 新增这一行，强制限制预览画面的最大高度 */
+    margin: 0 auto;
+    aspect-ratio: 16 / 9;
+    background-color: #1a1d24;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    border: 3px solid rgba(0, 74, 128, 0.1);
+    box-shadow: inset 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+#mainCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: crosshair;
+}
+
+/* 🛠️ 底部控制台：多栏网格并排结构，操作得心应手 */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 11fr); /* 均衡4栏平铺 */
+    gap: 20px;
+    width: 100%;
+}
+
+.dashboard-card {
+    padding: 20px;
+    background-color: var(--bg-card);
+    border: 1px solid rgba(0, 74, 128, 0.06);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 4px 20px rgba(0, 74, 128, 0.02);
+}
+
+.flex-column-between {
+    justify-content: space-between;
+}
+
+.card-subtitle {
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--text-main);
+    border-left: 3px solid var(--col-tb);
+    padding-left: 8px;
+    margin-bottom: 4px;
+}
+
+/* 统一样式覆盖 */
+.form-group {
+    margin-bottom: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-dim);
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 74, 128, 0.15);
+    background-color: #ffffff;
+    color: var(--text-main);
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--col-tb);
+    box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.1);
+}
+
+/* 上传模块 */
+.file-upload-box {
+    background-color: var(--bg-sub);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px dashed var(--col-bp);
+    text-align: center;
+}
+
+.file-input {
+    display: none;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.upload-status {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* 拉伸平移微调控制区 */
+.transform-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #fafcfe;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 74, 128, 0.04);
+    transition: opacity 0.3s;
+}
+
+.slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.slider-group label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+
+.slider-group input[type="range"] {
+    width: 100%;
+    accent-color: var(--col-td);
+    cursor: pointer;
+    margin: 4px 0;
+}
+
+/* 画笔配置 */
+.tool-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 6px;
+}
+
+.tool-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    outline: 1px solid rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    padding: 0;
+}
+
+.tool-btn:hover {
+    transform: scale(1.1);
+}
+
+.tool-btn.active {
+    outline: 2px solid var(--text-main);
+    box-shadow: 0 0 6px rgba(0, 74, 128, 0.25);
+}
+
+#btnEraser {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    outline: none;
+}
+#btnEraser.active {
+    background-color: var(--col-bb);
+    border-color: var(--col-tb);
+}
+
+/* ==========================================================================
+   📱 移动端与小屏幕自适应分栏
+   ========================================================================== */
+@media (max-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr); /* 变成两行两列 */
+    }
+}
+
+@media (max-width: 680px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* 窄屏全平铺垂直流 */
+    }
+}
