@@ -22,7 +22,14 @@ function extractShell(indexHtml) {
   if (!header || !footer) {
     throw new Error("未能从 index.html 提取公共 header/footer");
   }
-  return { header, footer };
+
+  const sanitizedFooter = footer
+    .replace(/\s*<h3>[\s\S]*?<\/h3>/i, "")
+    .replace(/\s*<p>[\s\S]*?Windows 10[\s\S]*?<\/p>/i, "")
+    .replace(/\s*<a[^>]*href="app\/StrikeSense\.exe"[\s\S]*?<\/a>/i, "")
+    .replace(/\n\s*\n/g, "\n");
+
+  return { header, footer: sanitizedFooter };
 }
 
 function slugify(text, fallbackIndex) {
@@ -39,7 +46,7 @@ function buildToc(tokens) {
   const toc = [];
   let index = 0;
   for (const token of tokens) {
-    if (token.type !== "heading" || (token.depth !== 2 && token.depth !== 3)) continue;
+    if (token.type !== "heading" || ![2, 3, 4].includes(token.depth)) continue;
     index += 1;
     const rawText = token.text ?? "";
     toc.push({
@@ -56,7 +63,7 @@ function createRenderer(toc) {
   const renderer = new marked.Renderer();
 
   renderer.heading = ({ tokens, depth, text }) => {
-    const htmlText = marked.parser(tokens);
+    const htmlText = text;
     const key = `${depth}:${text}`;
     const id = headingIds.get(key) ?? slugify(text, depth);
     return `<h${depth} id="${id}">${htmlText}</h${depth}>`;
@@ -68,7 +75,11 @@ function createRenderer(toc) {
 function buildSidebar(toc) {
   return toc
     .map((item) => {
-      const cls = item.depth === 3 ? "toc-link toc-sub" : "toc-link";
+      const cls = item.depth === 4
+        ? "toc-link toc-sub toc-sub2"
+        : item.depth === 3
+          ? "toc-link toc-sub"
+          : "toc-link";
       const safeText = item.text
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
@@ -89,11 +100,11 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
     <link rel="stylesheet" href="style.css">
     <style>
         .docs-shell {
-            max-width: 1380px;
+            max-width: 1440px;
             margin: 0 auto;
             padding: 125px 20px 70px;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 320px;
+            grid-template-columns: minmax(0, 1fr) 340px;
             gap: 24px;
             align-items: start;
         }
@@ -141,6 +152,7 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
             border-radius: 10px;
             padding: 9px 11px;
             transition: 0.2s ease;
+            line-height: 1.45;
         }
         .toc-link:hover {
             border-color: var(--col-bp);
@@ -149,6 +161,11 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         .toc-sub {
             margin-left: 12px;
             font-size: 14px;
+        }
+        .toc-sub2 {
+            margin-left: 24px;
+            font-size: 13px;
+            opacity: 0.92;
         }
         .docs-note {
             margin-top: 12px;
@@ -172,6 +189,18 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         .markdown-body pre {
             background: #1e1e1e;
             color: #d4d4d4;
+        }
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+        }
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
         }
         @media (max-width: 980px) {
             .docs-shell {
