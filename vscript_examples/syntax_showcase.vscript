@@ -1,18 +1,29 @@
-// @name: VScript 综合演示
+﻿// @name: VScript 语法总览
 // @author: jingy
 // @provider: StrikeSense
 // @version: 2026.07.04
-// @notice: 演示函数、返回值、容器、对象字段访问、Steam 账号 API 与条件分支
-// @modifier: self_user=jingy
+// @notice: 演示函数、return、goto、const、对象访问、GSI 变化检测和 Steam 相关 API
 
+const int aliveLine = 1;
 vector<int> marks = { 1, 2, 3 };
 array<string> states = { "idle", "live", "over" };
-
 double weight = 1.5;
 auto retry = 0;
 
 int Sum3(int a, int b, int c){
     return a + b + c;
+}
+
+string JudgeAccount(auto account){
+    if(account.most_recent){
+        return "最近登录账号";
+    }else if(account.allow_auto_login){
+        return "允许自动登录账号";
+    }elseif(Contains(account.account_name, "alt")){
+        return "像是备用账号";
+    }else{
+        return "普通账号";
+    }
 }
 
 bool ShouldPopup(){
@@ -25,9 +36,9 @@ if(ShouldPopup()){
 
 for(int i=0; i<6; i++){
     retry += 1;
-    if(i == 1){
+    if(i % 2 == 0){
         continue;
-    }else if(i == 4){
+    }else if(i == 5){
         goto steam_demo;
     }
 }
@@ -37,9 +48,38 @@ int total = Sum3(marks[0], marks[1], marks[2]);
 string tag = states[1];
 tag += "_ok";
 weight *= 2;
+retry %= 3;
 Log("total=" + total);
 Log("tag=" + tag);
 Log("weight=" + weight);
+Log("aliveLine=" + aliveLine);
+Log("retry=" + retry);
+
+if(Changed("health")){
+    Log("health 发生变化，上一帧=" + Previous("health") + "，当前=" + health);
+}
+
+if(ChangedTo("round_phase", "live") && Cooldown("round_live_tip", 3000)){
+    Log("round_phase 切换到了 live，并且通过了 3 秒冷却");
+}
+
+if(Delta("kills") > 0){
+    Log("本帧击杀增量=" + Delta("kills"));
+}
+
+auto weapons = GetCurrentPlayerWeapons();
+if(Size(weapons) > 0){
+    auto weapon = weapons[0];
+    Log("当前武器名称=" + weapon.name);
+    Log("当前武器类型=" + weapon.type);
+    Log("当前武器弹夹=" + weapon.ammo_clip);
+}
+
+auto players = GetAllPlayers();
+if(Size(players) > 0){
+    auto firstPlayer = players[0];
+    Log("玩家示例=" + firstPlayer.name + "，队伍=" + firstPlayer.team + "，血量=" + firstPlayer.state.health);
+}
 
 string steamPath = GetSteamPath();
 string cs2Path = GetCS2InstallPath();
@@ -48,15 +88,9 @@ Log("SteamPath=" + steamPath);
 Log("CS2Path=" + cs2Path);
 Log("CfgPath=" + cfgPath);
 
-auto ids32 = GetSteamUserIDs32();
-auto ids64 = GetSteamUserIDs64();
-Log("本地 Steam32 数量=" + Size(ids32));
-Log("本地 Steam64 数量=" + Size(ids64));
-
 auto accounts = GetSteamAccounts();
 int accountCount = Size(accounts);
 Log("本地 Steam 账号数量=" + accountCount);
-Log("accounts 类型=" + TypeOf(accounts));
 
 for(int i=0; i<accountCount; i++){
     auto account = accounts[i];
@@ -65,22 +99,7 @@ for(int i=0; i<accountCount; i++){
     Log("account_name=" + account.account_name);
     Log("persona_name=" + account.persona_name);
     Log("steam_id64=" + account.steam_id64);
-    Log("userdata_path=" + account.userdata_path);
-    Log("localconfig_path=" + account.localconfig_path);
-
-    if(account.most_recent){
-        Log("判断：这是最近登录账号");
-    }else if(account.allow_auto_login){
-        Log("判断：这个账号允许自动登录");
-    }elseif(Contains(account.account_name, "alt")){
-        Log("判断：这看起来像备用账号");
-    }else{
-        Log("判断：普通账号");
-    }
-
-    if(HasField(account, "remember_password") && account.remember_password){
-        Log("这个账号记住了密码");
-    }
+    Log("分类结果=" + JudgeAccount(account));
 
     if(account.has_localconfig){
         string launchOptions = GetSteamLaunchOptions64(account.steam_id64);
@@ -90,15 +109,6 @@ for(int i=0; i<accountCount; i++){
             Log("这个账号当前没有配置 -vulkan");
         }
     }
-}
-
-if(accountCount > 0){
-    auto firstAccount = accounts[0];
-    if(HasSteamUser64(firstAccount.steam_id64)){
-        Log("校验成功：第一个账号的 Steam64 的确存在于本机 userdata");
-    }
-    Log("Steam64To32=" + Steam64To32(firstAccount.steam_id64));
-    Log("GetSteamLocalConfigPath64=" + GetSteamLocalConfigPath64(firstAccount.steam_id64));
 }
 
 return;

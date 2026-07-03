@@ -58,34 +58,89 @@ function buildToc(tokens) {
   return toc;
 }
 
+function buildTocTree(toc) {
+  const roots = [];
+  let currentH2 = null;
+  let currentH3 = null;
+
+  for (const item of toc) {
+    const node = { ...item, children: [] };
+    if (item.depth === 2) {
+      roots.push(node);
+      currentH2 = node;
+      currentH3 = null;
+      continue;
+    }
+    if (item.depth === 3 && currentH2) {
+      currentH2.children.push(node);
+      currentH3 = node;
+      continue;
+    }
+    if (item.depth === 4 && currentH3) {
+      currentH3.children.push(node);
+    }
+  }
+
+  return roots;
+}
+
 function createRenderer(toc) {
   const headingIds = new Map(toc.map((item) => [`${item.depth}:${item.text}`, item.id]));
   const renderer = new marked.Renderer();
 
-  renderer.heading = ({ tokens, depth, text }) => {
-    const htmlText = text;
+  renderer.heading = ({ depth, text }) => {
     const key = `${depth}:${text}`;
     const id = headingIds.get(key) ?? slugify(text, depth);
-    return `<h${depth} id="${id}">${htmlText}</h${depth}>`;
+    return `<h${depth} id="${id}">${text}</h${depth}>`;
   };
 
   return renderer;
 }
 
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function buildSidebar(toc) {
-  return toc
-    .map((item) => {
-      const cls = item.depth === 4
-        ? "toc-link toc-sub toc-sub2"
-        : item.depth === 3
-          ? "toc-link toc-sub"
-          : "toc-link";
-      const safeText = item.text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
-      return `<a class="${cls}" href="#${item.id}" data-search="${safeText.toLowerCase()}">${safeText}</a>`;
+  const tree = buildTocTree(toc);
+  let toggleIndex = 0;
+
+  return tree
+    .map((group) => {
+      const sectionHtml = group.children
+        .map((section) => {
+          const toggleId = `tocChildren${++toggleIndex}`;
+          const hasChildren = section.children.length > 0;
+          const childrenHtml = hasChildren
+            ? `<div class="toc-children docs-hidden" id="${toggleId}">
+${section.children.map((item) => `<a class="toc-link toc-sub2 toc-leaf" href="#${item.id}" data-search="${escapeHtml(item.text.toLowerCase())}">${escapeHtml(item.text)}</a>`).join("")}
+</div>`
+            : "";
+
+          const toggleHtml = hasChildren
+            ? `<button class="toc-toggle" type="button" data-target="${toggleId}" aria-expanded="false">展开</button>`
+            : "";
+
+          return `<div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#${section.id}" data-search="${escapeHtml(section.text.toLowerCase())}">${escapeHtml(section.text)}</a>
+    ${toggleHtml}
+  </div>
+  ${childrenHtml}
+</div>`;
+        })
+        .join("");
+
+      return `<div class="toc-group">
+  <a class="toc-link toc-top" href="#${group.id}" data-search="${escapeHtml(group.text.toLowerCase())}">${escapeHtml(group.text)}</a>
+  <div class="toc-group-children">
+    ${sectionHtml}
+  </div>
+</div>`;
     })
     .join("");
 }
@@ -139,9 +194,31 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         }
         .docs-toc {
             display: grid;
-            gap: 8px;
+            gap: 10px;
             max-height: calc(100vh - 180px);
             overflow: auto;
+        }
+        .toc-group {
+            display: grid;
+            gap: 8px;
+        }
+        .toc-group-children {
+            display: grid;
+            gap: 8px;
+        }
+        .toc-section {
+            display: grid;
+            gap: 6px;
+        }
+        .toc-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .toc-children {
+            display: grid;
+            gap: 6px;
         }
         .toc-link {
             display: block;
@@ -165,7 +242,21 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         .toc-sub2 {
             margin-left: 24px;
             font-size: 13px;
-            opacity: 0.92;
+            opacity: 0.94;
+        }
+        .toc-toggle {
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            background: var(--bg-main);
+            color: var(--text-main);
+            border-radius: 9px;
+            padding: 7px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .toc-toggle:hover {
+            border-color: var(--col-bp);
+            color: var(--col-td);
         }
         .docs-note {
             margin-top: 12px;
@@ -228,7 +319,7 @@ ${bodyHtml}
             <nav class="docs-toc" id="docsToc">
                 ${sidebarHtml}
             </nav>
-            <p class="docs-note">搜索会同步过滤右侧目录，并只保留匹配章节。</p>
+            <p class="docs-note">子分类默认折叠，搜索时会自动展开相关分类。</p>
         </aside>
     </main>
     ${footer}
@@ -237,6 +328,9 @@ ${bodyHtml}
         (() => {
             const search = document.getElementById("docsSearch");
             const links = Array.from(document.querySelectorAll("#docsToc .toc-link"));
+            const sections = Array.from(document.querySelectorAll("#docsToc .toc-section"));
+            const groups = Array.from(document.querySelectorAll("#docsToc .toc-group"));
+            const toggles = Array.from(document.querySelectorAll("#docsToc .toc-toggle"));
             const headingMap = new Map(
                 links.map((link) => [link, document.getElementById(link.getAttribute("href").slice(1))]),
             );
@@ -277,15 +371,69 @@ ${bodyHtml}
                 }
             }
 
+            function setExpanded(button, expanded) {
+                if (!button) return;
+                const targetId = button.getAttribute("data-target");
+                const target = targetId ? document.getElementById(targetId) : null;
+                if (!target) return;
+                button.setAttribute("aria-expanded", expanded ? "true" : "false");
+                button.textContent = expanded ? "收起" : "展开";
+                target.classList.toggle("docs-hidden", !expanded);
+            }
+
+            toggles.forEach((button) => {
+                button.addEventListener("click", () => {
+                    const expanded = button.getAttribute("aria-expanded") === "true";
+                    setExpanded(button, !expanded);
+                });
+            });
+
             function applyFilter() {
                 const keyword = (search.value || "").trim().toLowerCase();
+                const isFiltering = keyword.length > 0;
+                const matchedMap = new Map();
+
                 links.forEach((link) => {
-                    const matched = !keyword || (sectionTexts.get(link) || "").includes(keyword);
-                    link.classList.toggle("docs-hidden", !matched);
-                    toggleSection(headingMap.get(link), matched);
+                  const matched = !isFiltering || (sectionTexts.get(link) || "").includes(keyword) || (link.textContent || "").toLowerCase().includes(keyword);
+                  matchedMap.set(link, matched);
+                });
+
+                links.forEach((link) => {
+                    const matched = matchedMap.get(link) || false;
+                    if (link.classList.contains("toc-top")) {
+                        link.classList.remove("docs-hidden");
+                    } else if (link.classList.contains("toc-branch")) {
+                        link.classList.remove("docs-hidden");
+                    } else {
+                        link.classList.toggle("docs-hidden", isFiltering && !matched);
+                    }
+                    toggleSection(headingMap.get(link), matched || !isFiltering);
+                });
+
+                sections.forEach((section) => {
+                    const branchLink = section.querySelector(".toc-branch");
+                    const childLinks = Array.from(section.querySelectorAll(".toc-leaf"));
+                    const selfMatched = branchLink ? (matchedMap.get(branchLink) || false) : false;
+                    const childMatched = childLinks.some((link) => matchedMap.get(link));
+                    const visible = !isFiltering || selfMatched || childMatched;
+                    section.classList.toggle("docs-hidden", !visible);
+
+                    const toggle = section.querySelector(".toc-toggle");
+                    if (toggle) {
+                        setExpanded(toggle, isFiltering ? childMatched : false);
+                    }
+                });
+
+                groups.forEach((group) => {
+                    const topLink = group.querySelector(".toc-top");
+                    const groupMatched = topLink ? (matchedMap.get(topLink) || false) : false;
+                    const visibleSection = Array.from(group.querySelectorAll(".toc-section")).some((section) => !section.classList.contains("docs-hidden"));
+                    const visible = !isFiltering || groupMatched || visibleSection;
+                    group.classList.toggle("docs-hidden", !visible);
                 });
             }
 
+            applyFilter();
             search.addEventListener("input", applyFilter);
         })();
     </script>
