@@ -51,6 +51,14 @@ struct weapon_snapshot {
     bool valid = false;
 };
 
+struct execution_context {
+    bool returnRequested = false;
+    std::optional<std::wstring> gotoTarget;
+    std::optional<value> returnValue;
+    std::unordered_map<std::wstring, std::wstring> functions;
+    std::vector<std::map<std::wstring, value>> localScopes;
+};
+
 extern HINSTANCE s_instance;
 extern HWND s_owner;
 extern buildcode s_runtimeCapability;
@@ -63,8 +71,7 @@ extern std::unordered_map<int, sound_slot> s_sounds;
 extern std::recursive_mutex s_mutex;
 extern std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 extern std::unordered_set<std::wstring> s_stateKeys;
-extern bool s_returnRequested;
-extern std::optional<std::wstring> s_gotoTarget;
+extern execution_context* s_activeExecution;
 extern bool s_currentPrivilegedAllowed;
 extern std::wstring s_currentScriptPath;
 extern int s_weaponFireCount;
@@ -127,11 +134,15 @@ std::vector<std::wstring> SplitStatements(const std::wstring& script);
 std::vector<std::wstring> SplitArgs(const std::wstring& args);
 value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars);
 value EvalExpr(const std::wstring& expr);
+value CoerceValueForType(const value& input, const std::wstring& typeName);
 bool CompareValues(const value& l, const std::wstring& op, const value& r);
 size_t FindLogicalOp(const std::wstring& text, const std::wstring& op);
 bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
 bool EvalCondition(std::wstring cond);
 std::optional<std::pair<std::wstring, std::wstring>> ParseFunction(const std::wstring& stmt);
+bool TryParseScriptFunctionDefinition(const std::wstring& stmt, std::wstring& functionName, std::wstring& functionBody);
+std::vector<std::wstring> ParseScriptFunctionParams(const std::wstring& headerArgs);
+execution_context& CurrentExecution();
 std::wstring ProcessNameFromWindow(HWND hwnd);
 bool IsLikelyMainWindow(HWND hwnd);
 std::wstring NormalizeProcessName(const std::wstring& process);
@@ -157,7 +168,7 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
 bool PlaySoundCommand(const std::filesystem::path& path, float volume, int id);
 void StopSoundCommand(int id);
 bool RequiresUserDebug(const std::wstring& name);
-bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs);
+value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs);
 void ExecuteBlock(const std::wstring& script);
 void ExecuteStatement(const std::wstring& stmt);
 bool ExtractControlBlock(const std::wstring& s, const std::wstring& keyword, std::wstring& head, std::wstring& body);

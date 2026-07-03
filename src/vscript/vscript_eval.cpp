@@ -75,6 +75,11 @@ double ToNumber(const value& v)
 
 value GetVar(const std::wstring& name)
 {
+    execution_context& exec = CurrentExecution();
+    for (auto it = exec.localScopes.rbegin(); it != exec.localScopes.rend(); ++it) {
+        auto local = it->find(name);
+        if (local != it->end()) return local->second;
+    }
     auto it = s_vars.find(name);
     if (it != s_vars.end()) return it->second;
     return TextValue(L"void");
@@ -84,7 +89,7 @@ value GetVarFromMap(const std::map<std::wstring, value>& vars, const std::wstrin
 {
     auto it = vars.find(name);
     if (it != vars.end()) return it->second;
-    return TextValue(L"void");
+    return GetVar(name);
 }
 
 std::wstring Trim(std::wstring s)
@@ -146,6 +151,58 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args)
     return out;
 }
 
+value CoerceValueForType(const value& input, const std::wstring& typeName)
+{
+    if (typeName == L"int" || typeName == L"float") return NumberValue(ToNumber(input));
+    if (typeName == L"bool") return BoolValue(Truthy(input));
+    if (typeName == L"string") return TextValue(ToText(input));
+    if (typeName == L"void") return TextValue(L"void");
+    return input;
+}
+
+bool TryParseScriptFunctionDefinition(const std::wstring& stmt, std::wstring& functionName, std::wstring& functionBody)
+{
+    const std::wstring s = Trim(stmt);
+    size_t bracePos = s.find(L'{');
+    size_t endBracePos = s.rfind(L'}');
+    if (bracePos == std::wstring::npos || endBracePos == std::wstring::npos || endBracePos <= bracePos) return false;
+
+    const size_t parenPos = s.find(L'(');
+    const size_t closeParenPos = s.rfind(L')');
+    if (parenPos == std::wstring::npos || closeParenPos == std::wstring::npos || closeParenPos < parenPos || closeParenPos > bracePos) return false;
+
+    const std::wstring header = Trim(s.substr(0, bracePos));
+    const std::vector<std::wstring> prefixes = { L"int ", L"float ", L"string ", L"bool ", L"void " };
+    bool matched = false;
+    for (const auto& prefix : prefixes) {
+        if (header.rfind(prefix, 0) == 0) {
+            matched = true;
+            break;
+        }
+    }
+    if (!matched) return false;
+
+    const std::wstring name = Trim(header.substr(0, parenPos));
+    const size_t lastSpace = name.find_last_of(L' ');
+    if (lastSpace == std::wstring::npos) return false;
+
+    functionName = Trim(name.substr(lastSpace + 1));
+    functionBody = s.substr(bracePos + 1, endBracePos - bracePos - 1);
+    return !functionName.empty();
+}
+
+std::vector<std::wstring> ParseScriptFunctionParams(const std::wstring& headerArgs)
+{
+    std::vector<std::wstring> params;
+    for (const auto& rawParam : SplitArgs(headerArgs)) {
+        const std::wstring param = Trim(rawParam);
+        if (param.empty()) continue;
+        const size_t lastSpace = param.find_last_of(L' ');
+        params.push_back(lastSpace == std::wstring::npos ? param : Trim(param.substr(lastSpace + 1)));
+    }
+    return params;
+}
+
 value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars)
 {
     std::wstring e = Trim(expr);
@@ -202,6 +259,10 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     if (e == L"true") return BoolValue(true);
     if (e == L"false") return BoolValue(false);
     if (e == L"void") return TextValue(L"void");
+    auto fn = ParseFunction(e);
+    if (fn && fn->first.find(L' ') == std::wstring::npos) {
+        return ExecuteFunction(fn->first, SplitArgs(fn->second));
+    }
     if (!e.empty() && (iswdigit(e[0]) || e[0] == L'-')) {
         try { return NumberValue(std::stod(e)); } catch (...) {}
     }
@@ -330,11 +391,12 @@ bool TryExecuteIf(const std::wstring& stmt)
 
 bool TryExecuteWhile(const std::wstring& stmt)
 {
+    execution_context& exec = CurrentExecution();
     std::wstring s = Trim(stmt);
     std::wstring cond;
     std::wstring body;
     if (!ExtractControlBlock(s, L"while", cond, body)) return false;
-    for (int i = 0; i < 1000 && EvalCondition(cond) && !s_returnRequested; ++i) {
+    for (int i = 0; i < 1000 && EvalCondition(cond) && !exec.returnRequested; ++i) {
         ExecuteBlock(body);
     }
     return true;
@@ -342,6 +404,7 @@ bool TryExecuteWhile(const std::wstring& stmt)
 
 bool TryExecuteFor(const std::wstring& stmt)
 {
+    execution_context& exec = CurrentExecution();
     std::wstring s = Trim(stmt);
     std::wstring head;
     std::wstring body;
@@ -358,7 +421,7 @@ bool TryExecuteFor(const std::wstring& stmt)
     }
     parts.push_back(Trim(cur));
     if (!parts.empty()) ExecuteStatement(parts[0]);
-    for (int i = 0; i < 1000 && !s_returnRequested; ++i) {
+    for (int i = 0; i < 1000 && !exec.returnRequested; ++i) {
         if (parts.size() > 1 && !parts[1].empty() && !EvalCondition(parts[1])) break;
         ExecuteBlock(body);
         if (parts.size() > 2 && !parts[2].empty()) ExecuteStatement(parts[2]);
@@ -366,44 +429,81 @@ bool TryExecuteFor(const std::wstring& stmt)
     return true;
 }
 
+void AssignValue(const std::wstring& name, const value& assigned)
+{
+    execution_context& exec = CurrentExecution();
+    for (auto it = exec.localScopes.rbegin(); it != exec.localScopes.rend(); ++it) {
+        auto local = it->find(name);
+        if (local != it->end()) {
+            local->second = assigned;
+            std::wcout << L"[脚本] 更新局部变量: " << name << L" = " << ToText(assigned) << std::endl;
+            return;
+        }
+    }
+    s_vars[name] = assigned;
+    std::wcout << L"[脚本] 更新全局变量: " << name << L" = " << ToText(assigned) << std::endl;
+}
+
 void ExecuteStatement(const std::wstring& stmt)
 {
+    execution_context& exec = CurrentExecution();
     std::wstring s = Trim(stmt);
     if (s.empty()) return;
-    if (s_returnRequested) return;
+    if (exec.returnRequested) return;
     if (s == L"return") {
-        s_returnRequested = true;
+        exec.returnRequested = true;
+        exec.returnValue = TextValue(L"void");
+        std::wcout << L"[脚本] 遇到 return，返回 void" << std::endl;
+        return;
+    }
+    if (s.rfind(L"return ", 0) == 0) {
+        exec.returnRequested = true;
+        exec.returnValue = EvalExpr(s.substr(7));
+        std::wcout << L"[脚本] 遇到 return，返回值=" << ToText(*exec.returnValue) << std::endl;
         return;
     }
     if (s.rfind(L"goto ", 0) == 0) {
-        s_gotoTarget = Trim(s.substr(5));
+        exec.gotoTarget = Trim(s.substr(5));
         return;
     }
     if (TryExecuteIf(s)) return;
     if (TryExecuteWhile(s)) return;
     if (TryExecuteFor(s)) return;
 
-    for (const auto& prefix : { L"int ", L"float ", L"string " }) {
+    std::wstring functionName;
+    std::wstring functionBody;
+    if (TryParseScriptFunctionDefinition(s, functionName, functionBody)) return;
+
+    for (const auto& prefix : { L"int ", L"float ", L"string ", L"bool " }) {
         if (s.rfind(prefix, 0) == 0) {
             size_t eq = s.find(L'=');
             std::wstring name = Trim(s.substr(wcslen(prefix), eq == std::wstring::npos ? std::wstring::npos : eq - wcslen(prefix)));
-            s_vars[name] = eq == std::wstring::npos ? value{} : EvalExpr(s.substr(eq + 1));
+            const std::wstring typeName = Trim(std::wstring(prefix).substr(0, std::wstring(prefix).size() - 1));
+            value assigned = eq == std::wstring::npos ? value{} : CoerceValueForType(EvalExpr(s.substr(eq + 1)), typeName);
+            if (!exec.localScopes.empty()) {
+                exec.localScopes.back()[name] = assigned;
+                std::wcout << L"[脚本] 声明局部变量: " << name << L" = " << ToText(assigned) << std::endl;
+            } else {
+                s_vars[name] = assigned;
+                std::wcout << L"[脚本] 声明全局变量: " << name << L" = " << ToText(assigned) << std::endl;
+            }
             return;
         }
     }
     size_t eq = s.find(L'=');
     if (eq != std::wstring::npos && s.find(L"==") == std::wstring::npos) {
         std::wstring name = Trim(s.substr(0, eq));
-        s_vars[name] = EvalExpr(s.substr(eq + 1));
+        AssignValue(name, EvalExpr(s.substr(eq + 1)));
         return;
     }
     auto fn = ParseFunction(s);
     if (!fn) return;
-    ExecuteFunction(fn->first, SplitArgs(fn->second));
+    (void)ExecuteFunction(fn->first, SplitArgs(fn->second));
 }
 
 void ExecuteBlock(const std::wstring& script)
 {
+    execution_context& exec = CurrentExecution();
     std::vector<std::wstring> statements = SplitStatements(script);
     std::unordered_map<std::wstring, size_t> labels;
     for (size_t i = 0; i < statements.size(); ++i) {
@@ -411,14 +511,23 @@ void ExecuteBlock(const std::wstring& script)
         if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) {
             labels[Trim(s.substr(0, s.size() - 1))] = i;
         }
+        std::wstring functionName;
+        std::wstring functionBody;
+        if (TryParseScriptFunctionDefinition(s, functionName, functionBody)) {
+            exec.functions[functionName] = s;
+            std::wcout << L"[脚本] 注册脚本函数: " << functionName << std::endl;
+        }
     }
-    for (size_t pc = 0; pc < statements.size() && !s_returnRequested; ++pc) {
+    for (size_t pc = 0; pc < statements.size() && !exec.returnRequested; ++pc) {
         std::wstring s = Trim(statements[pc]);
         if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) continue;
+        std::wstring functionName;
+        std::wstring functionBody;
+        if (TryParseScriptFunctionDefinition(s, functionName, functionBody)) continue;
         ExecuteStatement(s);
-        if (s_gotoTarget) {
-            auto it = labels.find(*s_gotoTarget);
-            s_gotoTarget.reset();
+        if (exec.gotoTarget) {
+            auto it = labels.find(*exec.gotoTarget);
+            exec.gotoTarget.reset();
             if (it != labels.end()) pc = it->second;
         }
     }

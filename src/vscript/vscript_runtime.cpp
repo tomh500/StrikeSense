@@ -503,21 +503,85 @@ bool RequiresUserDebug(const std::wstring& name)
         name == L"OwriteFile" || name == L"AwriteFile";
 }
 
-bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
+namespace {
+
+struct function_execution_guard {
+    execution_context* previous = nullptr;
+
+    explicit function_execution_guard(execution_context& current)
+        : previous(s_activeExecution)
+    {
+        s_activeExecution = &current;
+    }
+
+    ~function_execution_guard()
+    {
+        s_activeExecution = previous;
+    }
+};
+
+value ExecuteScriptFunctionValue(const std::wstring& name, const std::vector<value>& args)
+{
+    execution_context& caller = CurrentExecution();
+    auto functionIt = caller.functions.find(name);
+    if (functionIt == caller.functions.end()) return TextValue(L"void");
+
+    const std::wstring definition = functionIt->second;
+    const size_t bracePos = definition.find(L'{');
+    const size_t parenPos = definition.find(L'(');
+    const size_t closeParenPos = definition.rfind(L')');
+    const size_t endBracePos = definition.rfind(L'}');
+    if (bracePos == std::wstring::npos || parenPos == std::wstring::npos || closeParenPos == std::wstring::npos || endBracePos == std::wstring::npos) {
+        std::wcout << L"[脚本] 函数定义损坏，无法执行: " << name << std::endl;
+        return TextValue(L"void");
+    }
+
+    const std::wstring header = Trim(definition.substr(0, bracePos));
+    const size_t namePos = header.find_last_of(L' ', parenPos);
+    const std::wstring returnType = namePos == std::wstring::npos ? L"void" : Trim(header.substr(0, namePos));
+    const std::vector<std::wstring> params = ParseScriptFunctionParams(definition.substr(parenPos + 1, closeParenPos - parenPos - 1));
+    const std::wstring body = definition.substr(bracePos + 1, endBracePos - bracePos - 1);
+
+    execution_context child;
+    child.functions = caller.functions;
+    child.localScopes.emplace_back();
+    for (size_t i = 0; i < params.size(); ++i) {
+        const value assigned = i < args.size() ? args[i] : TextValue(L"void");
+        child.localScopes.back()[params[i]] = assigned;
+        std::wcout << L"[脚本] 绑定函数参数: " << name << L"." << params[i] << L" = " << ToText(assigned) << std::endl;
+    }
+
+    function_execution_guard guard(child);
+    std::wcout << L"[脚本] 开始执行脚本函数: " << name << std::endl;
+    ExecuteBlock(body);
+
+    const value result = CoerceValueForType(child.returnValue.value_or(TextValue(L"void")), returnType);
+    std::wcout << L"[脚本] 脚本函数返回: " << name << L" -> " << ToText(result) << std::endl;
+    return result;
+}
+
+} // namespace
+
+value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
 {
     if (RequiresUserDebug(name) && !s_currentPrivilegedAllowed) {
         std::wcout << L"[脚本权限] 当前脚本无权执行高权限命令: " << name
                    << L"  脚本=" << s_currentScriptPath << std::endl;
-        return false;
+        return BoolValue(false);
     }
 
     std::vector<value> args;
     for (const auto& a : rawArgs) args.push_back(EvalExpr(a));
 
-    if (name == L"CloseGameWindow") return HideGameWindowSafely();
-    if (name == L"KillGameProcess") return KillProcessByName(L"cs2.exe");
-    if (name == L"RunGameProcess") return LaunchUrlExternal(L"steam://run/730");
-    if (name == L"ShowGameProcess") return ShowGameProcessSafely();
+    execution_context& exec = CurrentExecution();
+    if (exec.functions.find(name) != exec.functions.end()) {
+        return ExecuteScriptFunctionValue(name, args);
+    }
+
+    if (name == L"CloseGameWindow") return BoolValue(HideGameWindowSafely());
+    if (name == L"KillGameProcess") return BoolValue(KillProcessByName(L"cs2.exe"));
+    if (name == L"RunGameProcess") return BoolValue(LaunchUrlExternal(L"steam://run/730"));
+    if (name == L"ShowGameProcess") return BoolValue(ShowGameProcessSafely());
     if (name == L"Browser" && args.size() >= 1) {
         const bool preferExisting = args.size() >= 3 && Truthy(args[2]);
         bool ok = false;
@@ -529,77 +593,77 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         }
         if (!ok) ok = LaunchUrlExternal(ToText(args[0]));
         if (ok && args.size() >= 2 && Truthy(args[1])) TopBrowserSoon();
-        return ok;
+        return BoolValue(ok);
     }
-    if (name == L"Open" && args.size() >= 1) return OpenTargetExternal(ToText(args[0]));
+    if (name == L"Open" && args.size() >= 1) return BoolValue(OpenTargetExternal(ToText(args[0])));
     if (name == L"EnsureProcessWindow" && args.size() >= 2) {
-        return EnsureProcessWindow(
+        return BoolValue(EnsureProcessWindow(
             ToText(args[0]),
             ToText(args[1]),
-            args.size() < 3 || Truthy(args[2]));
+            args.size() < 3 || Truthy(args[2])));
     }
-    if (name == L"Top" && args.size() >= 1) return TopProcess(ToText(args[0]), args.size() < 2 || Truthy(args[1]));
+    if (name == L"Top" && args.size() >= 1) return BoolValue(TopProcess(ToText(args[0]), args.size() < 2 || Truthy(args[1])));
     if (name == L"Drawimg" && args.size() >= 7) {
-        return DrawImageCommand(ExpandEnvText(ToText(args[0])), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6]));
+        return BoolValue(DrawImageCommand(ExpandEnvText(ToText(args[0])), (int)ToNumber(args[1]), (int)ToNumber(args[2]), Truthy(args[3]), (float)ToNumber(args[4]), (int)ToNumber(args[5]), (int)ToNumber(args[6])));
     }
     if (name == L"Closeimg" && args.size() >= 1) {
         CloseImage((int)ToNumber(args[0]));
-        return true;
+        return BoolValue(true);
     }
-    if (name == L"Playsnd" && args.size() >= 3) return PlaySoundCommand(ExpandEnvText(ToText(args[0])), (float)ToNumber(args[1]), (int)ToNumber(args[2]));
+    if (name == L"Playsnd" && args.size() >= 3) return BoolValue(PlaySoundCommand(ExpandEnvText(ToText(args[0])), (float)ToNumber(args[1]), (int)ToNumber(args[2])));
     if (name == L"Stopsnd" && args.size() >= 1) {
         StopSoundCommand((int)ToNumber(args[0]));
-        return true;
+        return BoolValue(true);
     }
     if (name == L"ShellExecute" && args.size() >= 1) {
         std::wstring cmd = L"/C " + ToText(args[0]);
-        return (INT_PTR)ShellExecuteW(nullptr, L"open", L"cmd.exe", cmd.c_str(), nullptr, SW_HIDE) > 32;
+        return BoolValue((INT_PTR)ShellExecuteW(nullptr, L"open", L"cmd.exe", cmd.c_str(), nullptr, SW_HIDE) > 32);
     }
     if ((name == L"CFile" || name == L"OwriteFile" || name == L"AwriteFile") && args.size() >= 2) {
         std::filesystem::path p = ExpandEnvText(ToText(args[0]));
         std::filesystem::create_directories(p.parent_path());
         std::ofstream out(p, std::ios::binary | (name == L"AwriteFile" ? std::ios::app : std::ios::trunc));
         out << WideToUtf8(ToText(args[1]));
-        return out.good();
+        return BoolValue(out.good());
     }
     if (name == L"DFile" && args.size() >= 1) {
         std::error_code ec;
-        return std::filesystem::remove(ExpandEnvText(ToText(args[0])), ec);
+        return BoolValue(std::filesystem::remove(ExpandEnvText(ToText(args[0])), ec));
     }
     if (name == L"Sleep" && args.size() >= 1) {
         int waitMs = (int)ToNumber(args[0]);
         if (waitMs < 0) waitMs = 0;
         Sleep((DWORD)waitMs);
-        return true;
+        return BoolValue(true);
     }
     if (name == L"Log" && args.size() >= 1) {
         std::wcout << L"[脚本] " << ToText(args[0]) << std::endl;
-        return true;
+        return BoolValue(true);
     }
     if (name == L"SetProcessVolume" && args.size() >= 2) {
         const std::wstring processName = ToText(args[0]);
         const float volumePercent = (float)ToNumber(args[1]);
         std::wcout << L"[脚本] 请求设置进程音量，进程=" << processName
                    << L"，目标百分比=" << volumePercent << std::endl;
-        return SetProcessVolumeByName(processName, volumePercent);
+        return BoolValue(SetProcessVolumeByName(processName, volumePercent));
     }
     if (name == L"SetProcessMute" && args.size() >= 2) {
         const std::wstring processName = ToText(args[0]);
         const bool muted = Truthy(args[1]);
         std::wcout << L"[脚本] 请求设置进程静音，进程=" << processName
                    << L"，静音=" << (muted ? L"true" : L"false") << std::endl;
-        return SetProcessMuteByName(processName, muted);
+        return BoolValue(SetProcessMuteByName(processName, muted));
     }
     if (name == L"SetDeathVolume" && args.size() >= 1) {
         g_death_vol = (float)std::clamp(ToNumber(args[0]), 0.0, 1.0);
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return true;
+        return BoolValue(true);
     }
     if (name == L"SetDeathMute" && args.size() >= 1) {
         bool next = Truthy(args[0]);
         if (next) {
-            if (!normalgen::CheckAdminPermission()) return true;
+            if (!normalgen::CheckAdminPermission()) return BoolValue(true);
             StartCS2VolumeControl(g_death_vol);
         } else {
             StopCS2VolumeControl();
@@ -607,13 +671,13 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
         g_deathMute = next;
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return true;
+        return BoolValue(true);
     }
     if (name == L"SetCrosshairEnabled" && args.size() >= 1) {
         ApplyCrosshairEnabled(Truthy(args[0]));
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return true;
+        return BoolValue(true);
     }
     if ((name == L"SetCrosshairVisual" || name == L"SetCrosshairConfig") && args.size() >= 6) {
         ApplyCrosshairVisual(
@@ -625,7 +689,7 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
             (float)std::clamp(ToNumber(args[5]), 0.1, 0.6));
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return true;
+        return BoolValue(true);
     }
     if (name == L"SetCrosshair" && args.size() >= 7) {
         ApplyCrosshairEnabled(Truthy(args[0]));
@@ -638,10 +702,10 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
             (float)std::clamp(ToNumber(args[6]), 0.1, 0.6));
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return true;
+        return BoolValue(true);
     }
     std::wcout << L"[脚本] 未知函数: " << name << std::endl;
-    return false;
+    return BoolValue(false);
 }
 
 } // namespace vscript::detail

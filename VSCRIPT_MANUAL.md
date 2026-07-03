@@ -73,6 +73,13 @@ VScript 是 StrikeSense 的轻量脚本系统。
   - `int`
   - `float`
   - `string`
+  - `bool`
+- 支持脚本函数：
+  - `int Add(int a, int b){ return a + b; };`
+  - `bool IsAlive(){ return health > 0; };`
+  - `void Ping(){ Log("ping"); return; };`
+- `return;` 在顶层脚本里只会结束当前脚本上下文，不会中断别的脚本执行。
+- `return expr;` 会把值返回给脚本函数调用方。
 - 支持条件运算：
   - `==`
   - `!=`

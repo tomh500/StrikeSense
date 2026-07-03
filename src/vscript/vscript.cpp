@@ -29,14 +29,32 @@ std::unordered_map<int, sound_slot> s_sounds;
 std::recursive_mutex s_mutex;
 std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 std::unordered_set<std::wstring> s_stateKeys;
-bool s_returnRequested = false;
-std::optional<std::wstring> s_gotoTarget;
+execution_context* s_activeExecution = nullptr;
 bool s_currentPrivilegedAllowed = false;
 std::wstring s_currentScriptPath;
 int s_weaponFireCount = 0;
 int s_weaponReloadCount = 0;
 int s_weaponReserveDropCount = 0;
 weapon_snapshot s_lastWeaponSnapshot;
+
+namespace {
+
+struct execution_scope_guard {
+    execution_context* previous = nullptr;
+
+    explicit execution_scope_guard(execution_context& current)
+        : previous(s_activeExecution)
+    {
+        s_activeExecution = &current;
+    }
+
+    ~execution_scope_guard()
+    {
+        s_activeExecution = previous;
+    }
+};
+
+} // namespace
 
 std::wstring Utf8ToWide(const std::string& s)
 {
@@ -309,6 +327,12 @@ std::vector<std::wstring> SplitMetaTokens(const std::wstring& text)
     std::wstring token = Trim(current);
     if (!token.empty()) tokens.push_back(token);
     return tokens;
+}
+
+execution_context& CurrentExecution()
+{
+    static execution_context fallback;
+    return s_activeExecution ? *s_activeExecution : fallback;
 }
 
 bool ScriptUsesPrivilegedApis(const std::wstring& script)
@@ -919,8 +943,9 @@ void TickContinuousScripts()
             if (!text.empty()) {
                 s_currentPrivilegedAllowed = script.privilegedAllowed;
                 s_currentScriptPath = script.path;
-                s_returnRequested = false;
-                s_gotoTarget.reset();
+                execution_context exec;
+                execution_scope_guard guard(exec);
+                std::wcout << L"[脚本] 开始连续执行脚本，上下文已隔离: " << script.path << std::endl;
                 ExecuteBlock(StripComments(text));
                 s_currentPrivilegedAllowed = false;
                 s_currentScriptPath.clear();
@@ -946,8 +971,9 @@ bool ExecuteScriptFile(const std::wstring& path)
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
     s_currentPrivilegedAllowed = temp.privilegedAllowed;
     s_currentScriptPath = path;
-    s_returnRequested = false;
-    s_gotoTarget.reset();
+    execution_context exec;
+    execution_scope_guard guard(exec);
+    std::wcout << L"[脚本] 开始单次执行脚本，上下文已隔离: " << path << std::endl;
     ExecuteBlock(StripComments(script));
     s_currentPrivilegedAllowed = false;
     s_currentScriptPath.clear();
