@@ -71,6 +71,9 @@ set(SOURCES
     src/ui/sound_ui.cpp
     src/ui/vscript_page.cpp
     src/vscript/vscript.cpp
+    src/vscript/vscript_eval.cpp
+    src/vscript/vscript_runtime.cpp
+
 )
 set(HEADERS
     include/app/StrikeSense.h

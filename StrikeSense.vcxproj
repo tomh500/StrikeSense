@@ -355,6 +355,8 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\sound_ui.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\vscript_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript_eval.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript_runtime.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\antistupid.h" />

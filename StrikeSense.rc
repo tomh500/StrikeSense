@@ -1,11 +1,13 @@
-//Microsoft Visual C++ Éú³ÉµÄ×ÊÔ´½Å±¾¡£
+//Microsoft Visual C++ ç”Ÿæˆçš„èµ„æºè„šæœ¬ã€‚
 //
+#pragma code_page(65001)
+
 #include "resource.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
-// ´Ó TEXTINCLUDE ×ÊÔ´Éú³É¡£
+// ä»Ž TEXTINCLUDE èµ„æºç”Ÿæˆã€‚
 //
 #ifndef APSTUDIO_INVOKED
 #include "targetver.h"
@@ -21,13 +23,13 @@ LANGUAGE 4, 2
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// °æ±¾ÐÅÏ¢
+// ç‰ˆæœ¬ä¿¡æ¯
 //
 /////////////////////////////////////////////////////////////////////////////
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 202607032234
- PRODUCTVERSION 202607032234
+ FILEVERSION 202607032345
+ PRODUCTVERSION 202607032345
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -42,15 +44,15 @@ BEGIN
     BEGIN
         BLOCK "080404B0"
         BEGIN
-            VALUE "CompanyName", "ÎÞËðÆ½·½¼¯ÍÅ"
-            VALUE "FileDescription", "StrikeSense - CS2 GSI¿Í»§¶Ë"
-            VALUE "FileVersion", "²âÊÔ·¢²¼°æ 202607032234"
+            VALUE "CompanyName", "æ— æŸå¹³æ–¹é›†å›¢"
+            VALUE "FileDescription", "StrikeSense - CS2 GSIå®¢æˆ·ç«¯"
+            VALUE "FileVersion", "æµ‹è¯•å‘å¸ƒç‰ˆ 202607032345"
             VALUE "InternalName", "StrikeSense"
-            VALUE "LegalCopyright", "Copyright (C) 2026 ÎÞËðÆ½·½¼¯ÍÅ"
+            VALUE "LegalCopyright", "Copyright (C) 2026 æ— æŸå¹³æ–¹é›†å›¢"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "²âÊÔ·¢²¼°æ 202607032234"
-            VALUE "PrivateBuild", "\n±¾³ÌÐò³ÐÅµ£º\nÓÀ²»ÁªÍø£¡\n¾ø¶ÔÎÞ¶¾£¡\nÊý¾Ý°²È«£¡\n¿ìËÙºÃÓÃ£¡\n\nÒò¹©Ó¦ÉÌÒªÇó£¬ÎÞ·¨¼ì²é¸üÐÂ¡£"
+            VALUE "ProductVersion", "æµ‹è¯•å‘å¸ƒç‰ˆ 202607032345"
+            VALUE "PrivateBuild", "\næœ¬ç¨‹åºæ‰¿è¯ºï¼š\næ°¸ä¸è”ç½‘ï¼\nç»å¯¹æ— æ¯’ï¼\næ•°æ®å®‰å…¨ï¼\nå¿«é€Ÿå¥½ç”¨ï¼\n\nå› ä¾›åº”å•†è¦æ±‚ï¼Œæ— æ³•æ£€æŸ¥æ›´æ–°ã€‚"
         END
     END
     BLOCK "VarFileInfo"
@@ -61,7 +63,7 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// Í¼±ê
+// å›¾æ ‡
 //
 
 IDI_STRIKESENSE       ICON         "StrikeSense.ico"
@@ -69,31 +71,31 @@ IDI_SMALL               ICON         "small.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// ²Ëµ¥
+// èœå•
 //
 
 IDC_STRIKESENSE MENU
 BEGIN
-    POPUP "ÎÄ¼þ(&F)"
+    POPUP "æ–‡ä»¶(&F)"
     BEGIN
-        MENUITEM "´´½¨ GSI ÅäÖÃÎÄ¼þ(&G)...",  IDM_CREATE_GSI_CFG
+        MENUITEM "åˆ›å»º GSI é…ç½®æ–‡ä»¶(&G)...",  IDM_CREATE_GSI_CFG
         MENUITEM SEPARATOR
-        MENUITEM "ÉèÖÃ(&S)...",             IDM_SETTINGS
+        MENUITEM "è®¾ç½®(&S)...",             IDM_SETTINGS
         MENUITEM SEPARATOR
-        MENUITEM "ÍË³ö(&X)",                IDM_EXIT
+        MENUITEM "é€€å‡º(&X)",                IDM_EXIT
     END
-    POPUP "°ïÖú(&H)"
+    POPUP "å¸®åŠ©(&H)"
     BEGIN
         MENUITEM "Debugger(&D)",            IDM_DEBUGGER
         MENUITEM SEPARATOR
-        MENUITEM "¹ØÓÚ(&A) ...",           IDM_ABOUT
+        MENUITEM "å…³äºŽ(&A) ...",           IDM_ABOUT
     END
 END
 
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// ¿ì½Ý¼ü
+// å¿«æ·é”®
 //
 
 IDC_STRIKESENSE ACCELERATORS
@@ -105,73 +107,73 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// ¶Ô»°¿ò
+// å¯¹è¯æ¡†
 //
 
-// ¹ØÓÚ¶Ô»°¿ò
+// å…³äºŽå¯¹è¯æ¡†
 IDD_ABOUTBOX DIALOGEX 0, 0, 280, 120
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "¹ØÓÚ StrikeSense"
+CAPTION "å…³äºŽ StrikeSense"
 FONT 9, "MS Shell Dlg"
 BEGIN
     ICON            IDI_STRIKESENSE,IDC_STATIC,14,14,21,20
     LTEXT           "StrikeSense",IDC_STATIC,42,8,100,8,SS_NOPREFIX
-    LTEXT           "²âÊÔ·¢²¼°æ 202607032234",IDC_STATIC,42,20,120,8
-    LTEXT           "Copyright (C) 2026 ÎÞËðÆ½·½¼¯ÍÅ",IDC_STATIC,42,32,140,8
-    LTEXT           "±¾³ÌÐò³ÐÅµ¾ø²»ÁªÍø£¡ËùÒÔÎÞ·¨¼ì²é¸üÐÂ",IDC_STATIC,14,50,250,16
-    LTEXT           "ÓÀ²»ÁªÍø | ¾ø¶ÔÎÞ¶¾ | Êý¾Ý°²È« | ¿ìËÙºÃÓÃ",IDC_STATIC,14,66,250,12
-    DEFPUSHBUTTON   "È·¶¨",IDOK,115,88,50,14,WS_GROUP
+    LTEXT           "æµ‹è¯•å‘å¸ƒç‰ˆ 202607032345",IDC_STATIC,42,20,120,8
+    LTEXT           "Copyright (C) 2026 æ— æŸå¹³æ–¹é›†å›¢",IDC_STATIC,42,32,140,8
+    LTEXT           "æœ¬ç¨‹åºæ‰¿è¯ºç»ä¸è”ç½‘ï¼æ‰€ä»¥æ— æ³•æ£€æŸ¥æ›´æ–°",IDC_STATIC,14,50,250,16
+    LTEXT           "æ°¸ä¸è”ç½‘ | ç»å¯¹æ— æ¯’ | æ•°æ®å®‰å…¨ | å¿«é€Ÿå¥½ç”¨",IDC_STATIC,14,66,250,12
+    DEFPUSHBUTTON   "ç¡®å®š",IDOK,115,88,50,14,WS_GROUP
 END
 
-// Debugger µ÷ÊÔÊä³ö´°¿Ú
+// Debugger è°ƒè¯•è¾“å‡ºçª—å£
 IDD_DEBUGGER DIALOGEX 0, 0, 480, 360
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
-CAPTION "Debugger µ÷ÊÔÊä³ö"
-FONT 9, "Î¢ÈíÑÅºÚ", 400, 0, 0x80
+CAPTION "Debugger è°ƒè¯•è¾“å‡º"
+FONT 9, "å¾®è½¯é›…é»‘", 400, 0, 0x80
 BEGIN
     EDITTEXT        IDC_DEBUG_EDIT, 8, 8, 464, 304, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL
-    PUSHBUTTON      "Çå³ý", IDC_COPYALL, 380, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
-    PUSHBUTTON      "¹Ø±Õ", IDOK, 8, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
+    PUSHBUTTON      "æ¸…é™¤", IDC_COPYALL, 380, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
+    PUSHBUTTON      "å…³é—­", IDOK, 8, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
 END
 
-// GSI ÅäÖÃÂ·¾¶È·ÈÏ¶Ô»°¿ò
+// GSI é…ç½®è·¯å¾„ç¡®è®¤å¯¹è¯æ¡†
 IDD_CONFIRM_PATH DIALOGEX 0, 0, 450, 215
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "È·ÈÏ GSI ÅäÖÃÎÄ¼þÂ·¾¶"
-FONT 9, "Î¢ÈíÑÅºÚ", 400, 0, 0x80
+CAPTION "ç¡®è®¤ GSI é…ç½®æ–‡ä»¶è·¯å¾„"
+FONT 9, "å¾®è½¯é›…é»‘", 400, 0, 0x80
 BEGIN
-    LTEXT           "CS2 ÓÎÏ·ÅäÖÃÄ¿Â¼Â·¾¶£º",IDC_STATIC,12,12,300,12
+    LTEXT           "CS2 æ¸¸æˆé…ç½®ç›®å½•è·¯å¾„ï¼š",IDC_STATIC,12,12,300,12
     EDITTEXT        IDC_PATH_LABEL,12,28,426,20, ES_READONLY | ES_AUTOHSCROLL | ES_LEFT
-    LTEXT           "ÊÇ·ñ½« GSI ÅäÖÃÎÄ¼þ°²×°µ½´ËÄ¿Â¼£¿",IDC_STATIC,12,58,300,12
-    DEFPUSHBUTTON   "ÊÇ(&Y)", IDYES, 30, 85, 90, 25, WS_TABSTOP
-    PUSHBUTTON      "ä¯ÀÀ...(&B)", IDC_BROWSE_BTN, 140, 85, 90, 25, WS_TABSTOP
-    PUSHBUTTON      "É¾³ýÒÑ°²×°ÎÄ¼þ(&D)", IDC_DELETE_CFG, 250, 85, 100, 25, WS_TABSTOP
-    PUSHBUTTON      "È¡Ïû(&C)", IDCANCEL, 360, 85, 70, 25, WS_TABSTOP
+    LTEXT           "æ˜¯å¦å°† GSI é…ç½®æ–‡ä»¶å®‰è£…åˆ°æ­¤ç›®å½•ï¼Ÿ",IDC_STATIC,12,58,300,12
+    DEFPUSHBUTTON   "æ˜¯(&Y)", IDYES, 30, 85, 90, 25, WS_TABSTOP
+    PUSHBUTTON      "æµè§ˆ...(&B)", IDC_BROWSE_BTN, 140, 85, 90, 25, WS_TABSTOP
+    PUSHBUTTON      "åˆ é™¤å·²å®‰è£…æ–‡ä»¶(&D)", IDC_DELETE_CFG, 250, 85, 100, 25, WS_TABSTOP
+    PUSHBUTTON      "å–æ¶ˆ(&C)", IDCANCEL, 360, 85, 70, 25, WS_TABSTOP
 END
 
-// ÉèÖÃ¶Ô»°¿ò
+// è®¾ç½®å¯¹è¯æ¡†
 IDD_SETTINGS DIALOGEX 0, 0, 350, 230
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "StrikeSense ÉèÖÃ"
-FONT 9, "Î¢ÈíÑÅºÚ", 400, 0, 0x80
+CAPTION "StrikeSense è®¾ç½®"
+FONT 9, "å¾®è½¯é›…é»‘", 400, 0, 0x80
 BEGIN
-    CONTROL         "×Ô¶¨ÒåÒôÀÖ°ü (custom_musickit)", IDC_CK_CUSTOM_KIT,
+    CONTROL         "è‡ªå®šä¹‰éŸ³ä¹åŒ… (custom_musickit)", IDC_CK_CUSTOM_KIT,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 12, 220, 16
-    CONTROL         "ÆôÓÃ»÷É±ÒôÐ§Ìæ»» (enable_kill_sound)", IDC_CK_ENABLE_KILL_SOUND,
+    CONTROL         "å¯ç”¨å‡»æ€éŸ³æ•ˆæ›¿æ¢ (enable_kill_sound)", IDC_CK_ENABLE_KILL_SOUND,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 34, 250, 16
-    CONTROL         "ÉÁ¹âµþ¼ÓÒ³Ãæ (custom_flashbang)", IDC_CK_FLASHBANG,
+    CONTROL         "é—ªå…‰å åŠ é¡µé¢ (custom_flashbang)", IDC_CK_FLASHBANG,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 56, 220, 16
-    CONTROL         "µÍÄÚ´æÄ£Ê½ (low_memory)", IDC_CK_LOW_MEMORY,
+    CONTROL         "ä½Žå†…å­˜æ¨¡å¼ (low_memory)", IDC_CK_LOW_MEMORY,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 78, 220, 16
-    CONTROL         "ÏÔÊ¾MVPÐÅÏ¢°å (show_mvp)", IDC_CK_SHOW_MVP,
+    CONTROL         "æ˜¾ç¤ºMVPä¿¡æ¯æ¿ (show_mvp)", IDC_CK_SHOW_MVP,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 100, 220, 16
-    CONTROL         "Ê¹ÓÃ OGG ÒôÆµ¸ñÊ½ (ogg)", IDC_CK_USE_OGG,
+    CONTROL         "ä½¿ç”¨ OGG éŸ³é¢‘æ ¼å¼ (ogg)", IDC_CK_USE_OGG,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 122, 220, 16
-    LTEXT           "ÒôÁ¿ (vol):", IDC_STATIC, 12, 150, 60, 12
+    LTEXT           "éŸ³é‡ (vol):", IDC_STATIC, 12, 150, 60, 12
     EDITTEXT        IDC_EDIT_VOL, 80, 146, 60, 16, ES_LEFT
     LTEXT           "(0.0 ~ 1.0)", IDC_STATIC, 150, 150, 80, 12
-    DEFPUSHBUTTON   "±£´æ", IDOK, 200, 190, 60, 25, WS_TABSTOP
-    PUSHBUTTON      "È¡Ïû", IDCANCEL, 270, 190, 60, 25, WS_TABSTOP
+    DEFPUSHBUTTON   "ä¿å­˜", IDOK, 200, 190, 60, 25, WS_TABSTOP
+    PUSHBUTTON      "å–æ¶ˆ", IDCANCEL, 270, 190, 60, 25, WS_TABSTOP
 END
 
 /////////////////////////////////////////////////////////////////////////////
@@ -223,7 +225,7 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// ×Ö·û´®±í
+// å­—ç¬¦ä¸²è¡¨
 //
 
 STRINGTABLE
@@ -238,7 +240,7 @@ END
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
-// ´Ó TEXTINCLUDE ×ÊÔ´Éú³É¡£
+// ä»Ž TEXTINCLUDE èµ„æºç”Ÿæˆã€‚
 //
 
 /////////////////////////////////////////////////////////////////////////////
