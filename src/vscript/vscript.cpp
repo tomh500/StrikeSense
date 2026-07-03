@@ -3,6 +3,7 @@
 #include "volume_mixer.h"
 #include "normalgen.h"
 #include "gsi_server.h"
+#include "steam_helper.h"
 
 #include <TlHelp32.h>
 #include <Shellapi.h>
@@ -67,6 +68,32 @@ struct weapon_snapshot {
     bool valid = false;
 };
 
+struct user_function {
+    std::vector<std::wstring> params;
+    std::wstring body;
+};
+
+enum class flow_signal {
+    none,
+    return_requested,
+    break_requested,
+    continue_requested,
+    goto_requested
+};
+
+struct local_scope {
+    std::map<std::wstring, value> vars;
+};
+
+struct execution_context {
+    std::vector<local_scope> scopes;
+    std::unordered_map<std::wstring, user_function> functions;
+    std::optional<value> returnValue;
+    flow_signal flow = flow_signal::none;
+    std::optional<std::wstring> gotoTarget;
+    int callDepth = 0;
+};
+
 HINSTANCE s_instance = nullptr;
 HWND s_owner = nullptr;
 buildcode s_runtimeCapability = buildcode::user;
@@ -87,8 +114,9 @@ int s_weaponFireCount = 0;
 int s_weaponReloadCount = 0;
 int s_weaponReserveDropCount = 0;
 weapon_snapshot s_lastWeaponSnapshot;
+thread_local execution_context* s_activeContext = nullptr;
 
-constexpr const wchar_t* k_imageClass = L"StrikeSensevscriptImage";
+constexpr const wchar_t* k_imageClass = L"StrikeSenseVscriptImage";
 constexpr const char* k_alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 constexpr const wchar_t* k_privilegedApiNames[] = {
     L"ShellExecute", L"CFile", L"DFile", L"OwriteFile", L"AwriteFile"
@@ -569,6 +597,33 @@ void SetStateVar(const std::wstring& name, const value& v)
     s_stateKeys.insert(name);
 }
 
+void DeclareVar(const std::wstring& name, const value& v)
+{
+    if (s_activeContext && !s_activeContext->scopes.empty()) {
+        s_activeContext->scopes.back().vars[name] = v;
+        return;
+    }
+    s_vars[name] = v;
+}
+
+void AssignVar(const std::wstring& name, const value& v)
+{
+    if (s_activeContext) {
+        for (auto it = s_activeContext->scopes.rbegin(); it != s_activeContext->scopes.rend(); ++it) {
+            auto found = it->vars.find(name);
+            if (found != it->vars.end()) {
+                found->second = v;
+                return;
+            }
+        }
+        if (!s_activeContext->scopes.empty()) {
+            s_activeContext->scopes.back().vars[name] = v;
+            return;
+        }
+    }
+    s_vars[name] = v;
+}
+
 void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j)
 {
     if (j.is_object()) {
@@ -657,6 +712,12 @@ double ToNumber(const value& v)
 
 value GetVar(const std::wstring& name)
 {
+    if (s_activeContext) {
+        for (auto it = s_activeContext->scopes.rbegin(); it != s_activeContext->scopes.rend(); ++it) {
+            auto found = it->vars.find(name);
+            if (found != it->vars.end()) return found->second;
+        }
+    }
     auto it = s_vars.find(name);
     if (it != s_vars.end()) return it->second;
     return TextValue(L"void");
@@ -787,6 +848,7 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     if (!e.empty() && (iswdigit(e[0]) || e[0] == L'-')) {
         try { return NumberValue(std::stod(e)); } catch (...) {}
     }
+    if (&vars == &s_vars) return GetVar(e);
     return GetVarFromMap(vars, e);
 }
 
@@ -1358,6 +1420,40 @@ bool RequiresUserDebug(const std::wstring& name)
         name == L"OwriteFile" || name == L"AwriteFile";
 }
 
+void UpdateSteamVars(const std::wstring& steamPath, const std::wstring& cs2Dir, const std::wstring& cfgDir, bool ready)
+{
+    SetStateVar(L"steam_path", TextValue(steamPath.empty() ? L"void" : steamPath));
+    SetStateVar(L"steam_cs2_dir", TextValue(cs2Dir.empty() ? L"void" : cs2Dir));
+    SetStateVar(L"steam_cs2_cfg_dir", TextValue(cfgDir.empty() ? L"void" : cfgDir));
+    SetStateVar(L"steam_gsi_ready", BoolValue(ready));
+}
+
+bool SteamDetectCommand()
+{
+    const std::wstring steamPath = strikesense::GetSteamPathFromRegistry();
+    const std::wstring cs2Dir = steamPath.empty() ? L"" : strikesense::FindCS2InstallDir(steamPath);
+    const std::wstring cfgDir = !cs2Dir.empty() ? strikesense::GetCS2CfgPath(cs2Dir) : strikesense::LoadSavedCfgPath();
+    const bool ready = !cfgDir.empty() && fs::exists(cfgDir);
+    UpdateSteamVars(steamPath, cs2Dir, cfgDir, ready);
+    return ready;
+}
+
+bool SteamSetupGsiCommand()
+{
+    std::wstring cfgDir = strikesense::LoadSavedCfgPath();
+    const std::wstring steamPath = strikesense::GetSteamPathFromRegistry();
+    std::wstring cs2Dir;
+    if (cfgDir.empty() && !steamPath.empty()) {
+        cs2Dir = strikesense::FindCS2InstallDir(steamPath);
+        if (!cs2Dir.empty()) cfgDir = strikesense::GetCS2CfgPath(cs2Dir);
+    }
+    const bool ok = !cfgDir.empty() && strikesense::WriteGSIConfig(cfgDir);
+    if (ok) strikesense::SaveCfgPath(cfgDir);
+    if (cs2Dir.empty() && !steamPath.empty()) cs2Dir = strikesense::FindCS2InstallDir(steamPath);
+    UpdateSteamVars(steamPath, cs2Dir, cfgDir, ok);
+    return ok;
+}
+
 bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
 {
     if (RequiresUserDebug(name) && !s_currentPrivilegedAllowed) {
@@ -1373,6 +1469,12 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
     if (name == L"KillGameProcess") return KillProcessByName(L"cs2.exe");
     if (name == L"RunGameProcess") return LaunchUrlExternal(L"steam://run/730");
     if (name == L"ShowGameProcess") return ShowGameProcessSafely();
+    if (name == L"SteamDetect") return SteamDetectCommand();
+    if (name == L"SteamSetupGsi") return SteamSetupGsiCommand();
+    if (name == L"OpenSavedCfgDir") {
+        std::wstring saved = strikesense::LoadSavedCfgPath();
+        return !saved.empty() && OpenTargetExternal(saved);
+    }
     if (name == L"Browser" && args.size() >= 1) {
         const bool preferExisting = args.size() >= 3 && Truthy(args[2]);
         bool ok = false;
@@ -1494,16 +1596,161 @@ bool ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& 
 void ExecuteBlock(const std::wstring& script);
 void ExecuteStatement(const std::wstring& stmt);
 
+size_t FindMatchingToken(const std::wstring& text, size_t openPos, wchar_t openToken, wchar_t closeToken)
+{
+    bool inString = false;
+    int depth = 0;
+    for (size_t i = openPos; i < text.size(); ++i) {
+        const wchar_t c = text[i];
+        if (c == L'"' && (i == 0 || text[i - 1] != L'\\')) inString = !inString;
+        if (inString) continue;
+        if (c == openToken) ++depth;
+        else if (c == closeToken) {
+            --depth;
+            if (depth == 0) return i;
+        }
+    }
+    return std::wstring::npos;
+}
+
+std::vector<std::wstring> SplitForHeader(const std::wstring& header)
+{
+    std::vector<std::wstring> parts;
+    std::wstring current;
+    bool inString = false;
+    int paren = 0;
+    for (size_t i = 0; i < header.size(); ++i) {
+        const wchar_t c = header[i];
+        if (c == L'"' && (i == 0 || header[i - 1] != L'\\')) inString = !inString;
+        if (!inString) {
+            if (c == L'(') ++paren;
+            else if (c == L')' && paren > 0) --paren;
+            else if (c == L';' && paren == 0) {
+                parts.push_back(Trim(current));
+                current.clear();
+                continue;
+            }
+        }
+        current.push_back(c);
+    }
+    parts.push_back(Trim(current));
+    return parts;
+}
+
+size_t FindAssignmentPos(const std::wstring& text, const std::wstring& token)
+{
+    bool inString = false;
+    int paren = 0;
+    for (size_t i = 0; i + token.size() <= text.size(); ++i) {
+        const wchar_t c = text[i];
+        if (c == L'"' && (i == 0 || text[i - 1] != L'\\')) inString = !inString;
+        if (inString) continue;
+        if (c == L'(') ++paren;
+        else if (c == L')' && paren > 0) --paren;
+        if (paren != 0) continue;
+        if (text.compare(i, token.size(), token) != 0) continue;
+        if (token == L"=") {
+            const wchar_t before = i > 0 ? text[i - 1] : L'\0';
+            const wchar_t after = i + 1 < text.size() ? text[i + 1] : L'\0';
+            if (before == L'=' || before == L'!' || before == L'<' || before == L'>') continue;
+            if (after == L'=') continue;
+        }
+        return i;
+    }
+    return std::wstring::npos;
+}
+
+struct scope_guard {
+    bool active = false;
+    scope_guard()
+    {
+        if (s_activeContext) {
+            s_activeContext->scopes.push_back(local_scope{});
+            active = true;
+        }
+    }
+
+    ~scope_guard()
+    {
+        if (active && s_activeContext && !s_activeContext->scopes.empty()) {
+            s_activeContext->scopes.pop_back();
+        }
+    }
+};
+
+bool RegisterUserFunction(const std::wstring& stmt)
+{
+    if (!s_activeContext) return false;
+    const std::wstring text = Trim(stmt);
+    const size_t spacePos = text.find(L' ');
+    const size_t parenPos = text.find(L'(');
+    const size_t bracePos = text.find(L'{');
+    if (spacePos == std::wstring::npos || parenPos == std::wstring::npos || bracePos == std::wstring::npos) return false;
+    const std::wstring typeName = Trim(text.substr(0, spacePos));
+    if (typeName != L"void" && typeName != L"int" && typeName != L"float" &&
+        typeName != L"double" && typeName != L"string" && typeName != L"bool" && typeName != L"auto") return false;
+    const size_t parenEnd = FindMatchingToken(text, parenPos, L'(', L')');
+    const size_t braceEnd = FindMatchingToken(text, bracePos, L'{', L'}');
+    if (parenEnd == std::wstring::npos || braceEnd == std::wstring::npos || braceEnd + 1 != text.size()) return false;
+    const std::wstring functionName = Trim(text.substr(spacePos + 1, parenPos - spacePos - 1));
+    if (functionName.empty()) return false;
+    user_function fn;
+    fn.params = SplitArgs(text.substr(parenPos + 1, parenEnd - parenPos - 1));
+    for (auto& param : fn.params) {
+        size_t lastSpace = param.rfind(L' ');
+        if (lastSpace != std::wstring::npos) param = Trim(param.substr(lastSpace + 1));
+    }
+    fn.body = text.substr(bracePos + 1, braceEnd - bracePos - 1);
+    s_activeContext->functions[functionName] = std::move(fn);
+    return true;
+}
+
+bool InvokeUserFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
+{
+    if (!s_activeContext) return false;
+    auto it = s_activeContext->functions.find(name);
+    if (it == s_activeContext->functions.end()) return false;
+    if (s_activeContext->callDepth >= 32) return false;
+
+    std::vector<value> args;
+    for (const auto& arg : rawArgs) args.push_back(EvalExpr(arg));
+
+    ++s_activeContext->callDepth;
+    s_activeContext->scopes.push_back(local_scope{});
+    for (size_t i = 0; i < it->second.params.size(); ++i) {
+        s_activeContext->scopes.back().vars[it->second.params[i]] = i < args.size() ? args[i] : TextValue(L"void");
+    }
+    s_activeContext->returnValue.reset();
+    s_activeContext->flow = flow_signal::none;
+    s_activeContext->gotoTarget.reset();
+    ExecuteBlock(it->second.body);
+    s_activeContext->flow = flow_signal::none;
+    s_activeContext->gotoTarget.reset();
+    s_activeContext->scopes.pop_back();
+    --s_activeContext->callDepth;
+    return true;
+}
+
 bool ExtractControlBlock(const std::wstring& s, const std::wstring& keyword, std::wstring& head, std::wstring& body)
 {
     if (s.rfind(keyword, 0) != 0) return false;
     size_t lp = s.find(L'(');
-    size_t rp = s.find(L')', lp);
+    if (lp == std::wstring::npos) return true;
+    size_t rp = FindMatchingToken(s, lp, L'(', L')');
     size_t lb = s.find(L'{', rp);
-    size_t rb = s.rfind(L'}');
-    if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
+    size_t rb = lb == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lb, L'{', L'}');
+    if (rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos) return true;
     head = s.substr(lp + 1, rp - lp - 1);
     body = s.substr(lb + 1, rb - lb - 1);
+    return true;
+}
+
+bool TryExecuteStandaloneBlock(const std::wstring& stmt)
+{
+    std::wstring s = Trim(stmt);
+    if (s.size() < 2 || s.front() != L'{' || s.back() != L'}') return false;
+    scope_guard scope;
+    ExecuteBlock(s.substr(1, s.size() - 2));
     return true;
 }
 
@@ -1512,55 +1759,76 @@ bool TryExecuteIf(const std::wstring& stmt)
     std::wstring s = Trim(stmt);
     if (s.rfind(L"if", 0) != 0) return false;
     size_t lp = s.find(L'(');
-    size_t rp = s.find(L')', lp);
-    size_t lb = s.find(L'{', rp);
-    size_t rb = s.find(L'}', lb);
-    if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
+    size_t rp = lp == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lp, L'(', L')');
+    size_t lb = rp == std::wstring::npos ? std::wstring::npos : s.find(L'{', rp);
+    size_t rb = lb == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lb, L'{', L'}');
+    if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos) return true;
     std::wstring cond = s.substr(lp + 1, rp - lp - 1);
     std::wstring body = s.substr(lb + 1, rb - lb - 1);
-    if (EvalCondition(cond)) ExecuteBlock(body);
-    else {
-        size_t elsePos = s.find(L"else", rb + 1);
-        if (elsePos != std::wstring::npos) {
-            size_t elb = s.find(L'{', elsePos);
-            size_t erb = s.rfind(L'}');
-            if (elb != std::wstring::npos && erb != std::wstring::npos && erb > elb) ExecuteBlock(s.substr(elb + 1, erb - elb - 1));
-        }
+    if (EvalCondition(cond)) {
+        scope_guard scope;
+        ExecuteBlock(body);
+        return true;
+    }
+
+    size_t elsePos = s.find(L"else", rb + 1);
+    if (elsePos == std::wstring::npos) return true;
+    std::wstring elseBranch = Trim(s.substr(elsePos + 4));
+    if (elseBranch.rfind(L"if", 0) == 0) return TryExecuteIf(elseBranch);
+    if (!elseBranch.empty() && elseBranch.front() == L'{' && elseBranch.back() == L'}') {
+        scope_guard scope;
+        ExecuteBlock(elseBranch.substr(1, elseBranch.size() - 2));
     }
     return true;
 }
 
 bool TryExecuteWhile(const std::wstring& stmt)
 {
-    std::wstring s = Trim(stmt);
     std::wstring cond, body;
-    if (!ExtractControlBlock(s, L"while", cond, body)) return false;
-    for (int i = 0; i < 1000 && EvalCondition(cond) && !s_returnRequested; ++i) {
-        ExecuteBlock(body);
+    if (!ExtractControlBlock(Trim(stmt), L"while", cond, body)) return false;
+    for (int i = 0; i < 1000; ++i) {
+        if (!EvalCondition(cond)) break;
+        {
+            scope_guard scope;
+            ExecuteBlock(body);
+        }
+        if (!s_activeContext) continue;
+        if (s_activeContext->flow == flow_signal::break_requested) {
+            s_activeContext->flow = flow_signal::none;
+            break;
+        }
+        if (s_activeContext->flow == flow_signal::continue_requested) {
+            s_activeContext->flow = flow_signal::none;
+            continue;
+        }
+        if (s_activeContext->flow == flow_signal::return_requested || s_activeContext->flow == flow_signal::goto_requested) break;
     }
     return true;
 }
 
 bool TryExecuteFor(const std::wstring& stmt)
 {
-    std::wstring s = Trim(stmt);
     std::wstring head, body;
-    if (!ExtractControlBlock(s, L"for", head, body)) return false;
-    std::vector<std::wstring> parts;
-    std::wstring cur;
-    for (wchar_t c : head) {
-        if (c == L';') {
-            parts.push_back(Trim(cur));
-            cur.clear();
-        } else {
-            cur.push_back(c);
-        }
-    }
-    parts.push_back(Trim(cur));
-    if (!parts.empty()) ExecuteStatement(parts[0]);
-    for (int i = 0; i < 1000 && !s_returnRequested; ++i) {
+    if (!ExtractControlBlock(Trim(stmt), L"for", head, body)) return false;
+    std::vector<std::wstring> parts = SplitForHeader(head);
+    if (!parts.empty() && !parts[0].empty()) ExecuteStatement(parts[0]);
+    for (int i = 0; i < 1000; ++i) {
         if (parts.size() > 1 && !parts[1].empty() && !EvalCondition(parts[1])) break;
-        ExecuteBlock(body);
+        {
+            scope_guard scope;
+            ExecuteBlock(body);
+        }
+        if (s_activeContext) {
+            if (s_activeContext->flow == flow_signal::break_requested) {
+                s_activeContext->flow = flow_signal::none;
+                break;
+            }
+            if (s_activeContext->flow == flow_signal::continue_requested) {
+                s_activeContext->flow = flow_signal::none;
+            } else if (s_activeContext->flow == flow_signal::return_requested || s_activeContext->flow == flow_signal::goto_requested) {
+                break;
+            }
+        }
         if (parts.size() > 2 && !parts[2].empty()) ExecuteStatement(parts[2]);
     }
     return true;
@@ -1570,32 +1838,83 @@ void ExecuteStatement(const std::wstring& stmt)
 {
     std::wstring s = Trim(stmt);
     if (s.empty()) return;
-    if (s_returnRequested) return;
-    if (s == L"return") { s_returnRequested = true; return; }
-    if (s.rfind(L"goto ", 0) == 0) {
-        s_gotoTarget = Trim(s.substr(5));
+    if (s_activeContext && s_activeContext->flow != flow_signal::none) return;
+    if (RegisterUserFunction(s)) return;
+    if (s == L"return") {
+        if (s_activeContext) s_activeContext->flow = flow_signal::return_requested;
         return;
     }
+    if (s == L"break") {
+        if (s_activeContext) s_activeContext->flow = flow_signal::break_requested;
+        return;
+    }
+    if (s == L"continue") {
+        if (s_activeContext) s_activeContext->flow = flow_signal::continue_requested;
+        return;
+    }
+    if (s.rfind(L"goto ", 0) == 0) {
+        if (s_activeContext) {
+            s_activeContext->gotoTarget = Trim(s.substr(5));
+            s_activeContext->flow = flow_signal::goto_requested;
+        }
+        return;
+    }
+    if (TryExecuteStandaloneBlock(s)) return;
     if (TryExecuteIf(s)) return;
     if (TryExecuteWhile(s)) return;
     if (TryExecuteFor(s)) return;
 
-    for (const auto& prefix : { L"int ", L"float ", L"string " }) {
+    for (const auto& prefix : { L"int ", L"float ", L"double ", L"string ", L"bool ", L"auto " }) {
         if (s.rfind(prefix, 0) == 0) {
-            size_t eq = s.find(L'=');
+            size_t eq = FindAssignmentPos(s, L"=");
             std::wstring name = Trim(s.substr(wcslen(prefix), eq == std::wstring::npos ? std::wstring::npos : eq - wcslen(prefix)));
-            s_vars[name] = eq == std::wstring::npos ? value{} : EvalExpr(s.substr(eq + 1));
+            DeclareVar(name, eq == std::wstring::npos ? value{} : EvalExpr(s.substr(eq + 1)));
             return;
         }
     }
-    size_t eq = s.find(L'=');
-    if (eq != std::wstring::npos && s.find(L"==") == std::wstring::npos) {
-        std::wstring name = Trim(s.substr(0, eq));
-        s_vars[name] = EvalExpr(s.substr(eq + 1));
+
+    for (const auto& op : { L"+=", L"-=", L"*=", L"/=" }) {
+        size_t pos = FindAssignmentPos(s, op);
+        if (pos == std::wstring::npos) continue;
+        std::wstring name = Trim(s.substr(0, pos));
+        value left = GetVar(name);
+        value right = EvalExpr(s.substr(pos + 2));
+        if (op == L"+=" && (left.type == value::kind::text || right.type == value::kind::text)) {
+            AssignVar(name, TextValue(ToText(left) + ToText(right)));
+        } else {
+            double lhs = ToNumber(left);
+            double rhs = ToNumber(right);
+            double result = lhs;
+            if (op == L"+=") result = lhs + rhs;
+            if (op == L"-=") result = lhs - rhs;
+            if (op == L"*=") result = lhs * rhs;
+            if (op == L"/=") result = rhs == 0.0 ? 0.0 : lhs / rhs;
+            AssignVar(name, NumberValue(result));
+        }
         return;
     }
+
+    if (s.size() > 2 && s.substr(s.size() - 2) == L"++") {
+        std::wstring name = Trim(s.substr(0, s.size() - 2));
+        AssignVar(name, NumberValue(ToNumber(GetVar(name)) + 1.0));
+        return;
+    }
+    if (s.size() > 2 && s.substr(s.size() - 2) == L"--") {
+        std::wstring name = Trim(s.substr(0, s.size() - 2));
+        AssignVar(name, NumberValue(ToNumber(GetVar(name)) - 1.0));
+        return;
+    }
+
+    size_t eq = FindAssignmentPos(s, L"=");
+    if (eq != std::wstring::npos) {
+        std::wstring name = Trim(s.substr(0, eq));
+        AssignVar(name, EvalExpr(s.substr(eq + 1)));
+        return;
+    }
+
     auto fn = ParseFunction(s);
     if (!fn) return;
+    if (InvokeUserFunction(fn->first, SplitArgs(fn->second))) return;
     ExecuteFunction(fn->first, SplitArgs(fn->second));
 }
 
@@ -1603,20 +1922,35 @@ void ExecuteBlock(const std::wstring& script)
 {
     std::vector<std::wstring> statements = SplitStatements(script);
     std::unordered_map<std::wstring, size_t> labels;
+    std::unordered_set<size_t> functionLines;
     for (size_t i = 0; i < statements.size(); ++i) {
         std::wstring s = Trim(statements[i]);
         if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) {
             labels[Trim(s.substr(0, s.size() - 1))] = i;
+            continue;
         }
+        if (RegisterUserFunction(s)) functionLines.insert(i);
     }
-    for (size_t pc = 0; pc < statements.size() && !s_returnRequested; ++pc) {
+    for (size_t pc = 0; pc < statements.size(); ++pc) {
+        if (s_activeContext && (s_activeContext->flow == flow_signal::return_requested ||
+            s_activeContext->flow == flow_signal::break_requested ||
+            s_activeContext->flow == flow_signal::continue_requested)) break;
+
         std::wstring s = Trim(statements[pc]);
         if (!s.empty() && s.back() == L':' && s.find(L' ') == std::wstring::npos) continue;
+        if (functionLines.count(pc) != 0) continue;
         ExecuteStatement(s);
-        if (s_gotoTarget) {
-            auto it = labels.find(*s_gotoTarget);
-            s_gotoTarget.reset();
-            if (it != labels.end()) pc = it->second;
+        if (s_activeContext && s_activeContext->flow == flow_signal::goto_requested) {
+            auto it = labels.find(*s_activeContext->gotoTarget);
+            if (it == labels.end()) {
+                std::wcout << L"[脚本] 已拒绝跨块 goto: " << *s_activeContext->gotoTarget << std::endl;
+                s_activeContext->flow = flow_signal::none;
+                s_activeContext->gotoTarget.reset();
+                continue;
+            }
+            s_activeContext->flow = flow_signal::none;
+            s_activeContext->gotoTarget.reset();
+            pc = it->second;
         }
     }
 }
@@ -2001,6 +2335,22 @@ void UpdateFromGsi(const nlohmann::json& state)
     }
 }
 
+struct context_guard {
+    execution_context context;
+    execution_context* previous = nullptr;
+
+    context_guard()
+    {
+        previous = s_activeContext;
+        s_activeContext = &context;
+    }
+
+    ~context_guard()
+    {
+        s_activeContext = previous;
+    }
+};
+
 void TickContinuousScripts()
 {
     std::lock_guard<std::recursive_mutex> lock(s_mutex);
@@ -2011,8 +2361,7 @@ void TickContinuousScripts()
             if (!text.empty()) {
                 s_currentPrivilegedAllowed = script.privilegedAllowed;
                 s_currentScriptPath = script.path;
-                s_returnRequested = false;
-                s_gotoTarget.reset();
+                context_guard guard;
                 ExecuteBlock(StripComments(text));
                 s_currentPrivilegedAllowed = false;
                 s_currentScriptPath.clear();
@@ -2038,8 +2387,7 @@ bool ExecuteScriptFile(const std::wstring& path)
     std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
     s_currentPrivilegedAllowed = temp.privilegedAllowed;
     s_currentScriptPath = path;
-    s_returnRequested = false;
-    s_gotoTarget.reset();
+    context_guard guard;
     ExecuteBlock(StripComments(script));
     s_currentPrivilegedAllowed = false;
     s_currentScriptPath.clear();

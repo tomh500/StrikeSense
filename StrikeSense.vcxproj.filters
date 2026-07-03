@@ -1,126 +1,141 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\StrikeSense.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\console.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\sidebar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\ui_common.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\config.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\antistupid.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\flashoverlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\gsi_server.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\hotkey.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\i18n.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\ui_common.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\itemhelper_overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sidebar.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\kernelcore.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\sounds_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\normalgen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\settings_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\quickstop.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\evolution_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\sound_player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\legalcfg_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Rage_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\volume_mixer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\Rage_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\i18n.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\evolution_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\itemhelper_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\legalcfg_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\settings_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\sounds_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\sound_ui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\vscript_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\vscript_page.cpp">
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\StrikeSense.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\StrikeSense.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\console.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\console.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\steam_helper.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\antistupid.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\gsi_server.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\config.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\flashoverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_player.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\gsi_server.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\sound_ui.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\hotkey.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\kernelcore.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\i18n.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\normalgen.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\itemhelper_overlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\antistupid.h">
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\kernelcore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\normalgen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\quickstop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\sound_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\volume_mixer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\itemhelper_page.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\sound_ui.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\vscript\vscript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\pages.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\i18n.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\quickstop.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\volume_mixer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\framework.h">
@@ -132,22 +147,7 @@
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\flashoverlay.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_page.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\Hotkey.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\itemhelper_overlay.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\SteamHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\vscript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
