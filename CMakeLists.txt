@@ -45,22 +45,64 @@ find_package(SDL2_ttf CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
 
 set(SOURCES
-    StrikeSense.cpp console.cpp steam_helper.cpp gsi_server.cpp
-    config.cpp sound_player.cpp sound_ui.cpp kernelcore.cpp normalgen.cpp antistupid.cpp
-    ui_common.cpp sidebar.cpp sounds_page.cpp settings_page.cpp evolution_page.cpp
-    legalcfg_page.cpp Rage_page.cpp itemhelper_page.cpp i18n.cpp quickstop.cpp
-    volume_mixer.cpp flashoverlay.cpp Hotkey.cpp itemhelper_overlay.cpp vscript.cpp vscript_page.cpp
+    src/app/StrikeSense.cpp
+    src/app/console.cpp
+    src/app/sidebar.cpp
+    src/app/ui_common.cpp
+    src/core/antistupid.cpp
+    src/core/config.cpp
+    src/core/flashoverlay.cpp
+    src/core/gsi_server.cpp
+    src/core/hotkey.cpp
+    src/core/i18n.cpp
+    src/core/itemhelper_overlay.cpp
+    src/core/kernelcore.cpp
+    src/core/normalgen.cpp
+    src/core/quickstop.cpp
+    src/core/sound_player.cpp
+    src/core/steam_helper.cpp
+    src/core/volume_mixer.cpp
+    src/ui/Rage_page.cpp
+    src/ui/evolution_page.cpp
+    src/ui/itemhelper_page.cpp
+    src/ui/legalcfg_page.cpp
+    src/ui/settings_page.cpp
+    src/ui/sounds_page.cpp
+    src/ui/sound_ui.cpp
+    src/ui/vscript_page.cpp
+    src/vscript/vscript.cpp
 )
 set(HEADERS
-    StrikeSense.h console.h steam_helper.h gsi_server.h config.h
-    sound_player.h sound_ui.h kernelcore.h normalgen.h antistupid.h
-    pages.h i18n.h quickstop.h volume_mixer.h framework.h targetver.h Resource.h flashoverlay.h itemhelper_page.h Hotkey.h 
-    itemhelper_overlay.h SteamHelper.h vscript.h
+    include/app/StrikeSense.h
+    include/app/console.h
+    include/core/antistupid.h
+    include/core/config.h
+    include/core/flashoverlay.h
+    include/core/gsi_server.h
+    include/core/hotkey.h
+    include/core/i18n.h
+    include/core/itemhelper_overlay.h
+    include/core/kernelcore.h
+    include/core/normalgen.h
+    include/core/quickstop.h
+    include/core/sound_player.h
+    include/core/steam_helper.h
+    include/core/volume_mixer.h
+    include/ui/itemhelper_page.h
+    include/ui/sound_ui.h
+    include/vscript/vscript.h
+    pages.h framework.h targetver.h Resource.h SteamHelper.h
 )
 set(RESOURCES StrikeSense.rc)
 
 add_executable(StrikeSense WIN32 ${SOURCES} ${HEADERS} ${RESOURCES})
-target_include_directories(StrikeSense PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(StrikeSense PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/app
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/ui
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vscript
+)
 
 # 💎 2. 链接外部你刚才生成的纯静态 SteamHelper.lib
 # 假设你的 SteamHelper.lib 放在项目根目录下的 lib 文件夹中（可根据实际路径修改）
