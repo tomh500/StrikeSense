@@ -11,6 +11,7 @@
 #include <Windows.h>
 #include <SDL_mixer.h>
 #include <gdiplus.h>
+#include <chrono>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -63,6 +64,7 @@ struct execution_context {
     std::optional<value> returnValue;
     std::unordered_map<std::wstring, std::wstring> functions;
     std::vector<std::map<std::wstring, value>> localScopes;
+    std::vector<std::unordered_set<std::wstring>> localConstScopes;
 };
 
 extern HINSTANCE s_instance;
@@ -76,7 +78,9 @@ extern std::unordered_map<int, image_window> s_images;
 extern std::unordered_map<int, sound_slot> s_sounds;
 extern std::recursive_mutex s_mutex;
 extern std::unordered_map<std::wstring, std::wstring> s_scriptCache;
+extern std::unordered_map<std::wstring, ULONGLONG> s_cooldownTicks;
 extern std::unordered_set<std::wstring> s_stateKeys;
+extern std::unordered_set<std::wstring> s_constVars;
 extern execution_context* s_activeExecution;
 extern bool s_currentPrivilegedAllowed;
 extern std::wstring s_currentScriptPath;
@@ -125,6 +129,9 @@ bool ConfirmContinuousAllowed(const std::wstring& path);
 void WriteUtf8(const std::filesystem::path& path, const std::wstring& text);
 std::wstring SanitizeName(const std::wstring& name);
 void SetStateVar(const std::wstring& name, const value& v);
+bool IsConstVariable(const std::wstring& name);
+void RegisterConstVariable(const std::wstring& name);
+std::wstring BuildScopedCooldownKey(const std::wstring& key);
 void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j);
 value TextValue(const std::wstring& s);
 value NumberValue(double n);

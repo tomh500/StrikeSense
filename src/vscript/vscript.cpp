@@ -1,4 +1,4 @@
-#include "vscript_internal.h"
+﻿#include "vscript_internal.h"
 
 #include <algorithm>
 #include <chrono>
@@ -28,7 +28,9 @@ std::unordered_map<int, image_window> s_images;
 std::unordered_map<int, sound_slot> s_sounds;
 std::recursive_mutex s_mutex;
 std::unordered_map<std::wstring, std::wstring> s_scriptCache;
+std::unordered_map<std::wstring, ULONGLONG> s_cooldownTicks;
 std::unordered_set<std::wstring> s_stateKeys;
+std::unordered_set<std::wstring> s_constVars;
 execution_context* s_activeExecution = nullptr;
 bool s_currentPrivilegedAllowed = false;
 std::wstring s_currentScriptPath;
@@ -407,20 +409,19 @@ bool IsPrivilegedAllowedForScript(const mounted_script& script)
 {
     if (!script.usesPrivilegedApis) return true;
     if (GetRuntimeCapability() >= buildcode::userdebug) return true;
-    if (!script.selfUser.empty() && EqualsIgnoreCase(script.selfUser, GetWindowsUserName())) return true;
     return false;
 }
 
 std::wstring BuildRiskNotice(const mounted_script& script)
 {
     if (!script.usesPrivilegedApis) return L"";
-    if (!script.selfUser.empty() && script.selfAuthoredPrivileged) {
-        return L"该脚本包含高权限函数，但已通过 @modifier 绑定到当前 Windows 用户，允许在 user 模式执行。";
-    }
     if (GetRuntimeCapability() >= buildcode::userdebug) {
-        return L"该脚本包含高权限函数。当前运行能力允许挂载与执行，但界面会持续标出风险。";
+        if (!script.selfUser.empty() && !script.selfAuthoredPrivileged) {
+            return L"该脚本包含高权限函数。当前程序能力允许执行，但 @modifier 限制的 Windows 用户与当前系统用户不匹配，因此脚本仍会被拒绝。";
+        }
+        return L"该脚本包含高权限函数。当前运行能力允许挂载与执行；若声明了 @modifier:self_user，则还会继续校验目标 Windows 用户。";
     }
-    return L"该脚本包含高权限函数，但没有声明当前 Windows 用户为作者，user 模式下拒绝挂载。";
+    return L"该脚本包含高权限函数。user 模式下不会因为脚本自带声明而获得高权限，必须通过 userdebug 或 OEM 等程序侧能力解锁。";
 }
 
 bool RefreshScriptState(mounted_script& script, bool showDialogs)
@@ -433,8 +434,8 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
         script.riskNotice = script.notice;
         script.dangerStyle = true;
         if (showDialogs && s_owner) {
-            std::wstring msg = L"脚本文件不存在，已停止挂载状态：\n" + script.path;
-            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本文件丢失", MB_OK | MB_ICONWARNING);
+            std::wstring msg = L"鑴氭湰鏂囦欢涓嶅瓨鍦紝宸插仠姝㈡寕杞界姸鎬侊細\n" + script.path;
+            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 鑴氭湰鏂囦欢涓㈠け", MB_OK | MB_ICONWARNING);
         }
         return false;
     }
@@ -444,6 +445,9 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
     script.usesPrivilegedApis = ScriptUsesPrivilegedApis(s_scriptCache[script.path]);
     script.selfAuthoredPrivileged = !script.selfUser.empty() && EqualsIgnoreCase(script.selfUser, GetWindowsUserName());
     script.privilegedAllowed = IsPrivilegedAllowedForScript(script);
+    if (script.privilegedAllowed && !script.selfUser.empty() && !script.selfAuthoredPrivileged) {
+        script.privilegedAllowed = false;
+    }
     script.riskNotice = BuildRiskNotice(script);
     script.dangerStyle = script.usesPrivilegedApis;
     if (!script.riskNotice.empty()) {
@@ -454,9 +458,13 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
     if (!script.privilegedAllowed) {
         script.continuous = false;
         if (showDialogs && s_owner) {
-            std::wstring msg = L"该脚本包含高权限函数，但没有声明当前 Windows 用户为作者：\n\n"
-                L"请在脚本头部添加类似\n// @modifier: self_user=" + GetWindowsUserName() +
-                L"\n\n或解锁OEM权限。";
+            std::wstring msg = L"该脚本包含高权限函数，但当前程序并未授予高权限执行能力。\n\n"
+                L"说明：\n"
+                L"1. user 模式下，脚本内的 @modifier/self_user 只能做额外限制，不能作为提权依据。\n"
+                L"2. 如需执行高权限 API，请先在程序侧解锁 userdebug 或 OEM 能力。";
+            if (!script.selfUser.empty() && !script.selfAuthoredPrivileged) {
+                msg += L"\n\n另外，该脚本还限制为 Windows 用户 " + script.selfUser + L" 使用，当前用户并不匹配。";
+            }
             MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本挂载被拒绝", MB_OK | MB_ICONERROR);
         }
         return false;
@@ -483,21 +491,21 @@ bool ConfirmContinuousAllowed(const std::wstring& path)
 {
     if (ScriptHasEdgeGuard(path)) return true;
     if (GetRuntimeCapability() == buildcode::eng) {
-        std::wcout << L"[脚本权限] eng 构建允许无 on: 轮询脚本: " << path << std::endl;
+        std::wcout << L"[鑴氭湰鏉冮檺] eng 鏋勫缓鍏佽鏃?on: 杞鑴氭湰: " << path << std::endl;
         return true;
     }
     if (GetRuntimeCapability() == buildcode::userdebug) {
         int result = MessageBoxW(
             s_owner,
-            L"这个脚本没有 on: 状态边沿判断，持续执行可能反复打开网页、重复创建文件或反复执行命令。\n\n是否仍然允许它轮询？",
-            L"StrikeSense 脚本轮询确认",
+            L"杩欎釜鑴氭湰娌℃湁 on: 鐘舵€佽竟娌垮垽鏂紝鎸佺画鎵ц鍙兘鍙嶅鎵撳紑缃戦〉銆侀噸澶嶅垱寤烘枃浠舵垨鍙嶅鎵ц鍛戒护銆俓n\n鏄惁浠嶇劧鍏佽瀹冭疆璇紵",
+            L"StrikeSense 鑴氭湰杞纭",
             MB_YESNO | MB_ICONWARNING
         );
         return result == IDYES;
     }
     MessageBoxW(
         s_owner,
-        L"user 模式禁止轮询没有 on: 状态判断的脚本。\n\n请给脚本加入类似 if(on:death_mute==true){ ... }; 的结构，或提升运行权限。",
+        L"user 模式禁止轮询没有 on: 状态判断的脚本。\n\n请给脚本加入类似 if(on:death_mute==true){ ... } 的结构，或者提升运行权限。",
         L"StrikeSense 脚本结构被拒绝",
         MB_OK | MB_ICONWARNING
     );
@@ -526,6 +534,34 @@ void SetStateVar(const std::wstring& name, const value& v)
 {
     s_vars[name] = v;
     s_stateKeys.insert(name);
+}
+
+bool IsConstVariable(const std::wstring& name)
+{
+    execution_context& exec = CurrentExecution();
+    for (auto it = exec.localConstScopes.rbegin(); it != exec.localConstScopes.rend(); ++it) {
+        if (it->find(name) != it->end()) return true;
+    }
+    return s_constVars.find(name) != s_constVars.end();
+}
+
+void RegisterConstVariable(const std::wstring& name)
+{
+    execution_context& exec = CurrentExecution();
+    if (!exec.localScopes.empty()) {
+        if (exec.localConstScopes.size() < exec.localScopes.size()) {
+            exec.localConstScopes.resize(exec.localScopes.size());
+        }
+        exec.localConstScopes.back().insert(name);
+        return;
+    }
+    s_constVars.insert(name);
+}
+
+std::wstring BuildScopedCooldownKey(const std::wstring& key)
+{
+    if (s_currentScriptPath.empty()) return key;
+    return s_currentScriptPath + L"::" + key;
 }
 
 void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j)
@@ -595,8 +631,8 @@ void Initialize(HINSTANCE instance, HWND owner)
     if (s_runtimeCapability == buildcode::user && s_oemValid) s_runtimeCapability = buildcode::userdebug;
     RegisterBuildWarning();
     LoadMountedScripts();
-    std::cout << "[脚本] vscript 初始化完成，构建等级=" << (int)GetBuildCode()
-              << " 运行能力=" << (int)s_runtimeCapability << std::endl;
+    std::cout << "[鑴氭湰] vscript 鍒濆鍖栧畬鎴愶紝鏋勫缓绛夌骇=" << (int)GetBuildCode()
+              << " 杩愯鑳藉姏=" << (int)s_runtimeCapability << std::endl;
 }
 
 void Shutdown()
@@ -630,7 +666,7 @@ bool EnsureOemUnlockFile()
     return exists;
     if (fs::exists(path)) return true;
     WriteUtf8(path, MakeOemKey(NowStamp(), L"24h"));
-    std::wcout << L"[OEM] 已生成默认 24 小时调试解锁文件: " << path.wstring() << std::endl;
+    std::wcout << L"[OEM] 宸茬敓鎴愰粯璁?24 灏忔椂璋冭瘯瑙ｉ攣鏂囦欢: " << path.wstring() << std::endl;
     return true;
 }
 
@@ -945,7 +981,7 @@ void TickContinuousScripts()
                 s_currentScriptPath = script.path;
                 execution_context exec;
                 execution_scope_guard guard(exec);
-                std::wcout << L"[脚本] 开始连续执行脚本，上下文已隔离: " << script.path << std::endl;
+                std::wcout << L"[鑴氭湰] 寮€濮嬭繛缁墽琛岃剼鏈紝涓婁笅鏂囧凡闅旂: " << script.path << std::endl;
                 ExecuteBlock(StripComments(text));
                 s_currentPrivilegedAllowed = false;
                 s_currentScriptPath.clear();
@@ -964,16 +1000,16 @@ bool ExecuteScriptFile(const std::wstring& path)
     if (!RefreshScriptState(temp, true)) return false;
     std::wstring script = ReadAllWide(path);
     if (script.empty()) {
-        std::wcout << L"[脚本] 脚本为空或读取失败: " << path << std::endl;
+        std::wcout << L"[鑴氭湰] 鑴氭湰涓虹┖鎴栬鍙栧け璐? " << path << std::endl;
         return false;
     }
     s_scriptCache[path] = script;
-    std::wcout << L"[脚本] 执行脚本: " << path << std::endl;
+    std::wcout << L"[鑴氭湰] 鎵ц鑴氭湰: " << path << std::endl;
     s_currentPrivilegedAllowed = temp.privilegedAllowed;
     s_currentScriptPath = path;
     execution_context exec;
     execution_scope_guard guard(exec);
-    std::wcout << L"[脚本] 开始单次执行脚本，上下文已隔离: " << path << std::endl;
+    std::wcout << L"[鑴氭湰] 寮€濮嬪崟娆℃墽琛岃剼鏈紝涓婁笅鏂囧凡闅旂: " << path << std::endl;
     ExecuteBlock(StripComments(script));
     s_currentPrivilegedAllowed = false;
     s_currentScriptPath.clear();
@@ -1023,9 +1059,9 @@ void LoadMountedScripts()
                 }
             }
         }
-        std::cout << "[脚本配置] 已加载挂载脚本数量=" << s_mounted.size() << std::endl;
+        std::cout << "[鑴氭湰閰嶇疆] 宸插姞杞芥寕杞借剼鏈暟閲?" << s_mounted.size() << std::endl;
     } catch (const std::exception& e) {
-        std::cerr << "[脚本配置] 加载失败: " << e.what() << std::endl;
+        std::cerr << "[鑴氭湰閰嶇疆] 鍔犺浇澶辫触: " << e.what() << std::endl;
     }
 }
 
@@ -1040,7 +1076,7 @@ void SaveMountedScripts()
     }
     std::ofstream out(path);
     out << j.dump(2);
-    std::cout << "[脚本配置] 已保存挂载脚本数量=" << s_mounted.size() << std::endl;
+    std::cout << "[鑴氭湰閰嶇疆] 宸蹭繚瀛樻寕杞借剼鏈暟閲?" << s_mounted.size() << std::endl;
 }
 
 void AddMountedScript(const std::wstring& path)
@@ -1073,7 +1109,7 @@ void ToggleContinuous(size_t index)
         return;
     }
     if (!s_mounted[index].continuous && !ConfirmContinuousAllowed(s_mounted[index].path)) {
-        std::wcout << L"[脚本权限] 已拒绝开启持续执行: " << s_mounted[index].path << std::endl;
+        std::wcout << L"[鑴氭湰鏉冮檺] 宸叉嫆缁濆紑鍚寔缁墽琛? " << s_mounted[index].path << std::endl;
         return;
     }
     s_mounted[index].continuous = !s_mounted[index].continuous;
@@ -1084,7 +1120,7 @@ void EnsureExampleScript()
 {
     fs::path dir = GetDefaultScriptDir();
     fs::create_directories(dir);
-    std::cout << "[脚本] 已确认脚本目录存在，不会额外生成示例资源目录" << std::endl;
+    std::cout << "[鑴氭湰] 宸茬‘璁よ剼鏈洰褰曞瓨鍦紝涓嶄細棰濆鐢熸垚绀轰緥璧勬簮鐩綍" << std::endl;
 }
 
 const std::wstring& GetScriptDisplayName(const mounted_script& script)
@@ -1102,3 +1138,4 @@ std::wstring GetScriptNotice(const mounted_script& script)
 }
 
 } // namespace vscript
+

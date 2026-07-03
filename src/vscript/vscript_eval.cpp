@@ -1,6 +1,7 @@
 #include "vscript_internal.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cwctype>
 #include <iostream>
 #include <optional>
@@ -256,12 +257,15 @@ bool TryParseTypedDeclaration(const std::wstring& stmt, std::wstring& typeName, 
 {
     const std::wstring s = Trim(stmt);
     const size_t eq = s.find(L'=');
-    const std::wstring left = Trim(eq == std::wstring::npos ? s : s.substr(0, eq));
+    std::wstring left = Trim(eq == std::wstring::npos ? s : s.substr(0, eq));
     initializer = eq == std::wstring::npos ? L"" : Trim(s.substr(eq + 1));
+    const bool isConst = left.rfind(L"const ", 0) == 0;
+    if (isConst) left = Trim(left.substr(6));
 
     for (const auto& prefix : { L"int ", L"float ", L"double ", L"string ", L"bool ", L"auto " }) {
         if (left.rfind(prefix, 0) == 0) {
             typeName = Trim(std::wstring(prefix).substr(0, std::wstring(prefix).size() - 1));
+            if (isConst) typeName = L"const " + typeName;
             varName = Trim(left.substr(wcslen(prefix)));
             return !varName.empty();
         }
@@ -283,6 +287,7 @@ bool TryParseTypedDeclaration(const std::wstring& stmt, std::wstring& typeName, 
         }
         if (closePos == std::wstring::npos || closePos + 1 >= left.size()) return false;
         typeName = Trim(left.substr(0, closePos + 1));
+        if (isConst) typeName = L"const " + typeName;
         varName = Trim(left.substr(closePos + 1));
         return !varName.empty();
     }
@@ -291,7 +296,7 @@ bool TryParseTypedDeclaration(const std::wstring& stmt, std::wstring& typeName, 
 
 std::optional<std::pair<std::wstring, std::wstring>> ParseCompoundAssignment(const std::wstring& stmt)
 {
-    for (const auto& op : { L"+=", L"-=", L"*=", L"/=" }) {
+    for (const auto& op : { L"+=", L"-=", L"*=", L"/=", L"%=" }) {
         const size_t pos = stmt.find(op);
         if (pos == std::wstring::npos) continue;
         return std::make_pair(Trim(stmt.substr(0, pos)), std::wstring(op));
@@ -490,13 +495,15 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
         }
         return NumberValue(addOp.second == L'+' ? ToNumber(left) + ToNumber(right) : ToNumber(left) - ToNumber(right));
     }
-    auto mulOp = findOp(L"*/");
+    auto mulOp = findOp(L"*/%");
     if (mulOp.first != std::wstring::npos) {
         value left = EvalExprWithVars(e.substr(0, mulOp.first), vars);
         value right = EvalExprWithVars(e.substr(mulOp.first + 1), vars);
         double r = ToNumber(right);
         if (mulOp.second == L'/' && r == 0.0) return NumberValue(0.0);
-        return NumberValue(mulOp.second == L'*' ? ToNumber(left) * r : ToNumber(left) / r);
+        if (mulOp.second == L'*') return NumberValue(ToNumber(left) * r);
+        if (mulOp.second == L'%') return NumberValue(r == 0.0 ? 0.0 : std::fmod(ToNumber(left), r));
+        return NumberValue(ToNumber(left) / r);
     }
     if (e.size() >= 2 && e.front() == L'"' && e.back() == L'"') {
         std::wstring text;
@@ -737,6 +744,10 @@ bool TryExecuteFor(const std::wstring& stmt)
 void AssignValue(const std::wstring& name, const value& assigned)
 {
     execution_context& exec = CurrentExecution();
+    if (IsConstVariable(name)) {
+        std::wcout << L"[脚本] 检测到 const 变量写入请求，已忽略: " << name << std::endl;
+        return;
+    }
     for (auto it = exec.localScopes.rbegin(); it != exec.localScopes.rend(); ++it) {
         auto local = it->find(name);
         if (local != it->end()) {
@@ -793,9 +804,12 @@ void ExecuteStatement(const std::wstring& stmt)
     std::wstring declaredName;
     std::wstring declaredInit;
     if (TryParseTypedDeclaration(s, declaredType, declaredName, declaredInit)) {
-        value assigned = declaredInit.empty() ? value{} : CoerceValueForType(EvalExpr(declaredInit), declaredType);
+        const bool isConst = declaredType.rfind(L"const ", 0) == 0;
+        const std::wstring storageType = isConst ? Trim(declaredType.substr(6)) : declaredType;
+        value assigned = declaredInit.empty() ? value{} : CoerceValueForType(EvalExpr(declaredInit), storageType);
         if (!exec.localScopes.empty()) exec.localScopes.back()[declaredName] = assigned;
         else s_vars[declaredName] = assigned;
+        if (isConst) RegisterConstVariable(declaredName);
         return;
     }
     if (auto incDec = ParseIncDecStatement(s)) {
@@ -810,6 +824,7 @@ void ExecuteStatement(const std::wstring& stmt)
         else if (compound->second == L"-=") AssignValue(compound->first, NumberValue(ToNumber(left) - ToNumber(right)));
         else if (compound->second == L"*=") AssignValue(compound->first, NumberValue(ToNumber(left) * ToNumber(right)));
         else if (compound->second == L"/=") AssignValue(compound->first, NumberValue(ToNumber(right) == 0.0 ? 0.0 : ToNumber(left) / ToNumber(right)));
+        else if (compound->second == L"%=") AssignValue(compound->first, NumberValue(ToNumber(right) == 0.0 ? 0.0 : std::fmod(ToNumber(left), ToNumber(right))));
         return;
     }
 
