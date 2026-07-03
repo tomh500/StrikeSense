@@ -126,6 +126,11 @@ std::vector<std::wstring> SplitStatements(const std::wstring& script)
     bool inString = false;
     int brace = 0;
     int paren = 0;
+    auto pushCurrent = [&]() {
+        const std::wstring trimmed = Trim(cur);
+        if (!trimmed.empty()) out.push_back(trimmed);
+        cur.clear();
+    };
     for (size_t i = 0; i < script.size(); ++i) {
         wchar_t c = script[i];
         if (c == L'"' && (i == 0 || script[i - 1] != L'\\')) inString = !inString;
@@ -135,14 +140,20 @@ std::vector<std::wstring> SplitStatements(const std::wstring& script)
             if (c == L'{') ++brace;
             if (c == L'}') --brace;
             if (c == L';' && brace == 0 && paren == 0) {
-                out.push_back(Trim(cur));
-                cur.clear();
+                pushCurrent();
                 continue;
             }
         }
         cur.push_back(c);
+        if (!inString && c == L'}' && brace == 0 && paren == 0) {
+            size_t j = i + 1;
+            while (j < script.size() && iswspace(script[j]) != 0) ++j;
+            if (j < script.size() && script[j] == L';') continue;
+            if (j + 3 < script.size() && script.compare(j, 4, L"else") == 0) continue;
+            pushCurrent();
+        }
     }
-    if (!Trim(cur).empty()) out.push_back(Trim(cur));
+    pushCurrent();
     return out;
 }
 
@@ -278,15 +289,13 @@ bool TryParseScriptFunctionDefinition(const std::wstring& stmt, std::wstring& fu
     if (parenPos == std::wstring::npos || closeParenPos == std::wstring::npos || closeParenPos < parenPos || closeParenPos > bracePos) return false;
 
     const std::wstring header = Trim(s.substr(0, bracePos));
-    const std::vector<std::wstring> prefixes = { L"int ", L"float ", L"string ", L"bool ", L"void " };
-    bool matched = false;
-    for (const auto& prefix : prefixes) {
-        if (header.rfind(prefix, 0) == 0) {
-            matched = true;
-            break;
+    const auto IsSupportedReturnType = [](const std::wstring& text) {
+        for (const auto& prefix : { L"int ", L"float ", L"double ", L"string ", L"bool ", L"void ", L"auto " }) {
+            if (text.rfind(prefix, 0) == 0) return true;
         }
-    }
-    if (!matched) return false;
+        return text.rfind(L"vector<", 0) == 0 || text.rfind(L"array<", 0) == 0;
+    };
+    if (!IsSupportedReturnType(header)) return false;
 
     const std::wstring name = Trim(header.substr(0, parenPos));
     const size_t lastSpace = name.find_last_of(L' ');

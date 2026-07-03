@@ -37,7 +37,7 @@ VScript 是 StrikeSense 的轻量脚本系统。
 // @name: 语法总览脚本
 // @author: jingy
 // @provider: StrikeSense
-// @version: 1.0.0
+// @version: 2026.07.04
 // @notice: 这个脚本只用于说明语法，不建议直接拿来做实际功能。
 // @modifier: self_user=jingy
 ```
@@ -65,7 +65,9 @@ VScript 是 StrikeSense 的轻量脚本系统。
 
 ## 4. 基本语法
 
-- 语句必须以 `;` 结尾。
+- 普通语句通常以 `;` 结尾。
+- 控制块结尾的 `;` 现在可省略，更贴近 C++ 原生写法。
+- 函数定义结尾的 `;` 现在可省略，更贴近 C++ 原生写法。
 - 支持 `//` 行注释。
 - 支持 `/* ... */` 块注释。
 - 支持 `if / else / while / for / goto / break / continue / return`。
@@ -81,12 +83,19 @@ VScript 是 StrikeSense 的轻量脚本系统。
 - 支持常见 C++ 风格更新语法：
   - `i++;`
   - `--i;`
+  - `hp += 10;`
   - `hp -= 10;`
-  - `name += "_x";`
+  - `score *= 2;`
+  - `score /= 2;`
+- 支持轻量容器语法：
+  - `vector<int> nums = { 1, 2, 3 };`
+  - `array<string> states = { "idle", "live", "over" };`
+  - `nums[0]`
 - 支持脚本函数：
-  - `int Add(int a, int b){ return a + b; };`
-  - `bool IsAlive(){ return health > 0; };`
-  - `void Ping(){ Log("ping"); return; };`
+  - `int Add(int a, int b){ return a + b; }`
+  - `double Scale(double x){ return x * 1.5; }`
+  - `bool IsAlive(){ return health > 0; }`
+  - `void Ping(){ Log("ping"); return; }`
 - `goto label;` 会先在当前 block 找标签；当前 block 找不到时，会继续向外层 block 传播，直到找到匹配标签，这一条现在与常见 C/C++ 体感一致。
 - `break;` 会退出当前 `while / for`。
 - `continue;` 会跳过当前循环剩余语句，进入下一轮。
@@ -104,47 +113,55 @@ VScript 是 StrikeSense 的轻量脚本系统。
   - `!`
 - `on:` 表示整个条件从假变真时只触发一次。
 
-## 5. 唯一示范脚本
+## 5. 示范脚本
 
-下面这个脚本只用于讲透语法，不追求实用：
+下面这个脚本用于展示当前最新语法，不追求实用：
 
 ```cpp
-// @name: 语法总览脚本
+// @name: 最新语法演示
 // @author: jingy
 // @provider: StrikeSense
-// @version: 1.0.0
-// @notice: 用一份脚本展示变量、流程控制、字符串、边沿触发和函数调用。
+// @version: 2026.07.04
+// @notice: 演示函数返回、goto、循环控制和轻量容器
 // @modifier: self_user=jingy
 
-int i = 0;
-float total = 0;
-string tag = "demo";
+vector<int> killMarks = { 1, 2, 3 };
+array<string> states = { "idle", "live", "over" };
 
-if(on:round_phase=="live"){
-    Log("回合刚进入 live");
-    i = 0;
-    total = 0;
-};
+double weight = 1.5;
+auto retry = 0;
 
-while(i<3){
-    total = total + 0.5;
-    i = i + 1;
-};
+int Sum3(int a, int b, int c){
+    return a + b + c;
+}
 
-for(int k=0; k<2; k=k+1){
-    Log("for 循环仍在运行");
-};
+bool ShouldPopup(){
+    return on:round_phase=="live" && health > 0;
+}
 
-if(weapon_name=="weapon_hkp2000" && weapon_clip_delta>0){
-    Log("检测到一发开火");
-}else{
-    Log("当前没有满足 P2000 开火条件");
-};
+start:
+if(ShouldPopup()){
+    Log("回合刚进入 live，开始执行示范脚本");
+}
 
-if(!internal_in_lobby && (health>0 || death_mute==false)){
-    Top("cs2.exe", true);
-};
+for(int i=0; i<6; i++){
+    retry += 1;
+    if(i == 1){
+        continue;
+    }
+    if(i == 4){
+        goto summary;
+    }
+}
 
+summary:
+int total = Sum3(killMarks[0], killMarks[1], killMarks[2]);
+string tag = states[1];
+tag += "_ok";
+weight *= 2;
+Log("total=" + total);
+Log("tag=" + tag);
+Log("weight=" + weight);
 return;
 ```
 
