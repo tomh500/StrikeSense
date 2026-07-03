@@ -70,7 +70,7 @@ VScript 是 StrikeSense 的轻量脚本系统。
 - 函数定义结尾的 `;` 现在可省略，更贴近 C++ 原生写法。
 - 支持 `//` 行注释。
 - 支持 `/* ... */` 块注释。
-- 支持 `if / else / while / for / goto / break / continue / return`。
+- 支持 `if / else if / elseif / else / while / for / goto / break / continue / return`。
 - 支持变量声明：
   - `int`
   - `float`
@@ -80,6 +80,7 @@ VScript 是 StrikeSense 的轻量脚本系统。
   - `auto`
   - `vector<T>`
   - `array<T>`
+- `auto` 会尽量保留原值类型，适合承接函数返回的对象、列表、字符串、数字和布尔值。
 - 支持常见 C++ 风格更新语法：
   - `i++;`
   - `--i;`
@@ -91,6 +92,11 @@ VScript 是 StrikeSense 的轻量脚本系统。
   - `vector<int> nums = { 1, 2, 3 };`
   - `array<string> states = { "idle", "live", "over" };`
   - `nums[0]`
+- 支持对象式数据访问：
+  - `account.persona_name`
+  - `accounts[0].steam_id64`
+  - `account["account_name"]`
+  - `accounts.size`
 - 支持脚本函数：
   - `int Add(int a, int b){ return a + b; }`
   - `double Scale(double x){ return x * 1.5; }`
@@ -113,19 +119,19 @@ VScript 是 StrikeSense 的轻量脚本系统。
   - `!`
 - `on:` 表示整个条件从假变真时只触发一次。
 
-## 5. 示范脚本
+## 5. 综合示范脚本
 
-下面这个脚本用于展示当前最新语法，不追求实用：
+下面这个脚本尽量覆盖当前最常用也最重要的语法和 API，尤其演示如何从本地 Steam 账号多元数据中提取字段，再结合 `if / else if / elseif / else` 做判断：
 
 ```cpp
-// @name: 最新语法演示
+// @name: VScript 综合演示
 // @author: jingy
 // @provider: StrikeSense
 // @version: 2026.07.04
-// @notice: 演示函数返回、goto、循环控制和轻量容器
+// @notice: 演示函数、返回值、容器、对象字段访问、Steam 账号 API 与条件分支
 // @modifier: self_user=jingy
 
-vector<int> killMarks = { 1, 2, 3 };
+vector<int> marks = { 1, 2, 3 };
 array<string> states = { "idle", "live", "over" };
 
 double weight = 1.5;
@@ -139,29 +145,76 @@ bool ShouldPopup(){
     return on:round_phase=="live" && health > 0;
 }
 
-start:
 if(ShouldPopup()){
-    Log("回合刚进入 live，开始执行示范脚本");
+    Log("回合刚进入 live，开始执行综合示范脚本");
 }
 
 for(int i=0; i<6; i++){
     retry += 1;
     if(i == 1){
         continue;
-    }
-    if(i == 4){
-        goto summary;
+    }else if(i == 4){
+        goto steam_demo;
     }
 }
 
-summary:
-int total = Sum3(killMarks[0], killMarks[1], killMarks[2]);
+steam_demo:
+int total = Sum3(marks[0], marks[1], marks[2]);
 string tag = states[1];
 tag += "_ok";
 weight *= 2;
 Log("total=" + total);
 Log("tag=" + tag);
 Log("weight=" + weight);
+
+string steamPath = GetSteamPath();
+string cs2Path = GetCS2InstallPath();
+string cfgPath = GetCS2CfgPath();
+Log("SteamPath=" + steamPath);
+Log("CS2Path=" + cs2Path);
+Log("CfgPath=" + cfgPath);
+
+auto ids32 = GetSteamUserIDs32();
+auto ids64 = GetSteamUserIDs64();
+Log("本地 Steam32 数量=" + Size(ids32));
+Log("本地 Steam64 数量=" + Size(ids64));
+
+auto accounts = GetSteamAccounts();
+int accountCount = Size(accounts);
+Log("本地 Steam 账号数量=" + accountCount);
+Log("accounts 类型=" + TypeOf(accounts));
+
+for(int i=0; i<accountCount; i++){
+    auto account = accounts[i];
+    Log("------");
+    Log("索引=" + i);
+    Log("account_name=" + account.account_name);
+    Log("persona_name=" + account.persona_name);
+    Log("steam_id64=" + account.steam_id64);
+    Log("userdata_path=" + account.userdata_path);
+
+    if(account.most_recent){
+        Log("判断：这是最近登录账号");
+    }else if(account.allow_auto_login){
+        Log("判断：这个账号允许自动登录");
+    }elseif(Contains(account.account_name, "alt")){
+        Log("判断：这看起来像备用账号");
+    }else{
+        Log("判断：普通账号");
+    }
+
+    if(HasField(account, "remember_password") && account.remember_password){
+        Log("这个账号记住了密码");
+    }
+}
+
+if(accountCount > 0){
+    auto firstAccount = accounts[0];
+    if(HasSteamUser64(firstAccount.steam_id64)){
+        Log("校验成功：第一个账号的 Steam64 的确存在于本机 userdata");
+    }
+}
+
 return;
 ```
 
@@ -461,6 +514,169 @@ return;
 - 用途：兼容旧写法，一次同时设置开关和外观。
 - 建议：新脚本优先拆成 `SetCrosshairEnabled` 和 `SetCrosshairVisual`。
 
+### 6.4 通用数据工具函数
+
+`Size(value)`
+
+- 用途：获取容器或文本长度。
+- 参数：
+  - `value`
+    - 类型：任意
+- 返回：
+  - `list`：元素个数
+  - `object`：字段个数
+  - `string`：可转数字时为数值，否则为 `0`
+- 说明：
+  - 目前最推荐拿它遍历 `GetSteamAccounts()` 这类列表返回值。
+
+`TypeOf(value)`
+
+- 用途：查看值类型。
+- 可能返回：
+  - `number`
+  - `string`
+  - `bool`
+  - `list`
+  - `object`
+  - `void`
+
+`IsVoid(value)`
+
+- 用途：判断某个值当前是否为 `void`。
+
+`HasField(object, field_name)`
+
+- 用途：判断对象是否含有某个字段。
+- 参数：
+  - `object`
+    - 类型：`object`
+  - `field_name`
+    - 类型：`string`
+
+`Contains(container, target)`
+
+- 用途：通用包含判断。
+- 用法：
+  - `Contains("abcdef", "cd")`
+  - `Contains(ids64, "7656119...")`
+  - `Contains(account, "persona_name")`
+
+`StartsWith(text, prefix)`
+
+- 用途：判断字符串前缀。
+
+`EndsWith(text, suffix)`
+
+- 用途：判断字符串后缀。
+
+### 6.5 Steam / 本地账号函数
+
+这组函数优先基于 `SteamHelper.h` 及其相关路径逻辑封装给脚本层，用来帮助玩家在脚本里安全读取本机 Steam 环境。
+
+`GetSteamPath()`
+
+- 用途：获取本机 Steam 安装路径。
+- 返回：
+  - 类型：`string`
+
+`GetCS2InstallPath()`
+
+- 用途：获取本机 CS2 安装目录。
+- 返回：
+  - 类型：`string`
+
+`GetCS2CfgPath()`
+
+- 用途：获取本机 CS2 的 `game/csgo/cfg` 路径。
+- 返回：
+  - 类型：`string`
+
+`WriteSteamGSIConfig()`
+
+- 用途：向 CS2 `cfg` 目录写入标准 GSI 配置文件 `gamestate_integration_square.cfg`。
+- 返回：
+  - 类型：`bool`
+- 说明：
+  - 这是定向封装好的固定行为，不是通用文件写入接口。
+
+`GetSteamUserIDs32()`
+
+- 用途：扫描本机 Steam `userdata`，返回所有本地账号的 Steam32 ID 列表。
+- 返回：
+  - 类型：`list`
+  - 每个元素类型：`string`
+
+`GetSteamUserIDs64()`
+
+- 用途：扫描本机 Steam `userdata`，返回所有本地账号的 Steam64 ID 列表。
+- 返回：
+  - 类型：`list`
+  - 每个元素类型：`string`
+
+`HasSteamUser32(id32)`
+
+- 用途：检查某个 Steam32 ID 是否存在于本机 `userdata`。
+- 参数：
+  - `id32`
+    - 类型：`string`
+- 返回：
+  - 类型：`bool`
+
+`HasSteamUser64(id64)`
+
+- 用途：检查某个 Steam64 ID 是否存在于本机 `userdata`。
+- 参数：
+  - `id64`
+    - 类型：`string`
+- 返回：
+  - 类型：`bool`
+
+`Steam32To64(id32)`
+
+- 用途：把 Steam32 ID 转成 Steam64 ID。
+- 参数：
+  - `id32`
+    - 类型：`string`
+- 返回：
+  - 类型：`string`
+
+`GetSteamAccounts()`
+
+- 用途：读取本机 `loginusers.vdf`，返回本地 Steam 账号对象列表。
+- 返回：
+  - 类型：`list`
+  - 每个元素类型：`object`
+
+`GetSteamAccounts()` 返回对象字段说明：
+
+- `account_id32`
+  - 类型：`string`
+  - 含义：Steam32 ID
+- `steam_id64`
+  - 类型：`string`
+  - 含义：Steam64 ID
+- `account_name`
+  - 类型：`string`
+  - 含义：Steam 登录名
+- `persona_name`
+  - 类型：`string`
+  - 含义：Steam 显示昵称
+- `timestamp`
+  - 类型：`string`
+  - 含义：Steam 原始时间戳文本
+- `userdata_path`
+  - 类型：`string`
+  - 含义：对应本机 userdata 路径
+- `most_recent`
+  - 类型：`bool`
+  - 含义：是否为最近使用账号
+- `allow_auto_login`
+  - 类型：`bool`
+  - 含义：是否允许自动登录
+- `remember_password`
+  - 类型：`bool`
+  - 含义：是否记住密码
+
 ## 7. 变量来源分类
 
 变量分两大类：
@@ -720,3 +936,58 @@ return;
 `void`
 
 脚本里判断时要留意这一点。
+
+## 11. 2026.07 补充
+
+这次更新补了两块和本地 Steam 账号相关的能力：
+
+- `GetSteamAccounts()` 返回的对象现在额外包含：
+  - `localconfig_path`
+    - 类型：`string`
+    - 含义：该账号对应的 `localconfig.vdf` 绝对路径
+  - `has_userdata`
+    - 类型：`bool`
+    - 含义：本机是否真的存在对应 `userdata/<account_id32>` 目录
+  - `has_localconfig`
+    - 类型：`bool`
+    - 含义：本机是否真的存在该账号的 `localconfig.vdf`
+
+- 新增 Steam 辅助 API：
+  - `Steam64To32(id64)`
+    - 用途：把 Steam64 ID 转回 Steam32 ID
+    - 返回：`string`
+  - `GetSteamLocalConfigPath32(id32)`
+    - 用途：按 Steam32 ID 获取 `localconfig.vdf` 路径
+    - 返回：`string`
+  - `GetSteamLocalConfigPath64(id64)`
+    - 用途：按 Steam64 ID 获取 `localconfig.vdf` 路径
+    - 返回：`string`
+  - `GetSteamLaunchOptions32(id32)`
+    - 用途：读取该账号 `localconfig.vdf` 里 AppID `730` 的 `LaunchOptions`
+    - 返回：`string`
+  - `GetSteamLaunchOptions64(id64)`
+    - 用途：读取该账号 `localconfig.vdf` 里 AppID `730` 的 `LaunchOptions`
+    - 返回：`string`
+
+补充示范片段：
+
+```cpp
+auto accounts = GetSteamAccounts();
+if(Size(accounts) > 0){
+    auto first = accounts[0];
+    Log("steam64=" + first.steam_id64);
+    Log("steam32=" + Steam64To32(first.steam_id64));
+    Log("localconfig=" + GetSteamLocalConfigPath64(first.steam_id64));
+
+    if(first.has_localconfig){
+        string launchOptions = GetSteamLaunchOptions64(first.steam_id64);
+        if(Contains(launchOptions, "-vulkan")){
+            Log("这个账号的 CS2 启动项包含 -vulkan");
+        }else if(launchOptions == ""){
+            Log("这个账号当前没有填写启动项");
+        }else{
+            Log("这个账号有启动项，但不包含 -vulkan");
+        }
+    }
+}
+```
