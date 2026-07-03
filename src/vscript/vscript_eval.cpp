@@ -33,11 +33,20 @@ value BoolValue(bool b)
     return v;
 }
 
+value ListValue(const std::vector<value>& items)
+{
+    value v;
+    v.type = value::kind::list;
+    v.list = items;
+    return v;
+}
+
 bool Truthy(const value& v)
 {
     if (v.type == value::kind::boolean) return v.boolean;
     if (v.type == value::kind::number) return v.number != 0.0;
     if (v.type == value::kind::text) return !v.text.empty() && v.text != L"void";
+    if (v.type == value::kind::list) return !v.list.empty();
     return false;
 }
 
@@ -49,6 +58,15 @@ std::wstring ToText(const value& v)
         std::wostringstream oss;
         oss << v.number;
         return oss.str();
+    }
+    if (v.type == value::kind::list) {
+        std::wstring out = L"{";
+        for (size_t i = 0; i < v.list.size(); ++i) {
+            if (i != 0) out += L", ";
+            out += ToText(v.list[i]);
+        }
+        out += L"}";
+        return out;
     }
     return L"void";
 }
@@ -67,6 +85,7 @@ double ToNumber(const value& v)
 {
     if (v.type == value::kind::number) return v.number;
     if (v.type == value::kind::boolean) return v.boolean ? 1.0 : 0.0;
+    if (v.type == value::kind::list) return static_cast<double>(v.list.size());
     if (v.type == value::kind::text) {
         try { return std::stod(v.text); } catch (...) { return 0.0; }
     }
@@ -133,13 +152,19 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args)
     std::wstring cur;
     bool inString = false;
     int paren = 0;
+    int brace = 0;
+    int bracket = 0;
     for (size_t i = 0; i < args.size(); ++i) {
         wchar_t c = args[i];
         if (c == L'"' && (i == 0 || args[i - 1] != L'\\')) inString = !inString;
         if (!inString) {
             if (c == L'(') ++paren;
             if (c == L')') --paren;
-            if (c == L',' && paren == 0) {
+            if (c == L'{') ++brace;
+            if (c == L'}') --brace;
+            if (c == L'[') ++bracket;
+            if (c == L']') --bracket;
+            if (c == L',' && paren == 0 && brace == 0 && bracket == 0) {
                 out.push_back(Trim(cur));
                 cur.clear();
                 continue;
@@ -151,11 +176,92 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args)
     return out;
 }
 
+std::optional<std::pair<std::wstring, std::wstring>> ParseIndexAccess(const std::wstring& expr)
+{
+    const std::wstring e = Trim(expr);
+    const size_t lb = e.find(L'[');
+    const size_t rb = e.rfind(L']');
+    if (lb == std::wstring::npos || rb == std::wstring::npos || rb <= lb || rb != e.size() - 1) return std::nullopt;
+    return std::make_pair(Trim(e.substr(0, lb)), e.substr(lb + 1, rb - lb - 1));
+}
+
+std::optional<value> ParseListLiteral(const std::wstring& expr, const std::map<std::wstring, value>& vars)
+{
+    const std::wstring e = Trim(expr);
+    if (e.size() < 2 || e.front() != L'{' || e.back() != L'}') return std::nullopt;
+    std::vector<value> items;
+    for (const auto& item : SplitArgs(e.substr(1, e.size() - 2))) {
+        items.push_back(EvalExprWithVars(item, vars));
+    }
+    return ListValue(items);
+}
+
+bool TryParseTypedDeclaration(const std::wstring& stmt, std::wstring& typeName, std::wstring& varName, std::wstring& initializer)
+{
+    const std::wstring s = Trim(stmt);
+    const size_t eq = s.find(L'=');
+    const std::wstring left = Trim(eq == std::wstring::npos ? s : s.substr(0, eq));
+    initializer = eq == std::wstring::npos ? L"" : Trim(s.substr(eq + 1));
+
+    for (const auto& prefix : { L"int ", L"float ", L"double ", L"string ", L"bool ", L"auto " }) {
+        if (left.rfind(prefix, 0) == 0) {
+            typeName = Trim(std::wstring(prefix).substr(0, std::wstring(prefix).size() - 1));
+            varName = Trim(left.substr(wcslen(prefix)));
+            return !varName.empty();
+        }
+    }
+
+    for (const auto& containerPrefix : { L"vector<", L"array<" }) {
+        if (left.rfind(containerPrefix, 0) != 0) continue;
+        int depth = 0;
+        size_t closePos = std::wstring::npos;
+        for (size_t i = 0; i < left.size(); ++i) {
+            if (left[i] == L'<') ++depth;
+            else if (left[i] == L'>') {
+                --depth;
+                if (depth == 0) {
+                    closePos = i;
+                    break;
+                }
+            }
+        }
+        if (closePos == std::wstring::npos || closePos + 1 >= left.size()) return false;
+        typeName = Trim(left.substr(0, closePos + 1));
+        varName = Trim(left.substr(closePos + 1));
+        return !varName.empty();
+    }
+    return false;
+}
+
+std::optional<std::pair<std::wstring, std::wstring>> ParseCompoundAssignment(const std::wstring& stmt)
+{
+    for (const auto& op : { L"+=", L"-=", L"*=", L"/=" }) {
+        const size_t pos = stmt.find(op);
+        if (pos == std::wstring::npos) continue;
+        return std::make_pair(Trim(stmt.substr(0, pos)), std::wstring(op));
+    }
+    return std::nullopt;
+}
+
+std::optional<std::pair<std::wstring, int>> ParseIncDecStatement(const std::wstring& stmt)
+{
+    const std::wstring s = Trim(stmt);
+    if (s.size() > 2 && s.substr(s.size() - 2) == L"++") return std::make_pair(Trim(s.substr(0, s.size() - 2)), 1);
+    if (s.size() > 2 && s.substr(s.size() - 2) == L"--") return std::make_pair(Trim(s.substr(0, s.size() - 2)), -1);
+    if (s.rfind(L"++", 0) == 0) return std::make_pair(Trim(s.substr(2)), 1);
+    if (s.rfind(L"--", 0) == 0) return std::make_pair(Trim(s.substr(2)), -1);
+    return std::nullopt;
+}
+
 value CoerceValueForType(const value& input, const std::wstring& typeName)
 {
-    if (typeName == L"int" || typeName == L"float") return NumberValue(ToNumber(input));
+    if (typeName == L"int" || typeName == L"float" || typeName == L"double" || typeName == L"auto") return NumberValue(ToNumber(input));
     if (typeName == L"bool") return BoolValue(Truthy(input));
     if (typeName == L"string") return TextValue(ToText(input));
+    if (typeName.rfind(L"vector<", 0) == 0 || typeName.rfind(L"array<", 0) == 0) {
+        if (input.type == value::kind::list) return input;
+        return ListValue({ input });
+    }
     if (typeName == L"void") return TextValue(L"void");
     return input;
 }
@@ -209,6 +315,8 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     auto findOp = [&](const std::wstring& ops) -> std::pair<size_t, wchar_t> {
         bool inString = false;
         int paren = 0;
+        int brace = 0;
+        int bracket = 0;
         for (size_t i = e.size(); i > 0; --i) {
             size_t idx = i - 1;
             wchar_t c = e[idx];
@@ -216,7 +324,11 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
             if (inString) continue;
             if (c == L')') ++paren;
             else if (c == L'(' && paren > 0) --paren;
-            if (paren == 0 && ops.find(c) != std::wstring::npos) {
+            else if (c == L'}') ++brace;
+            else if (c == L'{' && brace > 0) --brace;
+            else if (c == L']') ++bracket;
+            else if (c == L'[' && bracket > 0) --bracket;
+            if (paren == 0 && brace == 0 && bracket == 0 && ops.find(c) != std::wstring::npos) {
                 if (c == L'-' && (idx == 0 || std::wstring(L"+-*/(").find(e[idx - 1]) != std::wstring::npos)) continue;
                 return { idx, c };
             }
@@ -225,6 +337,9 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     };
     if (e.size() >= 2 && e.front() == L'(' && e.back() == L')') {
         return EvalExprWithVars(e.substr(1, e.size() - 2), vars);
+    }
+    if (auto list = ParseListLiteral(e, vars)) {
+        return *list;
     }
     auto addOp = findOp(L"+-");
     if (addOp.first != std::wstring::npos) {
@@ -259,6 +374,12 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     if (e == L"true") return BoolValue(true);
     if (e == L"false") return BoolValue(false);
     if (e == L"void") return TextValue(L"void");
+    if (auto index = ParseIndexAccess(e)) {
+        value base = GetVarFromMap(vars, index->first);
+        const int i = static_cast<int>(ToNumber(EvalExprWithVars(index->second, vars)));
+        if (base.type == value::kind::list && i >= 0 && static_cast<size_t>(i) < base.list.size()) return base.list[static_cast<size_t>(i)];
+        return TextValue(L"void");
+    }
     auto fn = ParseFunction(e);
     if (fn && fn->first.find(L' ') == std::wstring::npos) {
         return ExecuteFunction(fn->first, SplitArgs(fn->second));
@@ -291,13 +412,19 @@ size_t FindLogicalOp(const std::wstring& text, const std::wstring& op)
 {
     bool inString = false;
     int paren = 0;
+    int brace = 0;
+    int bracket = 0;
     for (size_t i = 0; i + op.size() <= text.size(); ++i) {
         wchar_t c = text[i];
         if (c == L'"' && (i == 0 || text[i - 1] != L'\\')) inString = !inString;
         if (inString) continue;
         if (c == L'(') ++paren;
         else if (c == L')' && paren > 0) --paren;
-        if (paren == 0 && text.compare(i, op.size(), op) == 0) return i;
+        else if (c == L'{') ++brace;
+        else if (c == L'}' && brace > 0) --brace;
+        else if (c == L'[') ++bracket;
+        else if (c == L']' && bracket > 0) --bracket;
+        if (paren == 0 && brace == 0 && bracket == 0 && text.compare(i, op.size(), op) == 0) return i;
     }
     return std::wstring::npos;
 }
@@ -365,6 +492,7 @@ bool ExtractControlBlock(const std::wstring& s, const std::wstring& keyword, std
 
 bool TryExecuteIf(const std::wstring& stmt)
 {
+    execution_context& exec = CurrentExecution();
     std::wstring s = Trim(stmt);
     if (s.rfind(L"if", 0) != 0) return false;
     size_t lp = s.find(L'(');
@@ -376,6 +504,7 @@ bool TryExecuteIf(const std::wstring& stmt)
     std::wstring body = s.substr(lb + 1, rb - lb - 1);
     if (EvalCondition(cond)) {
         ExecuteBlock(body);
+        if (exec.gotoTarget || exec.returnRequested || exec.breakRequested || exec.continueRequested) return true;
     } else {
         size_t elsePos = s.find(L"else", rb + 1);
         if (elsePos != std::wstring::npos) {
@@ -383,6 +512,7 @@ bool TryExecuteIf(const std::wstring& stmt)
             size_t erb = s.rfind(L'}');
             if (elb != std::wstring::npos && erb != std::wstring::npos && erb > elb) {
                 ExecuteBlock(s.substr(elb + 1, erb - elb - 1));
+                if (exec.gotoTarget || exec.returnRequested || exec.breakRequested || exec.continueRequested) return true;
             }
         }
     }
@@ -398,6 +528,14 @@ bool TryExecuteWhile(const std::wstring& stmt)
     if (!ExtractControlBlock(s, L"while", cond, body)) return false;
     for (int i = 0; i < 1000 && EvalCondition(cond) && !exec.returnRequested; ++i) {
         ExecuteBlock(body);
+        if (exec.gotoTarget || exec.breakRequested) {
+            exec.breakRequested = false;
+            break;
+        }
+        if (exec.continueRequested) {
+            exec.continueRequested = false;
+            continue;
+        }
     }
     return true;
 }
@@ -424,6 +562,13 @@ bool TryExecuteFor(const std::wstring& stmt)
     for (int i = 0; i < 1000 && !exec.returnRequested; ++i) {
         if (parts.size() > 1 && !parts[1].empty() && !EvalCondition(parts[1])) break;
         ExecuteBlock(body);
+        if (exec.gotoTarget || exec.breakRequested) {
+            exec.breakRequested = false;
+            break;
+        }
+        if (exec.continueRequested) {
+            exec.continueRequested = false;
+        }
         if (parts.size() > 2 && !parts[2].empty()) ExecuteStatement(parts[2]);
     }
     return true;
@@ -450,6 +595,16 @@ void ExecuteStatement(const std::wstring& stmt)
     std::wstring s = Trim(stmt);
     if (s.empty()) return;
     if (exec.returnRequested) return;
+    if (s == L"break") {
+        exec.breakRequested = true;
+        std::wcout << L"[脚本] 遇到 break" << std::endl;
+        return;
+    }
+    if (s == L"continue") {
+        exec.continueRequested = true;
+        std::wcout << L"[脚本] 遇到 continue" << std::endl;
+        return;
+    }
     if (s == L"return") {
         exec.returnRequested = true;
         exec.returnValue = TextValue(L"void");
@@ -473,6 +628,30 @@ void ExecuteStatement(const std::wstring& stmt)
     std::wstring functionName;
     std::wstring functionBody;
     if (TryParseScriptFunctionDefinition(s, functionName, functionBody)) return;
+
+    std::wstring declaredType;
+    std::wstring declaredName;
+    std::wstring declaredInit;
+    if (TryParseTypedDeclaration(s, declaredType, declaredName, declaredInit)) {
+        value assigned = declaredInit.empty() ? value{} : CoerceValueForType(EvalExpr(declaredInit), declaredType);
+        if (!exec.localScopes.empty()) exec.localScopes.back()[declaredName] = assigned;
+        else s_vars[declaredName] = assigned;
+        return;
+    }
+    if (auto incDec = ParseIncDecStatement(s)) {
+        AssignValue(incDec->first, NumberValue(ToNumber(GetVar(incDec->first)) + incDec->second));
+        return;
+    }
+    if (auto compound = ParseCompoundAssignment(s)) {
+        const size_t pos = s.find(compound->second);
+        const value left = GetVar(compound->first);
+        const value right = EvalExpr(s.substr(pos + compound->second.size()));
+        if (compound->second == L"+=") AssignValue(compound->first, left.type == value::kind::text || right.type == value::kind::text ? TextValue(ToText(left) + ToText(right)) : NumberValue(ToNumber(left) + ToNumber(right)));
+        else if (compound->second == L"-=") AssignValue(compound->first, NumberValue(ToNumber(left) - ToNumber(right)));
+        else if (compound->second == L"*=") AssignValue(compound->first, NumberValue(ToNumber(left) * ToNumber(right)));
+        else if (compound->second == L"/=") AssignValue(compound->first, NumberValue(ToNumber(right) == 0.0 ? 0.0 : ToNumber(left) / ToNumber(right)));
+        return;
+    }
 
     for (const auto& prefix : { L"int ", L"float ", L"string ", L"bool " }) {
         if (s.rfind(prefix, 0) == 0) {
@@ -527,9 +706,14 @@ void ExecuteBlock(const std::wstring& script)
         ExecuteStatement(s);
         if (exec.gotoTarget) {
             auto it = labels.find(*exec.gotoTarget);
-            exec.gotoTarget.reset();
-            if (it != labels.end()) pc = it->second;
+            if (it != labels.end()) {
+                exec.gotoTarget.reset();
+                pc = it->second;
+            } else {
+                break;
+            }
         }
+        if (exec.breakRequested || exec.continueRequested) break;
     }
 }
 

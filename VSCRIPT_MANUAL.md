@@ -68,16 +68,28 @@ VScript 是 StrikeSense 的轻量脚本系统。
 - 语句必须以 `;` 结尾。
 - 支持 `//` 行注释。
 - 支持 `/* ... */` 块注释。
-- 支持 `if / else / while / for / goto / return`。
+- 支持 `if / else / while / for / goto / break / continue / return`。
 - 支持变量声明：
   - `int`
   - `float`
+  - `double`
   - `string`
   - `bool`
+  - `auto`
+  - `vector<T>`
+  - `array<T>`
+- 支持常见 C++ 风格更新语法：
+  - `i++;`
+  - `--i;`
+  - `hp -= 10;`
+  - `name += "_x";`
 - 支持脚本函数：
   - `int Add(int a, int b){ return a + b; };`
   - `bool IsAlive(){ return health > 0; };`
   - `void Ping(){ Log("ping"); return; };`
+- `goto label;` 会先在当前 block 找标签；当前 block 找不到时，会继续向外层 block 传播，直到找到匹配标签，这一条现在与常见 C/C++ 体感一致。
+- `break;` 会退出当前 `while / for`。
+- `continue;` 会跳过当前循环剩余语句，进入下一轮。
 - `return;` 在顶层脚本里只会结束当前脚本上下文，不会中断别的脚本执行。
 - `return expr;` 会把值返回给脚本函数调用方。
 - 支持条件运算：

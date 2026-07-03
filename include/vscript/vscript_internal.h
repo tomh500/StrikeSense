@@ -22,11 +22,12 @@
 namespace vscript::detail {
 
 struct value {
-    enum class kind { none, number, text, boolean };
+    enum class kind { none, number, text, boolean, list };
     kind type = kind::none;
     double number = 0.0;
     std::wstring text;
     bool boolean = false;
+    std::vector<value> list;
 };
 
 struct image_window {
@@ -53,6 +54,8 @@ struct weapon_snapshot {
 
 struct execution_context {
     bool returnRequested = false;
+    bool breakRequested = false;
+    bool continueRequested = false;
     std::optional<std::wstring> gotoTarget;
     std::optional<value> returnValue;
     std::unordered_map<std::wstring, std::wstring> functions;
@@ -135,6 +138,7 @@ std::vector<std::wstring> SplitArgs(const std::wstring& args);
 value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, value>& vars);
 value EvalExpr(const std::wstring& expr);
 value CoerceValueForType(const value& input, const std::wstring& typeName);
+value ListValue(const std::vector<value>& items);
 bool CompareValues(const value& l, const std::wstring& op, const value& r);
 size_t FindLogicalOp(const std::wstring& text, const std::wstring& op);
 bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
