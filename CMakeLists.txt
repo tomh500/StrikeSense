@@ -60,6 +60,7 @@ set(SOURCES
     src/core/normalgen.cpp
     src/core/quickstop.cpp
     src/core/sound_player.cpp
+    src/core/steam_accounts.cpp
     src/core/steam_helper.cpp
     src/core/volume_mixer.cpp
     src/ui/Rage_page.cpp
@@ -73,6 +74,7 @@ set(SOURCES
     src/vscript/vscript.cpp
     src/vscript/vscript_eval.cpp
     src/vscript/vscript_runtime.cpp
+    src/vscript/vscript_steam.cpp
 
 )
 set(HEADERS
@@ -89,6 +91,7 @@ set(HEADERS
     include/core/normalgen.h
     include/core/quickstop.h
     include/core/sound_player.h
+    include/core/steam_accounts.h
     include/core/steam_helper.h
     include/core/volume_mixer.h
     include/ui/itemhelper_page.h

@@ -344,6 +344,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\normalgen.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\quickstop.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\sound_player.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_accounts.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_helper.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\volume_mixer.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\Rage_page.cpp" />
@@ -357,6 +358,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript_eval.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript_runtime.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\vscript\vscript_steam.cpp" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\StrikeSense.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\antistupid.h" />
@@ -370,6 +372,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\normalgen.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\quickstop.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\sound_player.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_accounts.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_helper.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\volume_mixer.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\itemhelper_page.h" />

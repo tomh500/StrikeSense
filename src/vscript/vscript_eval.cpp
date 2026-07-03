@@ -41,12 +41,21 @@ value ListValue(const std::vector<value>& items)
     return v;
 }
 
+value ObjectValue(const std::map<std::wstring, value>& fields)
+{
+    value v;
+    v.type = value::kind::object;
+    v.object = fields;
+    return v;
+}
+
 bool Truthy(const value& v)
 {
     if (v.type == value::kind::boolean) return v.boolean;
     if (v.type == value::kind::number) return v.number != 0.0;
     if (v.type == value::kind::text) return !v.text.empty() && v.text != L"void";
     if (v.type == value::kind::list) return !v.list.empty();
+    if (v.type == value::kind::object) return !v.object.empty();
     return false;
 }
 
@@ -64,6 +73,17 @@ std::wstring ToText(const value& v)
         for (size_t i = 0; i < v.list.size(); ++i) {
             if (i != 0) out += L", ";
             out += ToText(v.list[i]);
+        }
+        out += L"}";
+        return out;
+    }
+    if (v.type == value::kind::object) {
+        std::wstring out = L"{";
+        bool first = true;
+        for (const auto& [key, item] : v.object) {
+            if (!first) out += L", ";
+            first = false;
+            out += key + L": " + ToText(item);
         }
         out += L"}";
         return out;
@@ -86,6 +106,7 @@ double ToNumber(const value& v)
     if (v.type == value::kind::number) return v.number;
     if (v.type == value::kind::boolean) return v.boolean ? 1.0 : 0.0;
     if (v.type == value::kind::list) return static_cast<double>(v.list.size());
+    if (v.type == value::kind::object) return static_cast<double>(v.object.size());
     if (v.type == value::kind::text) {
         try { return std::stod(v.text); } catch (...) { return 0.0; }
     }
@@ -196,6 +217,30 @@ std::optional<std::pair<std::wstring, std::wstring>> ParseIndexAccess(const std:
     return std::make_pair(Trim(e.substr(0, lb)), e.substr(lb + 1, rb - lb - 1));
 }
 
+size_t FindMatchingToken(const std::wstring& text, size_t openPos, wchar_t openToken, wchar_t closeToken)
+{
+    bool inString = false;
+    int depth = 0;
+    for (size_t i = openPos; i < text.size(); ++i) {
+        const wchar_t c = text[i];
+        if (c == L'"' && (i == 0 || text[i - 1] != L'\\')) inString = !inString;
+        if (inString) continue;
+        if (c == openToken) ++depth;
+        else if (c == closeToken) {
+            --depth;
+            if (depth == 0) return i;
+        }
+    }
+    return std::wstring::npos;
+}
+
+size_t SkipSpacesForward(const std::wstring& text, size_t start)
+{
+    size_t i = start;
+    while (i < text.size() && iswspace(text[i]) != 0) ++i;
+    return i;
+}
+
 std::optional<value> ParseListLiteral(const std::wstring& expr, const std::map<std::wstring, value>& vars)
 {
     const std::wstring e = Trim(expr);
@@ -266,15 +311,101 @@ std::optional<std::pair<std::wstring, int>> ParseIncDecStatement(const std::wstr
 
 value CoerceValueForType(const value& input, const std::wstring& typeName)
 {
-    if (typeName == L"int" || typeName == L"float" || typeName == L"double" || typeName == L"auto") return NumberValue(ToNumber(input));
+    if (typeName == L"int" || typeName == L"float" || typeName == L"double") return NumberValue(ToNumber(input));
+    if (typeName == L"auto") return input;
     if (typeName == L"bool") return BoolValue(Truthy(input));
     if (typeName == L"string") return TextValue(ToText(input));
     if (typeName.rfind(L"vector<", 0) == 0 || typeName.rfind(L"array<", 0) == 0) {
         if (input.type == value::kind::list) return input;
         return ListValue({ input });
     }
+    if (typeName.rfind(L"object", 0) == 0 && input.type == value::kind::object) return input;
     if (typeName == L"void") return TextValue(L"void");
     return input;
+}
+
+std::optional<value> TryResolveAccessorExpression(const std::wstring& expr, const std::map<std::wstring, value>& vars)
+{
+    const std::wstring e = Trim(expr);
+    if (e.empty()) return std::nullopt;
+
+    bool inString = false;
+    int paren = 0;
+    int brace = 0;
+    int bracket = 0;
+    size_t firstAccessor = std::wstring::npos;
+    for (size_t i = 0; i < e.size(); ++i) {
+        const wchar_t c = e[i];
+        if (c == L'"' && (i == 0 || e[i - 1] != L'\\')) inString = !inString;
+        if (inString) continue;
+        if (c == L'(') ++paren;
+        else if (c == L')' && paren > 0) --paren;
+        else if (c == L'{') ++brace;
+        else if (c == L'}' && brace > 0) --brace;
+        else if (c == L'[') {
+            if (paren == 0 && brace == 0 && bracket == 0) {
+                firstAccessor = i;
+                break;
+            }
+            ++bracket;
+        } else if (c == L']' && bracket > 0) {
+            --bracket;
+        } else if (c == L'.' && paren == 0 && brace == 0 && bracket == 0) {
+            firstAccessor = i;
+            break;
+        }
+    }
+    if (firstAccessor == std::wstring::npos) return std::nullopt;
+
+    value current = EvalExprWithVars(e.substr(0, firstAccessor), vars);
+    size_t i = firstAccessor;
+    while (i < e.size()) {
+        if (e[i] == L'.') {
+            ++i;
+            size_t start = i;
+            while (i < e.size() && (iswalnum(e[i]) != 0 || e[i] == L'_')) ++i;
+            const std::wstring member = e.substr(start, i - start);
+            if (member.empty()) return TextValue(L"void");
+            if (member == L"size") {
+                if (current.type == value::kind::list) current = NumberValue((double)current.list.size());
+                else if (current.type == value::kind::object) current = NumberValue((double)current.object.size());
+                else if (current.type == value::kind::text) current = NumberValue((double)current.text.size());
+                else current = NumberValue(ToNumber(current));
+                continue;
+            }
+            if (current.type != value::kind::object) return TextValue(L"void");
+            auto it = current.object.find(member);
+            if (it == current.object.end()) return TextValue(L"void");
+            current = it->second;
+            continue;
+        }
+        if (e[i] == L'[') {
+            const size_t close = FindMatchingToken(e, i, L'[', L']');
+            if (close == std::wstring::npos) return TextValue(L"void");
+            const std::wstring inner = e.substr(i + 1, close - i - 1);
+            const value key = EvalExprWithVars(inner, vars);
+            if (current.type == value::kind::list) {
+                const int index = (int)ToNumber(key);
+                if (index < 0 || static_cast<size_t>(index) >= current.list.size()) return TextValue(L"void");
+                current = current.list[(size_t)index];
+            } else if (current.type == value::kind::object) {
+                const std::wstring member = ToText(key);
+                auto it = current.object.find(member);
+                if (it == current.object.end()) return TextValue(L"void");
+                current = it->second;
+            } else if (current.type == value::kind::text) {
+                const int index = (int)ToNumber(key);
+                if (index < 0 || static_cast<size_t>(index) >= current.text.size()) return TextValue(L"void");
+                current = TextValue(std::wstring(1, current.text[(size_t)index]));
+            } else {
+                return TextValue(L"void");
+            }
+            i = close + 1;
+            continue;
+        }
+        ++i;
+    }
+    return current;
 }
 
 bool TryParseScriptFunctionDefinition(const std::wstring& stmt, std::wstring& functionName, std::wstring& functionBody)
@@ -383,6 +514,9 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     if (e == L"true") return BoolValue(true);
     if (e == L"false") return BoolValue(false);
     if (e == L"void") return TextValue(L"void");
+    if (auto accessor = TryResolveAccessorExpression(e, vars)) {
+        return *accessor;
+    }
     if (auto index = ParseIndexAccess(e)) {
         value base = GetVarFromMap(vars, index->first);
         const int i = static_cast<int>(ToNumber(EvalExprWithVars(index->second, vars)));
@@ -490,9 +624,9 @@ bool ExtractControlBlock(const std::wstring& s, const std::wstring& keyword, std
 {
     if (s.rfind(keyword, 0) != 0) return false;
     size_t lp = s.find(L'(');
-    size_t rp = s.find(L')', lp);
+    size_t rp = lp == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lp, L'(', L')');
     size_t lb = s.find(L'{', rp);
-    size_t rb = s.rfind(L'}');
+    size_t rb = lb == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lb, L'{', L'}');
     if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
     head = s.substr(lp + 1, rp - lp - 1);
     body = s.substr(lb + 1, rb - lb - 1);
@@ -504,26 +638,43 @@ bool TryExecuteIf(const std::wstring& stmt)
     execution_context& exec = CurrentExecution();
     std::wstring s = Trim(stmt);
     if (s.rfind(L"if", 0) != 0) return false;
-    size_t lp = s.find(L'(');
-    size_t rp = s.find(L')', lp);
-    size_t lb = s.find(L'{', rp);
-    size_t rb = s.find(L'}', lb);
-    if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos || rb < lb) return true;
-    std::wstring cond = s.substr(lp + 1, rp - lp - 1);
-    std::wstring body = s.substr(lb + 1, rb - lb - 1);
-    if (EvalCondition(cond)) {
-        ExecuteBlock(body);
-        if (exec.gotoTarget || exec.returnRequested || exec.breakRequested || exec.continueRequested) return true;
-    } else {
-        size_t elsePos = s.find(L"else", rb + 1);
-        if (elsePos != std::wstring::npos) {
-            size_t elb = s.find(L'{', elsePos);
-            size_t erb = s.rfind(L'}');
-            if (elb != std::wstring::npos && erb != std::wstring::npos && erb > elb) {
-                ExecuteBlock(s.substr(elb + 1, erb - elb - 1));
-                if (exec.gotoTarget || exec.returnRequested || exec.breakRequested || exec.continueRequested) return true;
+    size_t cursor = 0;
+    while (cursor < s.size()) {
+        const bool isElseIf = s.compare(cursor, 4, L"else") == 0 || s.compare(cursor, 6, L"elseif") == 0;
+        const bool isIf = !isElseIf && s.compare(cursor, 2, L"if") == 0;
+        if (!isIf && !isElseIf) return true;
+
+        size_t clauseStart = cursor;
+        if (isElseIf) {
+            if (s.compare(cursor, 6, L"elseif") == 0) {
+                cursor = cursor + 4;
+            } else {
+                cursor = SkipSpacesForward(s, cursor + 4);
+            }
+            if (s.compare(cursor, 2, L"if") != 0) {
+                size_t elseBodyStart = s.find(L'{', cursor);
+                size_t elseBodyEnd = elseBodyStart == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, elseBodyStart, L'{', L'}');
+                if (elseBodyStart == std::wstring::npos || elseBodyEnd == std::wstring::npos) return true;
+                ExecuteBlock(s.substr(elseBodyStart + 1, elseBodyEnd - elseBodyStart - 1));
+                return true;
             }
         }
+
+        const size_t ifPos = isElseIf ? cursor : clauseStart;
+        const size_t lp = s.find(L'(', ifPos);
+        const size_t rp = lp == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lp, L'(', L')');
+        const size_t lb = s.find(L'{', rp);
+        const size_t rb = lb == std::wstring::npos ? std::wstring::npos : FindMatchingToken(s, lb, L'{', L'}');
+        if (lp == std::wstring::npos || rp == std::wstring::npos || lb == std::wstring::npos || rb == std::wstring::npos) return true;
+
+        const std::wstring cond = s.substr(lp + 1, rp - lp - 1);
+        const std::wstring body = s.substr(lb + 1, rb - lb - 1);
+        if (EvalCondition(cond)) {
+            ExecuteBlock(body);
+            return true;
+        }
+        cursor = SkipSpacesForward(s, rb + 1);
+        if (s.compare(cursor, 4, L"else") != 0) return true;
     }
     return true;
 }

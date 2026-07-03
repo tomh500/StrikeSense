@@ -5,6 +5,8 @@
 #include "volume_mixer.h"
 #include "normalgen.h"
 #include "gsi_server.h"
+#include "steam_accounts.h"
+#include "SteamHelper.h"
 
 #include <Windows.h>
 #include <SDL_mixer.h>
@@ -22,12 +24,13 @@
 namespace vscript::detail {
 
 struct value {
-    enum class kind { none, number, text, boolean, list };
+    enum class kind { none, number, text, boolean, list, object };
     kind type = kind::none;
     double number = 0.0;
     std::wstring text;
     bool boolean = false;
     std::vector<value> list;
+    std::map<std::wstring, value> object;
 };
 
 struct image_window {
@@ -126,6 +129,7 @@ void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j);
 value TextValue(const std::wstring& s);
 value NumberValue(double n);
 value BoolValue(bool b);
+value ObjectValue(const std::map<std::wstring, value>& fields);
 bool Truthy(const value& v);
 std::wstring ToText(const value& v);
 std::wstring ExpandEnvText(const std::wstring& text);
@@ -144,6 +148,9 @@ size_t FindLogicalOp(const std::wstring& text, const std::wstring& op);
 bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value>& vars);
 bool EvalCondition(std::wstring cond);
 std::optional<std::pair<std::wstring, std::wstring>> ParseFunction(const std::wstring& stmt);
+size_t FindMatchingToken(const std::wstring& text, size_t openPos, wchar_t openToken, wchar_t closeToken);
+size_t SkipSpacesForward(const std::wstring& text, size_t start);
+std::optional<value> TryResolveAccessorExpression(const std::wstring& expr, const std::map<std::wstring, value>& vars);
 bool TryParseScriptFunctionDefinition(const std::wstring& stmt, std::wstring& functionName, std::wstring& functionBody);
 std::vector<std::wstring> ParseScriptFunctionParams(const std::wstring& headerArgs);
 execution_context& CurrentExecution();
@@ -172,6 +179,16 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
 bool PlaySoundCommand(const std::filesystem::path& path, float volume, int id);
 void StopSoundCommand(int id);
 bool RequiresUserDebug(const std::wstring& name);
+value BuildSteamUserIdListValue(bool convertTo64);
+value BuildSteamAccountsValue();
+bool HasSteamLocalUserId(const std::wstring& steamId, bool steam64);
+std::wstring GetSteamInstallPathText();
+std::wstring GetCs2InstallPathText();
+std::wstring GetCs2CfgPathText();
+std::wstring Steam64To32Text(const std::wstring& steam64);
+std::wstring GetSteamLocalConfigPathText(const std::wstring& steamId, bool steam64);
+std::wstring GetSteamLaunchOptionsText(const std::wstring& steamId, bool steam64);
+bool WriteSteamGsiConfigFile();
 value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs);
 void ExecuteBlock(const std::wstring& script);
 void ExecuteStatement(const std::wstring& stmt);

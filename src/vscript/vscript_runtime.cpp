@@ -520,6 +520,26 @@ struct function_execution_guard {
     }
 };
 
+std::wstring ValueTypeName(const value& input)
+{
+    switch (input.type) {
+    case value::kind::number: return L"number";
+    case value::kind::text: return L"string";
+    case value::kind::boolean: return L"bool";
+    case value::kind::list: return L"list";
+    case value::kind::object: return L"object";
+    default: return L"void";
+    }
+}
+
+double ValueSize(const value& input)
+{
+    if (input.type == value::kind::list) return (double)input.list.size();
+    if (input.type == value::kind::object) return (double)input.object.size();
+    if (input.type == value::kind::text) return (double)input.text.size();
+    return ToNumber(input);
+}
+
 value ExecuteScriptFunctionValue(const std::wstring& name, const std::vector<value>& args)
 {
     execution_context& caller = CurrentExecution();
@@ -576,6 +596,62 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     execution_context& exec = CurrentExecution();
     if (exec.functions.find(name) != exec.functions.end()) {
         return ExecuteScriptFunctionValue(name, args);
+    }
+
+    if (name == L"Size" && args.size() >= 1) {
+        return NumberValue(ValueSize(args[0]));
+    }
+    if (name == L"TypeOf" && args.size() >= 1) {
+        return TextValue(ValueTypeName(args[0]));
+    }
+    if (name == L"IsVoid" && args.size() >= 1) {
+        return BoolValue(args[0].type == value::kind::none || (args[0].type == value::kind::text && args[0].text == L"void"));
+    }
+    if (name == L"HasField" && args.size() >= 2) {
+        if (args[0].type != value::kind::object) return BoolValue(false);
+        return BoolValue(args[0].object.find(ToText(args[1])) != args[0].object.end());
+    }
+    if (name == L"Contains" && args.size() >= 2) {
+        if (args[0].type == value::kind::text) return BoolValue(ToText(args[0]).find(ToText(args[1])) != std::wstring::npos);
+        if (args[0].type == value::kind::list) {
+            const std::wstring target = ToText(args[1]);
+            for (const auto& item : args[0].list) {
+                if (ToText(item) == target) return BoolValue(true);
+            }
+            return BoolValue(false);
+        }
+        if (args[0].type == value::kind::object) {
+            return BoolValue(args[0].object.find(ToText(args[1])) != args[0].object.end());
+        }
+        return BoolValue(false);
+    }
+    if (name == L"StartsWith" && args.size() >= 2) {
+        const std::wstring text = ToText(args[0]);
+        const std::wstring prefix = ToText(args[1]);
+        return BoolValue(text.rfind(prefix, 0) == 0);
+    }
+    if (name == L"EndsWith" && args.size() >= 2) {
+        const std::wstring text = ToText(args[0]);
+        const std::wstring suffix = ToText(args[1]);
+        return BoolValue(text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0);
+    }
+    if (name == L"GetSteamPath") return TextValue(GetSteamInstallPathText());
+    if (name == L"GetCS2InstallPath") return TextValue(GetCs2InstallPathText());
+    if (name == L"GetCS2CfgPath") return TextValue(GetCs2CfgPathText());
+    if (name == L"GetSteamLocalConfigPath32" && args.size() >= 1) return TextValue(GetSteamLocalConfigPathText(ToText(args[0]), false));
+    if (name == L"GetSteamLocalConfigPath64" && args.size() >= 1) return TextValue(GetSteamLocalConfigPathText(ToText(args[0]), true));
+    if (name == L"GetSteamLaunchOptions32" && args.size() >= 1) return TextValue(GetSteamLaunchOptionsText(ToText(args[0]), false));
+    if (name == L"GetSteamLaunchOptions64" && args.size() >= 1) return TextValue(GetSteamLaunchOptionsText(ToText(args[0]), true));
+    if (name == L"WriteSteamGSIConfig") return BoolValue(WriteSteamGsiConfigFile());
+    if (name == L"GetSteamUserIDs32") return BuildSteamUserIdListValue(false);
+    if (name == L"GetSteamUserIDs64") return BuildSteamUserIdListValue(true);
+    if (name == L"GetSteamAccounts") return BuildSteamAccountsValue();
+    if (name == L"HasSteamUser32" && args.size() >= 1) return BoolValue(HasSteamLocalUserId(ToText(args[0]), false));
+    if (name == L"HasSteamUser64" && args.size() >= 1) return BoolValue(HasSteamLocalUserId(ToText(args[0]), true));
+    if (name == L"Steam64To32" && args.size() >= 1) return TextValue(Steam64To32Text(ToText(args[0])));
+    if (name == L"Steam32To64" && args.size() >= 1) {
+        SteamHelper helper;
+        return TextValue(Utf8ToWide(helper.ConvertToSteam64ID(WideToUtf8(ToText(args[0])))));
     }
 
     if (name == L"CloseGameWindow") return BoolValue(HideGameWindowSafely());
