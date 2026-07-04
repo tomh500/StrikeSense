@@ -6,11 +6,160 @@
     <title>StrikeSense - 脚本文档</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .docs-container { max-width: 900px; margin: 80px auto; padding: 20px; }
-        pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; overflow-x: auto; }
-        code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; color: #c7254e; }
-        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-        th, td { border: 1px solid #ddd; padding: 10px; }
+        .docs-shell {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 125px 20px 70px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 24px;
+            align-items: start;
+        }
+        .docs-sidebar {
+            position: sticky;
+            top: 88px;
+            background: var(--bg-card);
+            border: 1px solid rgba(9, 114, 122, 0.08);
+            border-radius: 12px;
+            box-shadow: 0 10px 28px rgba(9, 114, 122, 0.05);
+            padding: 14px;
+            max-height: calc(100vh - 108px);
+            overflow: hidden;
+        }
+        .docs-sidebar h2 {
+            font-size: 17px;
+            margin-bottom: 10px;
+            color: var(--text-main);
+        }
+        .docs-search {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            border-radius: 10px;
+            padding: 8px 11px;
+            background: var(--bg-main);
+            color: var(--text-main);
+            margin-bottom: 10px;
+            outline: none;
+        }
+        .docs-search:focus {
+            border-color: var(--col-tb);
+            box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.1);
+        }
+        .docs-toc {
+            display: grid;
+            gap: 8px;
+            max-height: calc(100vh - 240px);
+            overflow: auto;
+            padding-right: 4px;
+        }
+        .toc-group {
+            display: grid;
+            gap: 8px;
+        }
+        .toc-group-children {
+            display: grid;
+            gap: 8px;
+        }
+        .toc-section {
+            display: grid;
+            gap: 6px;
+        }
+        .toc-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .toc-children {
+            display: grid;
+            gap: 6px;
+        }
+        .toc-link {
+            display: block;
+            text-decoration: none;
+            color: var(--text-main);
+            background: var(--bg-main);
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 7px 10px;
+            transition: 0.2s ease;
+            line-height: 1.35;
+        }
+        .toc-link:hover {
+            border-color: var(--col-bp);
+            color: var(--col-td);
+        }
+        .toc-sub {
+            margin-left: 12px;
+            font-size: 13px;
+        }
+        .toc-sub2 {
+            margin-left: 24px;
+            font-size: 12px;
+            opacity: 0.94;
+        }
+        .toc-toggle {
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            background: var(--bg-main);
+            color: var(--text-main);
+            border-radius: 9px;
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .toc-toggle:hover {
+            border-color: var(--col-bp);
+            color: var(--col-td);
+        }
+        .docs-note {
+            margin-top: 8px;
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+        .docs-hidden {
+            display: none !important;
+        }
+        .markdown-body {
+            max-width: none;
+            margin: 0;
+            scroll-margin-top: 95px;
+        }
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4 {
+            scroll-margin-top: 95px;
+        }
+        .markdown-body pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+        }
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        @media (max-width: 980px) {
+            .docs-shell {
+                grid-template-columns: 1fr;
+            }
+            .docs-sidebar {
+                position: static;
+                order: -1;
+            }
+            .docs-toc {
+                max-height: none;
+            }
+        }
     </style>
 </head>
 <body>
@@ -21,823 +170,1867 @@
                 <span></span><span></span><span></span>
             </button>
             <nav class="nav-links" id="navLinks">
-                <a href="index.html">返回主页</a>
-   
+                <a href="#about">产品介绍</a>
+                <a href="#showcase">软件截图</a>
+                <a href="#features">功能特性</a>
+                <!-- <a href="#rage-notice">超频说明</a> -->
+                <a href="#faq">常见问题 Q&A</a>
+                <a href="itemmaker.html" class="nav-special-link">道具图制作</a>
+                <a href="rescenter.html" class="nav-special-link">资源下载中心</a>
+                <a href="oemkeygen.html" class="nav-special-link">OEM申请</a>
+                <a href="scriptdocs.html" class="nav-special-link">脚本文档</a>
+                <!-- <a href="#download" class="btn btn-primary mobile-download-btn">立即下载</a> -->
+            </nav>
              <a href=""></a> 
         </div>
     </header>
-    <main class="docs-container markdown-body">
-        <h1>StrikeSense VScript 手册</h1>
-<h2>1. 目标</h2>
-<p>VScript 是 StrikeSense 的轻量脚本系统。</p>
-<p>它做两件事：</p>
+    <main class="docs-shell">
+        <article class="markdown-body" id="docsBody">
+<h1 id="strikesense-vscript-手册">StrikeSense VScript 手册</h1><h2 id="sec-1-文档版本">文档版本</h2><ul>
+<li>API 文档版本：<code>2026.07.04</code></li>
+<li>对应程序构建时间戳：<code>202607040217</code></li>
+<li>适用范围：StrikeSense 内置 VScript 解释器</li>
+<li>适用场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件编写脚本</li>
+</ul>
+<h2 id="sec-2-系统定位">系统定位</h2><p>StrikeSense VScript 是用于编写游戏事件脚本的解释型脚本系统，写法尽量贴近 C++。
+它适合处理“当某个 GSI 状态变化时，执行某个动作”这一类场景。</p>
+<p>脚本目录：
+<code>%UserProfile%/StrikeSense/script</code></p>
+<p>仓库中的 <code>vscript_examples</code> 是示例源码目录，不等于程序运行时只会从这里读脚本。</p>
+<h2 id="sec-3-快速上手">快速上手</h2><p>如果你是第一次写脚本，建议先只掌握三样东西：</p>
 <ol>
-<li>把游戏通过 GSI 发来的原始状态同步成脚本变量。</li>
-<li>把 StrikeSense 自己推导出来的内部结论，同样同步成脚本变量。</li>
+<li>读 GSI 变量，比如 <code>health</code>、<code>round_phase</code>、<code>weapon_name</code></li>
+<li>用 <code>if(...)</code> 判断某个条件是否成立</li>
+<li>用 <code>Log(...)</code>、<code>Browser(...)</code>、<code>Playsnd(...)</code> 之类的 API 执行动作</li>
 </ol>
-<p>脚本目录：</p>
-<p><code>%UserProfile%/StrikeSense/script</code></p>
-<p>程序只会确保脚本目录存在，不会额外生成 <code>assets</code> 之类的发布资源目录。仓库里的 <code>vscript_examples</code> 只是示范源码。</p>
-<h2>2. 运行能力</h2>
-<ul>
-<li><code>user</code></li>
-<li>稳定版能力。</li>
-<li>默认只能执行安全函数。</li>
-<li>如果脚本使用高权限函数，必须在元信息里声明当前 Windows 用户是作者，才能挂载和执行。</li>
-<li><code>userdebug</code></li>
-<li>对应 nightly / OEM 解锁。</li>
-<li>可以挂载和执行高权限脚本。</li>
-<li>界面会把高权限脚本标成危险样式。</li>
-<li><code>eng</code></li>
-<li>测试专用。</li>
-<li>具备最高脚本能力。</li>
-</ul>
-<h2>3. 元信息</h2>
-<p>脚本头部支持以下元信息：</p>
-<pre><code class="language-cpp">// @name: 语法总览脚本
-// @author: jingy
-// @provider: StrikeSense
-// @version: 1.0.0
-// @notice: 这个脚本只用于说明语法，不建议直接拿来做实际功能。
-// @modifier: self_user=jingy
+<p>最简单的例子：</p>
+<pre><code class="language-cpp">if(health &lt;= 20){
+    Log(&quot;当前血量过低&quot;);
+}
 </code></pre>
-<p>字段说明：</p>
-<ul>
-<li><code>@name</code></li>
-<li>用途：挂载列表显示名。</li>
-<li><code>@author</code></li>
-<li>用途：显示作者信息。</li>
-<li><code>@provider</code></li>
-<li>用途：显示脚本来源提供者。</li>
-<li><code>@version</code></li>
-<li>用途：显示脚本版本。</li>
-<li><code>@notice</code></li>
-<li>用途：鼠标悬停 <code>!</code> 时显示说明。</li>
-<li><code>@modifier</code></li>
-<li>用途：声明修饰符。</li>
-<li>当前支持：<ul>
-<li><code>self_user=&lt;Windows用户名&gt;</code></li>
-</ul>
-</li>
-<li>作用：<ul>
-<li>当脚本包含高权限函数时，<code>user</code> 模式会检查这个用户名是否等于当前 Windows 用户。</li>
-<li>相等则允许挂载和执行，但 UI 会显示危险样式。</li>
-<li>不相等则 <code>user</code> 模式拒绝挂载。</li>
-</ul>
-</li>
-</ul>
-<h2>4. 基本语法</h2>
-<ul>
-<li>语句必须以 <code>;</code> 结尾。</li>
-<li>支持 <code>//</code> 行注释。</li>
-<li>支持 <code>/* ... */</code> 块注释。</li>
-<li>支持 <code>if / else / while / for / goto / return</code>。</li>
-<li>支持变量声明：</li>
-<li><code>int</code></li>
-<li><code>float</code></li>
-<li><code>string</code></li>
-<li>支持条件运算：</li>
-<li><code>==</code></li>
-<li><code>!=</code></li>
-<li><code>&gt;</code></li>
-<li><code>&lt;</code></li>
-<li><code>&gt;=</code></li>
-<li><code>&lt;=</code></li>
-<li><code>&amp;&amp;</code></li>
-<li><code>||</code></li>
-<li><code>!</code></li>
-<li><code>on:</code> 表示整个条件从假变真时只触发一次。</li>
-</ul>
-<h2>5. 唯一示范脚本</h2>
-<p>下面这个脚本只用于讲透语法，不追求实用：</p>
-<pre><code class="language-cpp">// @name: 语法总览脚本
-// @author: jingy
-// @provider: StrikeSense
-// @version: 1.0.0
-// @notice: 用一份脚本展示变量、流程控制、字符串、边沿触发和函数调用。
-// @modifier: self_user=jingy
-
-int i = 0;
-float total = 0;
-string tag = &quot;demo&quot;;
-
-if(on:round_phase==&quot;live&quot;){
-    Log(&quot;回合刚进入 live&quot;);
-    i = 0;
-    total = 0;
-};
-
-while(i&lt;3){
-    total = total + 0.5;
-    i = i + 1;
-};
-
-for(int k=0; k&lt;2; k=k+1){
-    Log(&quot;for 循环仍在运行&quot;);
-};
-
-if(weapon_name==&quot;weapon_hkp2000&quot; &amp;&amp; weapon_clip_delta&gt;0){
-    Log(&quot;检测到一发开火&quot;);
-}else{
-    Log(&quot;当前没有满足 P2000 开火条件&quot;);
-};
-
-if(!internal_in_lobby &amp;&amp; (health&gt;0 || death_mute==false)){
-    Top(&quot;cs2.exe&quot;, true);
-};
-
-return;
+<p>只在某个状态刚发生时触发一次：</p>
+<pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
+    Log(&quot;本回合刚进入 live&quot;);
+}
 </code></pre>
-<h2>6. 函数总表</h2>
-<h3>6.1 基础控制函数</h3>
-<p><code>CloseGameWindow()</code></p>
+<p>只在击杀数发生增长时触发：</p>
+<pre><code class="language-cpp">if(Delta(&quot;kills&quot;) &gt; 0){
+    Log(&quot;刚拿到击杀&quot;);
+}
+</code></pre>
+<h2 id="sec-4-gsi-变量">GSI 变量</h2><h3 id="sec-5-gsi-原始展开变量">GSI 原始展开变量</h3><p>GSI 中收到的叶子字段会尽量同步成 <code>gsi_...</code> 变量。</p>
+<p>示例：</p>
 <ul>
-<li>用途：把 CS2 窗口最小化。</li>
-<li>参数：无。</li>
-<li>说明：</li>
-<li>当前实现会优先尝试把焦点切到现有浏览器窗口，避免直接最小化独占全屏游戏导致窗口状态异常。</li>
-<li>如果没有可安全切出的目标窗口，它会跳过强制最小化。</li>
+<li><code>gsi_provider_name</code>：<code>string</code></li>
+<li><code>gsi_map_team_ct_score</code>：<code>number</code></li>
+<li><code>gsi_player_state_health</code>：<code>number</code></li>
+<li><code>gsi_player_weapons_weapon_1_ammo_clip</code>：<code>number</code></li>
+<li><code>gsi_field_count</code>：<code>number</code></li>
 </ul>
-<p><code>KillGameProcess()</code></p>
+<h3 id="sec-6-常用便捷别名变量">常用便捷别名变量</h3><p>当前实现里明确同步的便捷别名变量如下：</p>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>变量</th>
+<th>类型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Provider</td>
+<td><code>provider_name</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>Provider</td>
+<td><code>provider_appid</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>Provider</td>
+<td><code>provider_version</code></td>
+<td>`number</td>
+</tr>
+<tr>
+<td>Provider</td>
+<td><code>provider_steamid</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>Provider</td>
+<td><code>provider_timestamp</code></td>
+<td>`number</td>
+</tr>
+<tr>
+<td>地图</td>
+<td><code>map</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>地图</td>
+<td><code>map_mode</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>地图</td>
+<td><code>map_phase</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>地图</td>
+<td><code>map_round</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>地图</td>
+<td><code>map_num_matches_to_win_series</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_ct_score</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_ct_consecutive_round_losses</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_ct_timeouts_remaining</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_ct_matches_won_this_series</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_t_score</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_t_consecutive_round_losses</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_t_timeouts_remaining</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>队伍</td>
+<td><code>team_t_matches_won_this_series</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>回合</td>
+<td><code>round_phase</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>回合</td>
+<td><code>round_win_team</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>回合</td>
+<td><code>bomb</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>玩家</td>
+<td><code>player_name</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>玩家</td>
+<td><code>activity</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>玩家</td>
+<td><code>steamid</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>玩家</td>
+<td><code>team</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>玩家</td>
+<td><code>observer_slot</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>health</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>armor</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>helmet</code></td>
+<td>`bool</td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>flashed</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>smoked</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>burning</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>money</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>kills</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>round_killhs</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>玩家状态</td>
+<td><code>equip_value</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>比赛统计</td>
+<td><code>mvps</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>比赛统计</td>
+<td><code>match_kills</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>比赛统计</td>
+<td><code>match_assists</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>比赛统计</td>
+<td><code>match_deaths</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>比赛统计</td>
+<td><code>match_score</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_name</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_type</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_state</code></td>
+<td><code>string</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_ammo_clip</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_ammo_clip_max</code></td>
+<td><code>number</code></td>
+</tr>
+<tr>
+<td>当前武器</td>
+<td><code>weapon_ammo_reserve</code></td>
+<td><code>number</code></td>
+</tr>
+</tbody></table>
+<h3 id="sec-7-上一帧快照变量">上一帧快照变量</h3><p>当前实现里明确提供的上一帧快照变量如下：</p>
 <ul>
-<li>用途：结束 <code>cs2.exe</code> 进程。</li>
-<li>参数：无。</li>
+<li><code>prev_round_phase</code>：<code>string</code></li>
+<li><code>prev_kills</code>：<code>number</code></li>
+<li><code>prev_health</code>：<code>number</code></li>
+<li><code>prev_weapon_name</code>：<code>string</code></li>
+<li><code>prev_weapon_type</code>：<code>string</code></li>
+<li><code>prev_weapon_state</code>：<code>string</code></li>
+<li><code>prev_weapon_ammo_clip</code>：<code>number</code></li>
+<li><code>prev_weapon_ammo_reserve</code>：<code>number</code></li>
 </ul>
-<p><code>RunGameProcess()</code></p>
+<h3 id="sec-8-内部派生变量">内部派生变量</h3><p>当前实现里明确提供的内部/派生变量如下：</p>
 <ul>
-<li>用途：通过 <code>steam://run/730</code> 启动游戏。</li>
-<li>参数：无。</li>
+<li><code>weapon_fired</code>：<code>bool</code></li>
+<li><code>weapon_reloading</code>：<code>bool</code></li>
+<li><code>weapon_switched</code>：<code>bool</code></li>
+<li><code>weapon_clip_delta</code>：<code>number</code></li>
+<li><code>weapon_reserve_delta</code>：<code>number</code></li>
+<li><code>weapon_fire_count</code>：<code>number</code></li>
+<li><code>weapon_reload_count</code>：<code>number</code></li>
+<li><code>weapon_reserve_drop_count</code>：<code>number</code></li>
+<li><code>death_mute</code>：<code>bool</code></li>
+<li><code>self_alive</code>：<code>bool</code></li>
+<li><code>self_dead_this_round</code>：<code>bool</code></li>
+<li><code>internal_last_phase</code>：<code>string</code></li>
+<li><code>internal_last_kills</code>：<code>number</code></li>
+<li><code>internal_last_mvps</code>：<code>number</code></li>
+<li><code>internal_dead_muted</code>：<code>bool</code></li>
+<li><code>internal_waiting_for_live</code>：<code>bool</code></li>
+<li><code>internal_round_started</code>：<code>bool</code></li>
+<li><code>internal_mvp_candidate_kills</code>：<code>number</code></li>
+<li><code>internal_mvp_pushed_this_round</code>：<code>bool</code></li>
+<li><code>internal_mvps_at_round_start</code>：<code>number</code></li>
+<li><code>internal_gameover_pushed</code>：<code>bool</code></li>
+<li><code>internal_bomb_planted_this_round</code>：<code>bool</code></li>
+<li><code>internal_player_team</code>：<code>string</code></li>
+<li><code>internal_map_mode</code>：<code>string</code></li>
+<li><code>internal_activity</code>：<code>string</code></li>
+<li><code>internal_round_kills</code>：<code>number</code></li>
+<li><code>internal_health</code>：<code>number</code></li>
+<li><code>internal_in_lobby</code>：<code>bool</code></li>
 </ul>
-<p><code>ShowGameProcess()</code></p>
+<h2 id="sec-9-事件辅助-api">事件辅助 API</h2><p>这些 API 最适合普通玩家优先上手，因为它们本来就是围绕 GSI 状态变化设计的。</p>
+<h3 id="sec-10-变化检测">变化检测</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Previous(name)</code></td>
+<td><code>string</code></td>
+<td>`number</td>
+<td>string</td>
+</tr>
+<tr>
+<td><code>Changed(name)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>当前值是否与上一帧不同</td>
+</tr>
+<tr>
+<td><code>ChangedTo(name, value)</code></td>
+<td><code>string, any</code></td>
+<td><code>bool</code></td>
+<td>是否从别的值切换到了指定值</td>
+</tr>
+<tr>
+<td><code>Delta(name)</code></td>
+<td><code>string</code></td>
+<td><code>number</code></td>
+<td>当前数值减去上一帧数值</td>
+</tr>
+<tr>
+<td><code>Cooldown(key, ms)</code></td>
+<td><code>string, number</code></td>
+<td><code>bool</code></td>
+<td>冷却通过返回 <code>true</code>，冷却中返回 <code>false</code></td>
+</tr>
+</tbody></table>
+<p>示例：</p>
+<pre><code class="language-cpp">if(Changed(&quot;health&quot;)){
+    Log(&quot;health 变化了&quot;);
+}
+
+if(ChangedTo(&quot;round_phase&quot;, &quot;live&quot;)){
+    Log(&quot;本回合刚进入 live&quot;);
+}
+
+if(Delta(&quot;kills&quot;) &gt; 0){
+    Log(&quot;刚拿到击杀&quot;);
+}
+
+if(Cooldown(&quot;live_popup&quot;, 3000)){
+    Log(&quot;3 秒内只会通过一次&quot;);
+}
+</code></pre>
+<h2 id="sec-11-第一个实用脚本">第一个实用脚本</h2><pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
+    Log(&quot;回合开始&quot;);
+}
+
+if(Delta(&quot;kills&quot;) &gt; 0){
+    Playsnd(&quot;%UserProfile%/StrikeSense/sounds/kill.wav&quot;, 0.8, 1);
+}
+
+if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
+    Log(&quot;低血量警告&quot;);
+}
+</code></pre>
+<h2 id="sec-12-常规工具-api">常规工具 API</h2><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Size(value)</code></td>
+<td><code>any</code></td>
+<td><code>number</code></td>
+<td><code>list</code> 返回元素数，<code>object</code> 返回字段数，<code>string</code> 返回长度</td>
+</tr>
+<tr>
+<td><code>TypeOf(value)</code></td>
+<td><code>any</code></td>
+<td><code>string</code></td>
+<td>返回 <code>number</code> <code>string</code> <code>bool</code> <code>list</code> <code>object</code> <code>void</code></td>
+</tr>
+<tr>
+<td><code>IsVoid(value)</code></td>
+<td><code>any</code></td>
+<td><code>bool</code></td>
+<td>判断是否为空值</td>
+</tr>
+<tr>
+<td><code>HasField(object, field)</code></td>
+<td><code>object, string</code></td>
+<td><code>bool</code></td>
+<td>判断对象字段是否存在</td>
+</tr>
+<tr>
+<td><code>Contains(container, target)</code></td>
+<td>`string</td>
+<td>list</td>
+<td>object, any`</td>
+</tr>
+<tr>
+<td><code>StartsWith(text, prefix)</code></td>
+<td><code>string, string</code></td>
+<td><code>bool</code></td>
+<td>前缀判断</td>
+</tr>
+<tr>
+<td><code>EndsWith(text, suffix)</code></td>
+<td><code>string, string</code></td>
+<td><code>bool</code></td>
+<td>后缀判断</td>
+</tr>
+<tr>
+<td><code>Log(text)</code></td>
+<td><code>any</code></td>
+<td><code>bool</code></td>
+<td>输出调试信息</td>
+</tr>
+<tr>
+<td><code>Sleep(ms)</code></td>
+<td><code>number</code></td>
+<td><code>bool</code></td>
+<td>阻塞等待</td>
+</tr>
+</tbody></table>
+<h2 id="sec-13-gsi-强相关对象-api">GSI 强相关对象 API</h2><h3 id="sec-14-全部玩家对象">全部玩家对象</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetAllPlayers()</code></td>
+<td>无</td>
+<td><code>list&lt;object&gt;</code></td>
+<td>返回当前 GSI <code>allplayers</code> 的完整对象列表</td>
+</tr>
+</tbody></table>
+<p>每个玩家对象至少包含：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>slot</code></td>
+<td><code>string</code></td>
+<td>GSI 玩家槽位键</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>玩家名</td>
+</tr>
+<tr>
+<td><code>team</code></td>
+<td><code>string</code></td>
+<td>队伍</td>
+</tr>
+<tr>
+<td><code>match_stats</code></td>
+<td><code>object</code></td>
+<td>比赛统计对象</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>object</code></td>
+<td>当前状态对象</td>
+</tr>
+<tr>
+<td><code>weapons</code></td>
+<td><code>object</code> 或 <code>list</code></td>
+<td>武器结构，取决于当前 GSI 数据形态</td>
+</tr>
+</tbody></table>
+<p>常见嵌套字段示例：</p>
 <ul>
-<li>用途：恢复并激活 CS2 窗口。</li>
-<li>参数：无。</li>
-<li>说明：</li>
-<li>当前实现会先定位 CS2 主窗口，再走安全激活流程，尽量降低切回失败或窗口尺寸异常的概率。</li>
+<li><code>player.state.health</code>：<code>number</code></li>
+<li><code>player.state.armor</code>：<code>number</code></li>
+<li><code>player.match_stats.kills</code>：<code>number</code></li>
 </ul>
-<p><code>Browser(url, top_after_open, prefer_existing_browser)</code></p>
-<ul>
-<li>用途：用系统默认浏览器打开链接。</li>
-<li>参数：</li>
-<li><code>url</code><ul>
-<li>类型：<code>string</code></li>
-<li>用途：目标地址。</li>
+<h3 id="sec-15-当前玩家武器对象">当前玩家武器对象</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetCurrentPlayerWeapons()</code></td>
+<td>无</td>
+<td><code>list&lt;object&gt;</code></td>
+<td>返回当前玩家武器对象列表</td>
+</tr>
+</tbody></table>
+<p>每个武器对象常见字段：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>slot</code></td>
+<td><code>string</code></td>
+<td>武器槽位键</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>武器名</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>string</code></td>
+<td>武器类型</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>string</code></td>
+<td>武器状态</td>
+</tr>
+<tr>
+<td><code>ammo_clip</code></td>
+<td><code>number</code></td>
+<td>当前弹夹</td>
+</tr>
+<tr>
+<td><code>ammo_clip_max</code></td>
+<td><code>number</code></td>
+<td>弹夹上限</td>
+</tr>
+<tr>
+<td><code>ammo_reserve</code></td>
+<td><code>number</code></td>
+<td>备弹</td>
+</tr>
+</tbody></table>
+<h2 id="sec-16-steam-与本地环境-api">Steam 与本地环境 API</h2><h3 id="sec-17-路径与基础环境">路径与基础环境</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetSteamPath()</code></td>
+<td>无</td>
+<td><code>string</code></td>
+<td>Steam 安装目录</td>
+</tr>
+<tr>
+<td><code>GetCS2InstallPath()</code></td>
+<td>无</td>
+<td><code>string</code></td>
+<td>CS2 安装目录</td>
+</tr>
+<tr>
+<td><code>GetCS2CfgPath()</code></td>
+<td>无</td>
+<td><code>string</code></td>
+<td><code>game/csgo/cfg</code> 目录</td>
+</tr>
+<tr>
+<td><code>WriteSteamGSIConfig()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>写入 GSI 配置文件</td>
+</tr>
+</tbody></table>
+<h3 id="sec-18-steam-用户-id">Steam 用户 ID</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetSteamUserIDs32()</code></td>
+<td>无</td>
+<td><code>list&lt;string&gt;</code></td>
+<td>本机所有 Steam32 ID</td>
+</tr>
+<tr>
+<td><code>GetSteamUserIDs64()</code></td>
+<td>无</td>
+<td><code>list&lt;string&gt;</code></td>
+<td>本机所有 Steam64 ID</td>
+</tr>
+<tr>
+<td><code>HasSteamUser32(id32)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>本机是否存在该 Steam32</td>
+</tr>
+<tr>
+<td><code>HasSteamUser64(id64)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>本机是否存在该 Steam64</td>
+</tr>
+<tr>
+<td><code>Steam32To64(id32)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>Steam32 转 Steam64</td>
+</tr>
+<tr>
+<td><code>Steam64To32(id64)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>Steam64 转 Steam32</td>
+</tr>
+</tbody></table>
+<h3 id="sec-19-本地配置读取">本地配置读取</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetSteamLocalConfigPath32(id32)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>对应账号 <code>localconfig.vdf</code> 路径</td>
+</tr>
+<tr>
+<td><code>GetSteamLocalConfigPath64(id64)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>对应账号 <code>localconfig.vdf</code> 路径</td>
+</tr>
+<tr>
+<td><code>GetSteamLaunchOptions32(id32)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>读取 <code>LaunchOptions</code></td>
+</tr>
+<tr>
+<td><code>GetSteamLaunchOptions64(id64)</code></td>
+<td><code>string</code></td>
+<td><code>string</code></td>
+<td>读取 <code>LaunchOptions</code></td>
+</tr>
+</tbody></table>
+<h3 id="sec-20-本地账号对象">本地账号对象</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>GetSteamAccounts()</code></td>
+<td>无</td>
+<td><code>list&lt;object&gt;</code></td>
+<td>读取 <code>loginusers.vdf</code> 并结合 <code>userdata</code> 生成本地账号对象列表</td>
+</tr>
+</tbody></table>
+<p><code>GetSteamAccounts()</code> 返回的对象字段如下：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>account_id32</code></td>
+<td><code>string</code></td>
+<td>Steam32 ID</td>
+</tr>
+<tr>
+<td><code>steam_id64</code></td>
+<td><code>string</code></td>
+<td>Steam64 ID</td>
+</tr>
+<tr>
+<td><code>account_name</code></td>
+<td><code>string</code></td>
+<td>登录账号名</td>
+</tr>
+<tr>
+<td><code>persona_name</code></td>
+<td><code>string</code></td>
+<td>Steam 显示名称</td>
+</tr>
+<tr>
+<td><code>timestamp</code></td>
+<td><code>string</code></td>
+<td>登录记录中的原始时间文本</td>
+</tr>
+<tr>
+<td><code>userdata_path</code></td>
+<td><code>string</code></td>
+<td>本地 <code>userdata</code> 路径</td>
+</tr>
+<tr>
+<td><code>localconfig_path</code></td>
+<td><code>string</code></td>
+<td>本地 <code>localconfig.vdf</code> 路径</td>
+</tr>
+<tr>
+<td><code>most_recent</code></td>
+<td><code>bool</code></td>
+<td>是否最近登录</td>
+</tr>
+<tr>
+<td><code>allow_auto_login</code></td>
+<td><code>bool</code></td>
+<td>是否允许自动登录</td>
+</tr>
+<tr>
+<td><code>remember_password</code></td>
+<td><code>bool</code></td>
+<td>是否记住密码</td>
+</tr>
+<tr>
+<td><code>has_userdata</code></td>
+<td><code>bool</code></td>
+<td>本机是否存在对应 <code>userdata</code></td>
+</tr>
+<tr>
+<td><code>has_localconfig</code></td>
+<td><code>bool</code></td>
+<td>本机是否存在对应 <code>localconfig.vdf</code></td>
+</tr>
+</tbody></table>
+<h2 id="sec-21-窗口启动与外部交互-api">窗口、启动与外部交互 API</h2><h3 id="sec-22-常规系统控制">常规系统控制</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>权限组</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CloseGameWindow()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>安全切出 CS2</td>
+</tr>
+<tr>
+<td><code>KillGameProcess()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>结束 <code>cs2.exe</code></td>
+</tr>
+<tr>
+<td><code>RunGameProcess()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>通过 <code>steam://run/730</code> 启动游戏</td>
+</tr>
+<tr>
+<td><code>ShowGameProcess()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>切回并激活 CS2</td>
+</tr>
+<tr>
+<td><code>Browser(url, top_after_open, prefer_existing_browser)</code></td>
+<td><code>string, bool, bool</code></td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>打开网页或优先复用现有浏览器</td>
+</tr>
+<tr>
+<td><code>Open(target)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>打开文件、目录或目标</td>
+</tr>
+<tr>
+<td><code>EnsureProcessWindow(process_name, launch_target, activate)</code></td>
+<td><code>string, string, bool</code></td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>若进程无窗口则尝试启动并置顶</td>
+</tr>
+<tr>
+<td><code>Top(process_name, activate)</code></td>
+<td><code>string, bool</code></td>
+<td><code>bool</code></td>
+<td>常规</td>
+<td>置顶指定进程窗口</td>
+</tr>
+</tbody></table>
+<h3 id="sec-23-高权限文件与命令">高权限文件与命令</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>权限组</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ShellExecute(command)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>高权限</td>
+<td>调用 shell 命令</td>
+</tr>
+<tr>
+<td><code>CFile(path, content)</code></td>
+<td><code>string, string</code></td>
+<td><code>bool</code></td>
+<td>高权限</td>
+<td>创建或覆盖文件</td>
+</tr>
+<tr>
+<td><code>OwriteFile(path, content)</code></td>
+<td><code>string, string</code></td>
+<td><code>bool</code></td>
+<td>高权限</td>
+<td>覆盖写入</td>
+</tr>
+<tr>
+<td><code>AwriteFile(path, content)</code></td>
+<td><code>string, string</code></td>
+<td><code>bool</code></td>
+<td>高权限</td>
+<td>追加写入</td>
+</tr>
+<tr>
+<td><code>DFile(path)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>高权限</td>
+<td>删除文件</td>
+</tr>
+</tbody></table>
+<h2 id="sec-24-图像音频音量与准星-api">图像、音频、音量与准星 API</h2><h3 id="sec-55-图像与音频">图像与音频</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Drawimg(path, x, y, alpha_channel, opacity, ttl_ms, id)</code></td>
+<td><code>string, int, int, bool, float, int, int</code></td>
+<td><code>bool</code></td>
+<td>绘制图片</td>
+</tr>
+<tr>
+<td><code>Closeimg(id)</code></td>
+<td><code>int</code></td>
+<td><code>bool</code></td>
+<td>关闭图片</td>
+</tr>
+<tr>
+<td><code>Playsnd(path, volume, id)</code></td>
+<td><code>string, float, int</code></td>
+<td><code>bool</code></td>
+<td>播放音频</td>
+</tr>
+<tr>
+<td><code>Stopsnd(id)</code></td>
+<td><code>int</code></td>
+<td><code>bool</code></td>
+<td>停止音频</td>
+</tr>
+</tbody></table>
+<h3 id="sec-26-音量控制">音量控制</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SetProcessVolume(process_name, volume_percent)</code></td>
+<td><code>string, float</code></td>
+<td><code>bool</code></td>
+<td>设置进程音量</td>
+</tr>
+<tr>
+<td><code>SetProcessMute(process_name, muted)</code></td>
+<td><code>string, bool</code></td>
+<td><code>bool</code></td>
+<td>设置进程静音</td>
+</tr>
+<tr>
+<td><code>SetDeathVolume(value)</code></td>
+<td><code>float</code></td>
+<td><code>bool</code></td>
+<td>设置死亡静音音量参数</td>
+</tr>
+<tr>
+<td><code>SetDeathMute(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>开关死亡静音功能</td>
+</tr>
+</tbody></table>
+<h3 id="sec-27-准星控制">准星控制</h3><table>
+<thead>
+<tr>
+<th>API</th>
+<th>参数</th>
+<th>返回类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SetCrosshairEnabled(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>开关准星功能</td>
+</tr>
+<tr>
+<td><code>SetCrosshairVisual(r, g, b, style, thickness, scale)</code></td>
+<td><code>int, int, int, int, int, float</code></td>
+<td><code>bool</code></td>
+<td>设置准星显示参数</td>
+</tr>
+<tr>
+<td><code>SetCrosshairConfig(r, g, b, style, thickness, scale)</code></td>
+<td>同上</td>
+<td><code>bool</code></td>
+<td>与 <code>SetCrosshairVisual</code> 同义</td>
+</tr>
+<tr>
+<td><code>SetCrosshair(enabled, r, g, b, style, thickness, scale)</code></td>
+<td><code>bool, int, int, int, int, int, float</code></td>
+<td><code>bool</code></td>
+<td>一次性设置准星开关与样式</td>
+</tr>
+</tbody></table>
+<h2 id="sec-28-权限与安全模型">权限与安全模型</h2><h3 id="sec-29-权限等级">权限等级</h3><ul>
+<li><code>user</code><ul>
+<li>普通用户模式。</li>
+<li>默认仅允许安全 API。</li>
+<li>即使脚本头部声明了 <code>@modifier: self_user=...</code>，也不会因此获得高权限。</li>
 </ul>
 </li>
-<li><code>top_after_open</code><ul>
-<li>类型：<code>bool</code></li>
-<li>用途：是否在打开后，单次把浏览器窗口抬到最前。</li>
-<li>说明：这是单次抬前，不是持续置顶。</li>
+<li><code>userdebug</code><ul>
+<li>内测/调试模式。</li>
+<li>可以执行高权限 API。</li>
+<li>若脚本声明了 <code>self_user</code>，仍然会继续校验当前 Windows 用户是否匹配。</li>
 </ul>
 </li>
-<li><code>prefer_existing_browser</code><ul>
-<li>类型：<code>bool</code></li>
-<li>用途：是否优先复用已经打开的浏览器窗口。</li>
-<li>说明：传 <code>true</code> 时，会先尝试切到已打开的 Edge / Chrome / Firefox 等窗口；只有没找到现成窗口时才打开新链接。</li>
+<li><code>oem</code><ul>
+<li>与 <code>userdebug</code> 等价的高权限能力层。</li>
+<li>本质上属于程序侧主动解锁的高级权限，不是脚本侧自报即可获得的权限。</li>
 </ul>
 </li>
-</ul>
-<p><code>Open(target)</code></p>
-<ul>
-<li>用途：用系统默认方式打开目标路径、程序或链接。</li>
-<li>参数：</li>
-<li><code>target</code><ul>
-<li>类型：<code>string</code></li>
-<li>示例：<code>"C:/Program Files/PotPlayer/PotPlayerMini64.exe"</code>、<code>"https://www.douyin.com/"</code></li>
+<li><code>eng</code><ul>
+<li>工程构建环境。</li>
+<li>能力最高，用于开发与调试。</li>
 </ul>
 </li>
 </ul>
-<p><code>EnsureProcessWindow(process_name, launch_target, activate)</code></p>
-<ul>
-<li>用途：如果目标进程已存在，就切到它的窗口；如果不存在，就先启动再切过去。</li>
-<li>参数：</li>
-<li><code>process_name</code><ul>
-<li>类型：<code>string</code></li>
-<li>示例：<code>"PotPlayerMini64.exe"</code></li>
+<h3 id="sec-30-关键规则">关键规则</h3><ul>
+<li><code>@modifier: self_user=用户名</code> 只用于“附加限制”，不作为“提权依据”。</li>
+<li><code>user</code> 模式下，高权限 API 必须通过程序侧能力解锁后才能执行。</li>
+<li><code>self_user</code> 的语义是“这个脚本只允许指定 Windows 用户使用”。</li>
 </ul>
-</li>
-<li><code>launch_target</code><ul>
-<li>类型：<code>string</code></li>
-<li>用途：当进程不存在时用于启动的程序路径、快捷方式或链接。</li>
-</ul>
-</li>
-<li><code>activate</code><ul>
-<li>类型：<code>bool</code></li>
-<li>用途：是否在找到窗口后激活它。</li>
-</ul>
-</li>
-<li>说明：</li>
-<li>适合配合 <code>ShowGameProcess()</code> 做“死后切到播放器 / freezetime 切回游戏”这类脚本。</li>
-</ul>
-<p><code>Top(process_name, activate)</code></p>
-<ul>
-<li>用途：单次把指定进程的窗口抬到最前。</li>
-<li>参数：</li>
-<li><code>process_name</code><ul>
-<li>类型：<code>string</code></li>
-<li>示例：<code>"cs2.exe"</code>、<code>"chrome.exe"</code></li>
-</ul>
-</li>
-<li><code>activate</code><ul>
-<li>类型：<code>bool</code></li>
-<li><code>true</code>：抬前并尝试激活。</li>
-<li><code>false</code>：只做一次窗口层级提升，不强制抢焦点。</li>
-</ul>
-</li>
-<li>说明：</li>
-<li>不是持续 <code>TOPMOST</code>。</li>
-<li>只是一次性抬前。</li>
-</ul>
-<p><code>Drawimg(path, x, y, alpha_channel, opacity, ttl_ms, id)</code></p>
-<ul>
-<li>用途：在屏幕上绘制临时图片窗口。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
-<li>用途：图片路径。</li>
-</ul>
-</li>
-<li><code>x</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：相对屏幕中心的 X 偏移。</li>
-</ul>
-</li>
-<li><code>y</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：相对屏幕中心的 Y 偏移。</li>
-</ul>
-</li>
-<li><code>alpha_channel</code><ul>
-<li>类型：<code>bool</code></li>
-<li>用途：是否按透明通道处理。</li>
-</ul>
-</li>
-<li><code>opacity</code><ul>
-<li>类型：<code>float</code></li>
-<li>范围：<code>0.0 ~ 1.0</code></li>
-</ul>
-</li>
-<li><code>ttl_ms</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：显示时长，毫秒。</li>
-</ul>
-</li>
-<li><code>id</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：图片实例 ID。</li>
-</ul>
-</li>
-</ul>
-<p><code>Closeimg(id)</code></p>
-<ul>
-<li>用途：关闭指定图片实例。</li>
-<li>参数：</li>
-<li><code>id</code><ul>
-<li>类型：<code>int</code></li>
-</ul>
-</li>
-</ul>
-<p><code>Playsnd(path, volume, id)</code></p>
-<ul>
-<li>用途：播放音频。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
-<li>用途：音频路径。</li>
-</ul>
-</li>
-<li><code>volume</code><ul>
-<li>类型：<code>float</code></li>
-<li>范围：<code>0.0 ~ 1.0</code></li>
-</ul>
-</li>
-<li><code>id</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：音频实例 ID。</li>
-</ul>
-</li>
-</ul>
-<p><code>Stopsnd(id)</code></p>
-<ul>
-<li>用途：停止指定音频实例。</li>
-<li>参数：</li>
-<li><code>id</code><ul>
-<li>类型：<code>int</code></li>
-</ul>
-</li>
-</ul>
-<p><code>Sleep(ms)</code></p>
-<ul>
-<li>用途：暂停脚本执行。</li>
-<li>参数：</li>
-<li><code>ms</code><ul>
-<li>类型：<code>int</code></li>
-<li>用途：等待毫秒数。</li>
-</ul>
-</li>
-</ul>
-<p><code>Log(text)</code></p>
-<ul>
-<li>用途：向控制台输出中文调试日志。</li>
-<li>参数：</li>
-<li><code>text</code><ul>
-<li>类型：<code>string</code></li>
-</ul>
-</li>
-</ul>
-<h3>6.2 高权限函数</h3>
-<p>这组函数属于危险函数：</p>
+<h3 id="sec-31-高权限-api-分组">高权限 API 分组</h3><p>以下 API 属于高权限能力：</p>
 <ul>
 <li><code>ShellExecute(command)</code></li>
 <li><code>CFile(path, content)</code></li>
-<li><code>DFile(path)</code></li>
 <li><code>OwriteFile(path, content)</code></li>
 <li><code>AwriteFile(path, content)</code></li>
+<li><code>DFile(path)</code></li>
 </ul>
-<p>说明：</p>
+<h2 id="sec-32-元信息">元信息</h2><p>脚本头部支持以下元信息：</p>
+<pre><code class="language-cpp">// @name: 语法总览示例
+// @author: jingy
+// @provider: StrikeSense
+// @version: 2026.07.04
+// @notice: 这是一个演示脚本
+// @modifier: self_user=jingy
+</code></pre>
+<h3 id="sec-33-字段说明">字段说明</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>@name</code></td>
+<td><code>string</code></td>
+<td>脚本显示名</td>
+</tr>
+<tr>
+<td><code>@author</code></td>
+<td><code>string</code></td>
+<td>作者名</td>
+</tr>
+<tr>
+<td><code>@provider</code></td>
+<td><code>string</code></td>
+<td>来源标识</td>
+</tr>
+<tr>
+<td><code>@version</code></td>
+<td><code>string</code></td>
+<td>脚本版本</td>
+</tr>
+<tr>
+<td><code>@notice</code></td>
+<td><code>string</code></td>
+<td>UI 提示说明</td>
+</tr>
+<tr>
+<td><code>@modifier</code></td>
+<td><code>string</code></td>
+<td>额外限制条件，目前支持 <code>self_user=&lt;Windows用户名&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="sec-34-语法规则">语法规则</h2><h3 id="sec-35-基础风格">基础风格</h3><ul>
+<li>普通语句通常以 <code>;</code> 结尾。</li>
+<li>控制块结尾的 <code>;</code> 可以省略。</li>
+<li>函数定义结尾的 <code>;</code> 可以省略。</li>
+<li><code>{ ... }</code> 后面不必强行补 <code>;</code>。</li>
+<li>支持 <code>//</code> 行注释。</li>
+<li>支持 <code>/* ... */</code> 块注释。</li>
+</ul>
+<h3 id="sec-36-当前支持的变量类型">当前支持的变量类型</h3><ul>
+<li><code>int</code></li>
+<li><code>float</code></li>
+<li><code>double</code></li>
+<li><code>string</code></li>
+<li><code>bool</code></li>
+<li><code>void</code></li>
+<li><code>auto</code></li>
+<li><code>vector&lt;T&gt;</code></li>
+<li><code>array&lt;T&gt;</code></li>
+<li>运行时对象：<code>list</code></li>
+<li>运行时对象：<code>object</code></li>
+</ul>
+<h3 id="sec-37-auto-规则">`auto` 规则</h3><p><code>auto</code> 会尽量保留原值形态，不会强行把复杂对象压扁成字符串。</p>
 <ul>
-<li><code>userdebug / eng</code> 可以执行。</li>
-<li><code>user</code> 模式只有在脚本声明了 <code>@modifier: self_user=&lt;当前Windows用户名&gt;</code> 时才允许。</li>
-<li>这些脚本在 UI 中会显示危险样式。</li>
+<li>如果函数返回 <code>list</code>，<code>auto</code> 仍然是 <code>list</code></li>
+<li>如果函数返回 <code>object</code>，<code>auto</code> 仍然是 <code>object</code></li>
+<li>如果函数返回数字、布尔或字符串，<code>auto</code> 保持对应基础值</li>
 </ul>
-<p>参数说明：</p>
-<p><code>ShellExecute(command)</code></p>
+<h3 id="sec-38-const">`const`</h3><p>现已支持 <code>const</code> 变量声明，且不是纯装饰语法，而是有实际写保护。</p>
+<pre><code class="language-cpp">const int aliveLine = 1;
+const string modeName = &quot;match&quot;;
+</code></pre>
+<p>一旦声明为 <code>const</code>，后续再赋值会被拒绝。</p>
+<h3 id="sec-39-运算符">运算符</h3><p>当前支持：</p>
 <ul>
-<li>用途：调用 <code>cmd /C</code> 执行命令。</li>
-<li>参数：</li>
-<li><code>command</code><ul>
-<li>类型：<code>string</code></li>
+<li>赋值：<code>=</code></li>
+<li>算术：<code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code></li>
+<li>比较：<code>==</code> <code>!=</code> <code>&gt;</code> <code>&lt;</code> <code>&gt;=</code> <code>&lt;=</code></li>
+<li>逻辑：<code>&amp;&amp;</code> <code>||</code> <code>!</code></li>
+<li>复合赋值：<code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code> </li>
+<li>自增自减：<code>i++</code> <code>++i</code> <code>i--</code> <code>--i</code></li>
 </ul>
-</li>
-</ul>
-<p><code>CFile(path, content)</code></p>
+<p>示例：</p>
+<pre><code class="language-cpp">int count = 7;
+count %= 3;
+
+if(count % 2 == 1){
+    Log(&quot;奇数&quot;);
+}
+</code></pre>
+<h3 id="sec-40-容器语法">容器语法</h3><pre><code class="language-cpp">vector&lt;int&gt; nums = { 1, 2, 3 };
+array&lt;string&gt; states = { &quot;idle&quot;, &quot;live&quot;, &quot;over&quot; };
+
+int first = nums[0];
+string phase = states[1];
+</code></pre>
+<h3 id="sec-41-对象与字段访问">对象与字段访问</h3><p>当 API 返回 <code>object</code> 或 <code>list&lt;object&gt;</code> 时，可以使用点访问和索引访问：</p>
+<pre><code class="language-cpp">auto accounts = GetSteamAccounts();
+auto first = accounts[0];
+
+Log(first.persona_name);
+Log(first[&quot;account_name&quot;]);
+Log(accounts[0].steam_id64);
+</code></pre>
+<h3 id="sec-42-控制流">控制流</h3><p>当前支持：</p>
 <ul>
-<li>用途：创建或覆盖文件。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
+<li><code>if</code></li>
+<li><code>else if</code></li>
+<li><code>elseif</code></li>
+<li><code>else</code></li>
+<li><code>while</code></li>
+<li><code>for</code></li>
+<li><code>goto</code></li>
+<li><code>break</code></li>
+<li><code>continue</code></li>
+<li><code>return</code></li>
 </ul>
-</li>
-<li><code>content</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-43-goto">`goto`</h3><p><code>goto</code> 会先在当前 block 查找目标标签，当前 block 找不到时会继续向外层传播。</p>
+<pre><code class="language-cpp">for(int i=0; i&lt;10; i++){
+    if(i == 6){
+        goto done;
+    }
+}
+
+done:
+Log(&quot;跳转完成&quot;);
+</code></pre>
+<h3 id="sec-44-return">`return`</h3><ul>
+<li>顶层脚本的 <code>return;</code> 只结束当前脚本</li>
+<li>函数内的 <code>return expr;</code> 会把值返回给调用方</li>
+<li>子脚本或函数的 <code>return</code> 不会把其他脚本一起截断</li>
 </ul>
-</li>
+<pre><code class="language-cpp">int Sum3(int a, int b, int c){
+    return a + b + c;
+}
+</code></pre>
+<h3 id="sec-45-on-边沿触发">`on:` 边沿触发</h3><p><code>on:</code> 表示条件从假变真时只触发一次：</p>
+<pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
+    Log(&quot;刚进入 live&quot;);
+}
+</code></pre>
+<h2 id="sec-46-函数">函数</h2><h3 id="sec-47-函数定义">函数定义</h3><pre><code class="language-cpp">int Add(int a, int b){
+    return a + b;
+}
+
+bool IsAlive(){
+    return health &gt; 0;
+}
+
+void Ping(){
+    Log(&quot;ping&quot;);
+}
+</code></pre>
+<h3 id="sec-48-建议使用的返回类型">建议使用的返回类型</h3><ul>
+<li><code>int</code></li>
+<li><code>float</code></li>
+<li><code>double</code></li>
+<li><code>string</code></li>
+<li><code>bool</code></li>
+<li><code>void</code></li>
+<li><code>auto</code></li>
+<li><code>vector&lt;T&gt;</code></li>
+<li><code>array&lt;T&gt;</code></li>
 </ul>
-<p><code>DFile(path)</code></p>
-<ul>
-<li>用途：删除文件。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-49-函数返回值示例">函数返回值示例</h3><pre><code class="language-cpp">string JudgeState(int hp){
+    if(hp &lt;= 0){
+        return &quot;dead&quot;;
+    }
+    return &quot;alive&quot;;
+}
+</code></pre>
+<h2 id="sec-50-内建函数总表">内建函数总表</h2><p>下面这份清单与当前 <code>ExecuteFunction(...)</code> 实现一一对应，可直接用于核对当前版本到底有哪些可调用函数。</p>
+<h3 id="sec-51-数据与判断">数据与判断</h3><ul>
+<li><code>Size</code></li>
+<li><code>TypeOf</code></li>
+<li><code>IsVoid</code></li>
+<li><code>HasField</code></li>
+<li><code>Contains</code></li>
+<li><code>StartsWith</code></li>
+<li><code>EndsWith</code></li>
+<li><code>Previous</code></li>
+<li><code>Changed</code></li>
+<li><code>ChangedTo</code></li>
+<li><code>Delta</code></li>
+<li><code>Cooldown</code></li>
+<li><code>Log</code></li>
+<li><code>Sleep</code></li>
 </ul>
-</li>
+<h3 id="sec-52-steam-与本地环境">Steam 与本地环境</h3><ul>
+<li><code>GetSteamPath</code></li>
+<li><code>GetCS2InstallPath</code></li>
+<li><code>GetCS2CfgPath</code></li>
+<li><code>WriteSteamGSIConfig</code></li>
+<li><code>GetSteamUserIDs32</code></li>
+<li><code>GetSteamUserIDs64</code></li>
+<li><code>HasSteamUser32</code></li>
+<li><code>HasSteamUser64</code></li>
+<li><code>Steam32To64</code></li>
+<li><code>Steam64To32</code></li>
+<li><code>GetSteamLocalConfigPath32</code></li>
+<li><code>GetSteamLocalConfigPath64</code></li>
+<li><code>GetSteamLaunchOptions32</code></li>
+<li><code>GetSteamLaunchOptions64</code></li>
+<li><code>GetSteamAccounts</code></li>
 </ul>
-<p><code>OwriteFile(path, content)</code></p>
-<ul>
-<li>用途：覆写文件。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-53-gsi-对象">GSI 对象</h3><ul>
+<li><code>GetAllPlayers</code></li>
+<li><code>GetCurrentPlayerWeapons</code></li>
 </ul>
-</li>
-<li><code>content</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-54-窗口启动与控制">窗口、启动与控制</h3><ul>
+<li><code>CloseGameWindow</code></li>
+<li><code>KillGameProcess</code></li>
+<li><code>RunGameProcess</code></li>
+<li><code>ShowGameProcess</code></li>
+<li><code>Browser</code></li>
+<li><code>Open</code></li>
+<li><code>EnsureProcessWindow</code></li>
+<li><code>Top</code></li>
 </ul>
-</li>
+<h3 id="sec-55-图像与音频">图像与音频</h3><ul>
+<li><code>Drawimg</code></li>
+<li><code>Closeimg</code></li>
+<li><code>Playsnd</code></li>
+<li><code>Stopsnd</code></li>
 </ul>
-<p><code>AwriteFile(path, content)</code></p>
-<ul>
-<li>用途：追加写入文件。</li>
-<li>参数：</li>
-<li><code>path</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-56-音量与准星">音量与准星</h3><ul>
+<li><code>SetProcessVolume</code></li>
+<li><code>SetProcessMute</code></li>
+<li><code>SetDeathVolume</code></li>
+<li><code>SetDeathMute</code></li>
+<li><code>SetCrosshairEnabled</code></li>
+<li><code>SetCrosshairVisual</code></li>
+<li><code>SetCrosshairConfig</code></li>
+<li><code>SetCrosshair</code></li>
 </ul>
-</li>
-<li><code>content</code><ul>
-<li>类型：<code>string</code></li>
+<h3 id="sec-57-高权限">高权限</h3><ul>
+<li><code>ShellExecute</code></li>
+<li><code>CFile</code></li>
+<li><code>OwriteFile</code></li>
+<li><code>AwriteFile</code></li>
+<li><code>DFile</code></li>
 </ul>
-</li>
-</ul>
-<h3>6.3 StrikeSense 状态函数</h3>
-<p><code>SetDeathVolume(value)</code></p>
-<ul>
-<li>用途：修改“死亡后即时降低”音量。</li>
-<li>参数：</li>
-<li><code>value</code><ul>
-<li>类型：<code>float</code></li>
-<li>范围：<code>0.0 ~ 1.0</code></li>
-</ul>
-</li>
-</ul>
-<p><code>SetProcessVolume(process_name, volume_percent)</code></p>
-<ul>
-<li>用途：直接修改指定进程当前音频会话的系统合成器音量。</li>
-<li>参数：</li>
-<li><code>process_name</code><ul>
-<li>类型：<code>string</code></li>
-<li>示例：<code>"cs2.exe"</code>、<code>"chrome.exe"</code>、<code>"Spotify.exe"</code></li>
-</ul>
-</li>
-<li><code>volume_percent</code><ul>
-<li>类型：<code>float</code></li>
-<li>范围：<code>0.0 ~ 100.0</code></li>
-</ul>
-</li>
-<li>说明：</li>
-<li>这里传的是百分比，不是 <code>0.0 ~ 1.0</code> 的系数。</li>
-<li>该函数等同于 C++ 层的 <code>SetProcessVolumeByName(processName, volumePercent)</code>。</li>
-<li>只有目标进程已经创建了音频会话时，系统合成器音量才能被改到。</li>
-</ul>
-<p><code>SetProcessMute(process_name, muted)</code></p>
-<ul>
-<li>用途：直接修改指定进程当前音频会话的静音状态。</li>
-<li>参数：</li>
-<li><code>process_name</code><ul>
-<li>类型：<code>string</code></li>
-<li>示例：<code>"msedge.exe"</code>、<code>"chrome.exe"</code></li>
-</ul>
-</li>
-<li><code>muted</code><ul>
-<li>类型：<code>bool</code></li>
-<li><code>true</code> 表示静音，<code>false</code> 表示取消静音。</li>
-</ul>
-</li>
-<li>说明：</li>
-<li>该函数等同于 C++ 层的 <code>SetProcessMuteByName(processName, muted)</code>。</li>
-<li>适合配合 <code>ShowGameProcess()</code> / <code>Browser(...)</code> 做浏览器静音与取消静音。</li>
-</ul>
-<p><code>SetDeathMute(enabled)</code></p>
-<ul>
-<li>用途：开启或关闭“死亡后即时降低”。</li>
-<li>参数：</li>
-<li><code>enabled</code><ul>
-<li>类型：<code>bool</code></li>
-</ul>
-</li>
-</ul>
-<p><code>SetCrosshairEnabled(enabled)</code></p>
-<ul>
-<li>用途：只控制脚本准星开关。</li>
-<li>参数：</li>
-<li><code>enabled</code><ul>
-<li>类型：<code>bool</code></li>
-</ul>
-</li>
-</ul>
-<p><code>SetCrosshairVisual(r, g, b, style, thickness, scale)</code></p>
-<ul>
-<li>用途：只更新脚本准星外观，不负责开关。</li>
-<li>参数：</li>
-<li><code>r</code><ul>
-<li>类型：<code>int</code></li>
-<li>范围：<code>0 ~ 255</code></li>
-</ul>
-</li>
-<li><code>g</code><ul>
-<li>类型：<code>int</code></li>
-<li>范围：<code>0 ~ 255</code></li>
-</ul>
-</li>
-<li><code>b</code><ul>
-<li>类型：<code>int</code></li>
-<li>范围：<code>0 ~ 255</code></li>
-</ul>
-</li>
-<li><code>style</code><ul>
-<li>类型：<code>int</code></li>
-<li>可能值：</li>
-<li><code>0</code> 空心圆</li>
-<li><code>1</code> 实心圆</li>
-<li><code>2</code> 经典十字</li>
-</ul>
-</li>
-<li><code>thickness</code><ul>
-<li>类型：<code>int</code></li>
-<li>范围：<code>1 ~ 10</code></li>
-</ul>
-</li>
-<li><code>scale</code><ul>
-<li>类型：<code>float</code></li>
-<li>范围：<code>0.1 ~ 0.6</code></li>
-</ul>
-</li>
-</ul>
-<p><code>SetCrosshair(enabled, r, g, b, style, thickness, scale)</code></p>
-<ul>
-<li>用途：兼容旧写法，一次同时设置开关和外观。</li>
-<li>建议：新脚本优先拆成 <code>SetCrosshairEnabled</code> 和 <code>SetCrosshairVisual</code>。</li>
-</ul>
-<h2>7. 变量来源分类</h2>
-<p>变量分两大类：</p>
-<ol>
-<li><code>GSI 原始变量</code></li>
-<li>来源：游戏直接发来的 JSON。</li>
-<li>特征：能从 GSI 原文里直接找到。</li>
-<li><code>内部变量</code></li>
-<li>来源：StrikeSense 根据 GSI 和自身状态机推导出的二级结论。</li>
-<li>特征：不是游戏直接给的，而是程序算出来的。</li>
-</ol>
-<h2>8. GSI 原始变量</h2>
-<h3>8.1 原始展开变量</h3>
-<p>任何收到的 GSI 字段，都会尽量同步成 <code>gsi_...</code> 变量。</p>
-<p>例如：</p>
-<ul>
-<li><code>gsi_provider_name</code></li>
-<li><code>gsi_map_team_ct_score</code></li>
-<li><code>gsi_player_state_health</code></li>
-<li><code>gsi_player_weapons_weapon_1_ammo_clip</code></li>
-</ul>
-<p>补充：</p>
-<ul>
-<li><code>gsi_field_count</code></li>
-<li>作用：当前已同步的叶子字段数量。</li>
-<li>来源：内部统计，但统计对象是 GSI 原始字段。</li>
-</ul>
-<h3>8.2 便捷别名变量</h3>
-<p>这些变量本质仍然来自游戏 GSI，但名字更短，脚本更方便写。</p>
-<ul>
-<li><code>provider_name</code></li>
-<li>作用：游戏名称。</li>
-<li>可能值：<code>Counter-Strike: Global Offensive</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>provider_appid</code></li>
-<li>作用：游戏 AppID。</li>
-<li>可能值：<code>730</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>provider_version</code></li>
-<li>作用：GSI 提供的版本号。</li>
-<li>来源：游戏 GSI</li>
-<li><code>provider_steamid</code></li>
-<li>作用：当前玩家 SteamID。</li>
-<li>来源：游戏 GSI</li>
-<li><code>provider_timestamp</code></li>
-<li>作用：GSI 数据时间戳。</li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>map</code></p>
-</li>
-<li>作用：地图名。</li>
-<li>可能值：<code>de_nuke</code>、<code>de_mirage</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>map_mode</code></li>
-<li>作用：模式名。</li>
-<li>可能值：<code>competitive</code>、<code>casual</code>、<code>deathmatch</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>map_phase</code></li>
-<li>作用：地图阶段。</li>
-<li>来源：游戏 GSI</li>
-<li><code>map_round</code></li>
-<li>作用：当前总回合编号。</li>
-<li>来源：游戏 GSI</li>
-<li><code>team_ct_score</code></li>
-<li><code>team_ct_consecutive_round_losses</code></li>
-<li><code>team_ct_timeouts_remaining</code></li>
-<li><code>team_ct_matches_won_this_series</code></li>
-<li><code>team_t_score</code></li>
-<li><code>team_t_consecutive_round_losses</code></li>
-<li><code>team_t_timeouts_remaining</code></li>
-<li><code>team_t_matches_won_this_series</code></li>
-<li><code>map_num_matches_to_win_series</code></li>
-<li>作用：都是比分与系列赛相关值。</li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>round_phase</code></p>
-</li>
-<li>作用：当前回合阶段。</li>
-<li>可能值：<code>freezetime</code>、<code>live</code>、<code>over</code>、<code>gameover</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>round_win_team</code></li>
-<li>作用：回合获胜方。</li>
-<li>可能值：<code>CT</code>、<code>T</code></li>
-<li>来源：游戏 GSI / added.round</li>
-<li><code>bomb</code></li>
-<li>作用：炸弹状态。</li>
-<li>可能值：<code>planted</code></li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>player_name</code></p>
-</li>
-<li><code>steamid</code></li>
-<li><code>team</code></li>
-<li><code>activity</code></li>
-<li><code>observer_slot</code></li>
-<li>作用：当前玩家身份与活动状态。</li>
-<li><code>activity</code> 可能值：<code>menu</code>、<code>playing</code></li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>health</code></p>
-</li>
-<li><code>armor</code></li>
-<li><code>helmet</code></li>
-<li><code>flashed</code></li>
-<li><code>smoked</code></li>
-<li><code>burning</code></li>
-<li><code>money</code></li>
-<li><code>kills</code></li>
-<li><code>round_killhs</code></li>
-<li><code>equip_value</code></li>
-<li>作用：当前玩家状态值。</li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>mvps</code></p>
-</li>
-<li><code>match_kills</code></li>
-<li><code>match_assists</code></li>
-<li><code>match_deaths</code></li>
-<li><code>match_score</code></li>
-<li>作用：整场比赛统计值。</li>
-<li>
-<p>来源：游戏 GSI</p>
-</li>
-<li>
-<p><code>weapon_name</code></p>
-</li>
-<li>作用：当前激活武器名。</li>
-<li>可能值：<code>weapon_hkp2000</code>、<code>weapon_awp</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>weapon_type</code></li>
-<li>作用：当前激活武器类型。</li>
-<li>可能值：<code>Pistol</code>、<code>SniperRifle</code>、<code>Knife</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>weapon_state</code></li>
-<li>作用：当前激活武器状态。</li>
-<li>可能值：<code>active</code>、<code>holstered</code>、<code>reloading</code></li>
-<li>来源：游戏 GSI</li>
-<li><code>weapon_ammo_clip</code></li>
-<li><code>weapon_ammo_clip_max</code></li>
-<li><code>weapon_ammo_reserve</code></li>
-<li>作用：当前武器弹药信息。</li>
-<li>来源：游戏 GSI</li>
-</ul>
-<h3>8.3 上一帧别名变量</h3>
-<ul>
-<li><code>prev_round_phase</code></li>
-<li><code>prev_kills</code></li>
-<li><code>prev_health</code></li>
-<li><code>prev_weapon_name</code></li>
-<li><code>prev_weapon_type</code></li>
-<li><code>prev_weapon_state</code></li>
-<li><code>prev_weapon_ammo_clip</code></li>
-<li><code>prev_weapon_ammo_reserve</code></li>
-</ul>
-<p>作用：</p>
-<ul>
-<li>提供上一帧的便捷快照，方便直接写比较逻辑。</li>
-</ul>
-<p>来源：</p>
-<ul>
-<li>内部缓存，但内容来自上一帧 GSI。</li>
-</ul>
-<h2>9. 内部变量</h2>
-<p>这些变量不是游戏直接给的，而是 StrikeSense 根据 GSI 或状态机推导出来的二级结论。</p>
-<h3>9.1 武器事件内部变量</h3>
-<ul>
-<li><code>weapon_fired</code></li>
-<li>作用：这一帧检测到当前武器打出子弹。</li>
-<li>判定：<code>weapon_ammo_clip</code> 比上一帧减少。</li>
-<li>可能值：<code>true / false</code></li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_reloading</code></p>
-</li>
-<li>作用：这一帧检测到当前武器完成一次装填变化。</li>
-<li>判定：<code>weapon_ammo_clip</code> 比上一帧增加。</li>
-<li>可能值：<code>true / false</code></li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_switched</code></p>
-</li>
-<li>作用：这一帧检测到切枪。</li>
-<li>判定：当前 <code>weapon_name</code> 与上一帧不同。</li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_clip_delta</code></p>
-</li>
-<li>作用：弹匣子弹变化量。</li>
-<li>判定：<code>上一帧 ammo_clip - 当前 ammo_clip</code></li>
-<li>常见数值：<ul>
-<li><code>1</code> 表示打出一发</li>
-<li><code>0</code> 表示没有变化</li>
-<li>负数常见于装弹</li>
-</ul>
-</li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_reserve_delta</code></p>
-</li>
-<li>作用：备用弹药变化量。</li>
-<li>判定：<code>上一帧 ammo_reserve - 当前 ammo_reserve</code></li>
-<li>常见数值：<ul>
-<li>正数表示备用弹减少</li>
-<li><code>0</code> 表示无变化</li>
-</ul>
-</li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_fire_count</code></p>
-</li>
-<li>作用：本回合累计开火次数。</li>
-<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_reload_count</code></p>
-</li>
-<li>作用：本回合累计检测到的装填次数。</li>
-<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>weapon_reserve_drop_count</code></p>
-</li>
-<li>作用：本回合累计检测到的备用弹药下降次数。</li>
-<li>重置时机：<code>round_phase</code> 刚进入 <code>live</code></li>
-<li>来源：内部推导</li>
-</ul>
-<h3>9.2 程序状态内部变量</h3>
-<ul>
-<li><code>death_mute</code></li>
-<li>作用：表示“本回合已判定死亡且当前仍处于死亡状态”的程序级结论。</li>
-<li>
-<p>来源：内部推导</p>
-</li>
-<li>
-<p><code>self_alive</code></p>
-</li>
-<li>作用：当前自己是否存活。</li>
-<li>
-<p>来源：程序内部状态机</p>
-</li>
-<li>
-<p><code>self_dead_this_round</code></p>
-</li>
-<li>作用：当前回合内自己是否已经被程序判定为死过一次。</li>
-<li>
-<p>来源：程序内部状态机</p>
-</li>
-<li>
-<p><code>internal_last_phase</code></p>
-</li>
-<li><code>internal_last_kills</code></li>
-<li><code>internal_last_mvps</code></li>
-<li><code>internal_dead_muted</code></li>
-<li><code>internal_waiting_for_live</code></li>
-<li><code>internal_round_started</code></li>
-<li><code>internal_mvp_candidate_kills</code></li>
-<li><code>internal_mvp_pushed_this_round</code></li>
-<li><code>internal_mvps_at_round_start</code></li>
-<li><code>internal_gameover_pushed</code></li>
-<li><code>internal_bomb_planted_this_round</code></li>
-<li><code>internal_player_team</code></li>
-<li><code>internal_map_mode</code></li>
-<li><code>internal_activity</code></li>
-<li><code>internal_round_kills</code></li>
-<li><code>internal_health</code></li>
-<li><code>internal_in_lobby</code></li>
-</ul>
-<p>这些变量的共同说明：</p>
-<ul>
-<li>作用：暴露 StrikeSense 在 <code>gsi_server</code> 内部维护的状态机结果。</li>
-<li>来源：内部变量，不是游戏直接字段。</li>
-<li>用法：</li>
-<li>当你想复用程序现成判断，而不是自己重新用一堆 GSI 字段写条件时，可以直接用它们。</li>
-</ul>
-<h2>10. 缺失值</h2>
-<p>如果字段当前不存在，会写成：</p>
+<h2 id="sec-58-缺失值规则">缺失值规则</h2><p>当某个字段当前不存在时，脚本层会得到：</p>
 <p><code>void</code></p>
-<p>脚本里判断时要留意这一点。</p>
+<p>建议写法：</p>
+<pre><code class="language-cpp">if(!IsVoid(player_name)){
+    Log(player_name);
+}
+</code></pre>
+<h2 id="sec-59-综合示范脚本">综合示范脚本</h2><p>下面这个脚本覆盖了当前最常用的语法与 API：</p>
+<pre><code class="language-cpp">const int aliveLine = 1;
+vector&lt;int&gt; marks = { 1, 2, 3 };
+array&lt;string&gt; states = { &quot;idle&quot;, &quot;live&quot;, &quot;over&quot; };
+double weight = 1.5;
+auto retry = 0;
+
+int Sum3(int a, int b, int c){
+    return a + b + c;
+}
+
+string JudgeAccount(auto account){
+    if(account.most_recent){
+        return &quot;最近登录账号&quot;;
+    }else if(account.allow_auto_login){
+        return &quot;允许自动登录账号&quot;;
+    }elseif(Contains(account.account_name, &quot;alt&quot;)){
+        return &quot;像是备用账号&quot;;
+    }else{
+        return &quot;普通账号&quot;;
+    }
+}
+
+for(int i=0; i&lt;6; i++){
+    retry += 1;
+    if(i % 2 == 0){
+        continue;
+    }else if(i == 5){
+        goto steam_demo;
+    }
+}
+
+steam_demo:
+retry %= 3;
+
+if(ChangedTo(&quot;round_phase&quot;, &quot;live&quot;) &amp;&amp; Cooldown(&quot;round_live_tip&quot;, 3000)){
+    Log(&quot;round_phase 切到了 live&quot;);
+}
+
+if(Delta(&quot;kills&quot;) &gt; 0){
+    Log(&quot;本帧击杀增量=&quot; + Delta(&quot;kills&quot;));
+}
+
+auto accounts = GetSteamAccounts();
+for(int i=0; i&lt;Size(accounts); i++){
+    auto account = accounts[i];
+    Log(&quot;account_name=&quot; + account.account_name);
+    Log(&quot;分类结果=&quot; + JudgeAccount(account));
+}
+
+return;
+</code></pre>
+<h2 id="sec-60-steam-多元对象提取示例">Steam 多元对象提取示例</h2><p>这个例子专门演示如何从复杂对象里抽字段，再做 <code>if / else if / elseif / else</code>：</p>
+<pre><code class="language-cpp">string DescribeAccount(auto account){
+    if(account.most_recent){
+        return &quot;最近登录&quot;;
+    }else if(account.allow_auto_login){
+        return &quot;允许自动登录&quot;;
+    }elseif(account.remember_password){
+        return &quot;记住密码&quot;;
+    }else{
+        return &quot;普通账号&quot;;
+    }
+}
+
+auto accounts = GetSteamAccounts();
+for(int i=0; i&lt;Size(accounts); i++){
+    auto account = accounts[i];
+    Log(account.persona_name);
+    Log(account.steam_id64);
+    Log(DescribeAccount(account));
+}
+</code></pre>
+<h2 id="sec-61-示例文件">示例文件</h2><p>仓库中当前示例脚本：</p>
+<ul>
+<li><code>vscript_examples/syntax_showcase.vscript</code></li>
+<li><code>vscript_examples/steam_accounts_showcase.vscript</code></li>
+</ul>
+
+        </article>
+        <aside class="docs-sidebar">
+            <h2>快速索引</h2>
+            <input id="docsSearch" class="docs-search" type="search" placeholder="搜索变量、函数、关键字..." />
+            <nav class="docs-toc" id="docsToc">
+                <div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-1-文档版本" data-search="文档版本">文档版本</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-2-系统定位" data-search="系统定位">系统定位</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-3-快速上手" data-search="快速上手">快速上手</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-4-gsi-变量" data-search="gsi 变量">GSI 变量</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-5-gsi-原始展开变量" data-search="gsi 原始展开变量">GSI 原始展开变量</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-6-常用便捷别名变量" data-search="常用便捷别名变量">常用便捷别名变量</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-7-上一帧快照变量" data-search="上一帧快照变量">上一帧快照变量</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-8-内部派生变量" data-search="内部派生变量">内部派生变量</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-9-事件辅助-api" data-search="事件辅助 api">事件辅助 API</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-10-变化检测" data-search="变化检测">变化检测</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-11-第一个实用脚本" data-search="第一个实用脚本">第一个实用脚本</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-12-常规工具-api" data-search="常规工具 api">常规工具 API</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-13-gsi-强相关对象-api" data-search="gsi 强相关对象 api">GSI 强相关对象 API</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-14-全部玩家对象" data-search="全部玩家对象">全部玩家对象</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-15-当前玩家武器对象" data-search="当前玩家武器对象">当前玩家武器对象</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-16-steam-与本地环境-api" data-search="steam 与本地环境 api">Steam 与本地环境 API</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-17-路径与基础环境" data-search="路径与基础环境">路径与基础环境</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-18-steam-用户-id" data-search="steam 用户 id">Steam 用户 ID</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-19-本地配置读取" data-search="本地配置读取">本地配置读取</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-20-本地账号对象" data-search="本地账号对象">本地账号对象</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-21-窗口启动与外部交互-api" data-search="窗口、启动与外部交互 api">窗口、启动与外部交互 API</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-22-常规系统控制" data-search="常规系统控制">常规系统控制</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-23-高权限文件与命令" data-search="高权限文件与命令">高权限文件与命令</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-24-图像音频音量与准星-api" data-search="图像、音频、音量与准星 api">图像、音频、音量与准星 API</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-25-图像与音频" data-search="图像与音频">图像与音频</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-26-音量控制" data-search="音量控制">音量控制</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-27-准星控制" data-search="准星控制">准星控制</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-28-权限与安全模型" data-search="权限与安全模型">权限与安全模型</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-29-权限等级" data-search="权限等级">权限等级</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-30-关键规则" data-search="关键规则">关键规则</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-31-高权限-api-分组" data-search="高权限 api 分组">高权限 API 分组</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-32-元信息" data-search="元信息">元信息</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-33-字段说明" data-search="字段说明">字段说明</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-34-语法规则" data-search="语法规则">语法规则</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-35-基础风格" data-search="基础风格">基础风格</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-36-当前支持的变量类型" data-search="当前支持的变量类型">当前支持的变量类型</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-37-auto-规则" data-search="`auto` 规则">`auto` 规则</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-38-const" data-search="`const`">`const`</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-39-运算符" data-search="运算符">运算符</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-40-容器语法" data-search="容器语法">容器语法</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-41-对象与字段访问" data-search="对象与字段访问">对象与字段访问</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-42-控制流" data-search="控制流">控制流</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-43-goto" data-search="`goto`">`goto`</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-44-return" data-search="`return`">`return`</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-45-on-边沿触发" data-search="`on:` 边沿触发">`on:` 边沿触发</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-46-函数" data-search="函数">函数</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-47-函数定义" data-search="函数定义">函数定义</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-48-建议使用的返回类型" data-search="建议使用的返回类型">建议使用的返回类型</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-49-函数返回值示例" data-search="函数返回值示例">函数返回值示例</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-50-内建函数总表" data-search="内建函数总表">内建函数总表</a>
+  <div class="toc-group-children">
+    <div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-51-数据与判断" data-search="数据与判断">数据与判断</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-52-steam-与本地环境" data-search="steam 与本地环境">Steam 与本地环境</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-53-gsi-对象" data-search="gsi 对象">GSI 对象</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-54-窗口启动与控制" data-search="窗口、启动与控制">窗口、启动与控制</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-55-图像与音频" data-search="图像与音频">图像与音频</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-56-音量与准星" data-search="音量与准星">音量与准星</a>
+    
+  </div>
+  
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-57-高权限" data-search="高权限">高权限</a>
+    
+  </div>
+  
+</div>
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-58-缺失值规则" data-search="缺失值规则">缺失值规则</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-59-综合示范脚本" data-search="综合示范脚本">综合示范脚本</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-60-steam-多元对象提取示例" data-search="steam 多元对象提取示例">Steam 多元对象提取示例</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div><div class="toc-group">
+  <a class="toc-link toc-top" href="#sec-61-示例文件" data-search="示例文件">示例文件</a>
+  <div class="toc-group-children">
+    
+  </div>
+</div>
+            </nav>
+            <p class="docs-note">子分类默认折叠，搜索时会自动展开相关分类。</p>
+        </aside>
     </main>
     <footer id="download" class="footer">
         <div class="container footer-content">
-            <h3>开启你的全新 StrikeSense 竞技之旅</h3>
-            <p>环境要求：Windows 10 / 11 64位系统 | 完美支持 CS2 官方纯净环境</p>
-            <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg js-download-choice">立即免费下载</a>
-            
             <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
         </div>
     </footer>
     <script src="script.js"></script>
+    <script>
+        (() => {
+            const search = document.getElementById("docsSearch");
+            const links = Array.from(document.querySelectorAll("#docsToc .toc-link"));
+            const sections = Array.from(document.querySelectorAll("#docsToc .toc-section"));
+            const groups = Array.from(document.querySelectorAll("#docsToc .toc-group"));
+            const toggles = Array.from(document.querySelectorAll("#docsToc .toc-toggle"));
+            const headingMap = new Map(
+                links.map((link) => [link, document.getElementById(link.getAttribute("href").slice(1))]),
+            );
+
+            function nextHeadingElement(current) {
+                let node = current?.nextElementSibling ?? null;
+                while (node) {
+                    if (/^H[1-6]$/.test(node.tagName)) return node;
+                    node = node.nextElementSibling;
+                }
+                return null;
+            }
+
+            function collectSectionText(heading) {
+                let text = heading?.textContent || "";
+                let node = heading?.nextElementSibling ?? null;
+                while (node && !/^H[1-6]$/.test(node.tagName)) {
+                    text += " " + (node.textContent || "");
+                    node = node.nextElementSibling;
+                }
+                return text.toLowerCase();
+            }
+
+            const sectionTexts = new Map(
+                links.map((link) => {
+                    const heading = headingMap.get(link);
+                    return [link, collectSectionText(heading)];
+                }),
+            );
+
+            function toggleSection(heading, visible) {
+                if (!heading) return;
+                let node = heading;
+                const stop = nextHeadingElement(heading);
+                while (node && node !== stop) {
+                    node.classList.toggle("docs-hidden", !visible);
+                    node = node.nextElementSibling;
+                }
+            }
+
+            function setExpanded(button, expanded) {
+                if (!button) return;
+                const targetId = button.getAttribute("data-target");
+                const target = targetId ? document.getElementById(targetId) : null;
+                if (!target) return;
+                button.setAttribute("aria-expanded", expanded ? "true" : "false");
+                button.textContent = expanded ? "收起" : "展开";
+                target.classList.toggle("docs-hidden", !expanded);
+            }
+
+            toggles.forEach((button) => {
+                button.addEventListener("click", () => {
+                    const expanded = button.getAttribute("aria-expanded") === "true";
+                    setExpanded(button, !expanded);
+                });
+            });
+
+            function applyFilter() {
+                const keyword = (search.value || "").trim().toLowerCase();
+                const isFiltering = keyword.length > 0;
+                const matchedMap = new Map();
+
+                links.forEach((link) => {
+                  const matched = !isFiltering || (sectionTexts.get(link) || "").includes(keyword) || (link.textContent || "").toLowerCase().includes(keyword);
+                  matchedMap.set(link, matched);
+                });
+
+                links.forEach((link) => {
+                    const matched = matchedMap.get(link) || false;
+                    if (link.classList.contains("toc-top")) {
+                        link.classList.remove("docs-hidden");
+                    } else if (link.classList.contains("toc-branch")) {
+                        link.classList.remove("docs-hidden");
+                    } else {
+                        link.classList.toggle("docs-hidden", isFiltering && !matched);
+                    }
+                    toggleSection(headingMap.get(link), matched || !isFiltering);
+                });
+
+                sections.forEach((section) => {
+                    const branchLink = section.querySelector(".toc-branch");
+                    const childLinks = Array.from(section.querySelectorAll(".toc-leaf"));
+                    const selfMatched = branchLink ? (matchedMap.get(branchLink) || false) : false;
+                    const childMatched = childLinks.some((link) => matchedMap.get(link));
+                    const visible = !isFiltering || selfMatched || childMatched;
+                    section.classList.toggle("docs-hidden", !visible);
+
+                    const toggle = section.querySelector(".toc-toggle");
+                    if (toggle) {
+                        setExpanded(toggle, isFiltering ? childMatched : false);
+                    }
+                });
+
+                groups.forEach((group) => {
+                    const topLink = group.querySelector(".toc-top");
+                    const groupMatched = topLink ? (matchedMap.get(topLink) || false) : false;
+                    const visibleSection = Array.from(group.querySelectorAll(".toc-section")).some((section) => !section.classList.contains("docs-hidden"));
+                    const visible = !isFiltering || groupMatched || visibleSection;
+                    group.classList.toggle("docs-hidden", !visible);
+                });
+            }
+
+            applyFilter();
+            search.addEventListener("input", applyFilter);
+        })();
+    </script>
 </body>
 </html>
