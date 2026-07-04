@@ -3,13 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ====== 💎 1. 手机端侧边汉堡菜单抽屉交互 ======
     const menuToggle = document.getElementById('menuToggle');
     const navLinks = document.getElementById('navLinks');
-    const links = navLinks.querySelectorAll('a');
+    const links = navLinks ? navLinks.querySelectorAll('a') : [];
 
     // 点击按钮切换菜单
-    menuToggle.addEventListener('click', () => {
-        menuToggle.classList.toggle('open');
-        navLinks.classList.toggle('open');
-    });
+    if (menuToggle && navLinks) {
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('open');
+            navLinks.classList.toggle('open');
+        });
+    }
 
     // 点击菜单内任意跳转链接后，自动关闭抽屉
     links.forEach(link => {
@@ -25,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     faqItems.forEach(item => {
         const question = item.querySelector('.faq-question');
         const answer = item.querySelector('.faq-answer');
+        if (!question || !answer) return;
         
         question.addEventListener('click', (e) => {
             // 防止点击事件冒泡到内部的其他卡片元素
@@ -56,21 +59,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ====== 💎 3. 滚动动态半透明毛玻璃导航栏效果 ======
     const navbar = document.querySelector('.navbar');
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 40) {
-            navbar.style.boxShadow = '0 8px 25px rgba(9, 114, 122, 0.08)';
-            navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.95)';
-        } else {
-            navbar.style.boxShadow = 'none';
-            navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.85)';
-        }
-    });
+    if (navbar) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 40) {
+                navbar.style.boxShadow = '0 8px 25px rgba(9, 114, 122, 0.08)';
+                navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.95)';
+            } else {
+                navbar.style.boxShadow = 'none';
+                navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.85)';
+            }
+        });
+    }
 
     // 下载版本选择弹窗
     const downloadModal = document.getElementById('downloadModal');
     const nightlyList = document.getElementById('nightlyList');
     const showNightlyFiles = document.getElementById('showNightlyFiles');
     const downloadButtons = document.querySelectorAll('.js-download-choice');
+
+    if (!downloadModal || !nightlyList || !showNightlyFiles || downloadButtons.length === 0) {
+        return;
+    }
 
     const formatFileSize = (bytes) => {
         if (!Number.isFinite(bytes) || bytes <= 0) return '大小未知';
