@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StrikeSense - VScript 图形编程工作台</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="vscript_studio.css">
+</head>
+<body>
+    <header class="navbar studio-navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">StrikeSense</a>
+            <div class="studio-navbar__meta">
+                <span class="badge">VScript 图形编程</span>
+                <span class="studio-navbar__tip">拖动积木，拼出自己的脚本</span>
+            </div>
+            <div class="studio-navbar__actions">
+                <input id="scriptName" class="studio-input" type="text" value="my_custom_script.vscript" placeholder="脚本文件名">
+                <button id="loadSampleBtn" class="btn btn-secondary">加载示例</button>
+                <button id="clearBtn" class="btn btn-secondary">清空画布</button>
+                <button id="downloadBtn" class="btn btn-primary">下载 vscript</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="studio-shell">
+        <aside class="studio-panel studio-panel--toolbox">
+            <div class="studio-panel__head">
+                <div>
+                    <h1>积木库</h1>
+                    <p>把左侧积木拖到中间，再点右侧下载。</p>
+                </div>
+                <input id="toolboxSearch" class="studio-search" type="search" placeholder="搜索积木、函数、关键字">
+            </div>
+
+            <section class="toolbox-group" data-group="values">
+                <h2>数值与表达式</h2>
+                <div class="palette-list" id="palette-values"></div>
+            </section>
+
+            <section class="toolbox-group" data-group="control">
+                <h2>流程控制</h2>
+                <div class="palette-list" id="palette-control"></div>
+            </section>
+
+            <section class="toolbox-group" data-group="actions">
+                <h2>动作与 API</h2>
+                <div class="palette-list" id="palette-actions"></div>
+            </section>
+
+            <section class="toolbox-group" data-group="functions">
+                <h2>函数与自定义</h2>
+                <div class="palette-list" id="palette-functions"></div>
+            </section>
+        </aside>
+
+        <section class="studio-panel studio-workbench">
+            <div class="workbench-hero">
+                <div>
+                    <span class="workbench-kicker">Scratch 风格工作区</span>
+                    <h2>拖进去，连起来，马上看到 VScript</h2>
+                    <p>条件、循环、函数、数值块都可以自由组合，不会把事件写死在某个固定语句里。</p>
+                </div>
+                <div class="workbench-hero__actions">
+                    <button id="sampleFlowBtn" class="btn btn-secondary">插入流程样例</button>
+                    <button id="copyCodeBtn" class="btn btn-secondary">复制代码</button>
+                </div>
+            </div>
+
+            <div id="board" class="board" aria-label="VScript 工作区">
+                <div id="programRoot" class="board__stack" data-slot-kind="stmt"></div>
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-state__badge">空白画布</div>
+                    <h3>从左侧拖一个积木开始</h3>
+                    <p>你可以先拖一个“如果”“重复”“函数定义”或者“日志”积木，再把数值块塞进参数槽。</p>
+                </div>
+            </div>
+        </section>
+
+        <aside class="studio-panel studio-panel--inspector">
+            <div class="inspector-card">
+                <h2>脚本信息</h2>
+                <div class="meta-grid">
+                    <label>
+                        <span>脚本名</span>
+                        <input id="metaName" type="text" value="语法总览脚本">
+                    </label>
+                    <label>
+                        <span>作者</span>
+                        <input id="metaAuthor" type="text" value="jingy">
+                    </label>
+                    <label>
+                        <span>版本</span>
+                        <input id="metaVersion" type="text" value="1.0.0">
+                    </label>
+                    <label>
+                        <span>说明</span>
+                        <textarea id="metaNotice" rows="4">用积木拖出你的逻辑，再下载成 .vscript。</textarea>
+                    </label>
+                    <label>
+                        <span>modifier</span>
+                        <input id="metaModifier" type="text" value="self_user=jingy">
+                    </label>
+                </div>
+            </div>
+
+            <div class="inspector-card">
+                <h2>导出预览</h2>
+                <div class="export-summary">
+                    <div>
+                        <span class="export-summary__label">当前文件</span>
+                        <strong id="fileLabel">my_custom_script.vscript</strong>
+                    </div>
+                    <div>
+                        <span class="export-summary__label">有效积木</span>
+                        <strong id="blockCount">0</strong>
+                    </div>
+                </div>
+                <button id="refreshBtn" class="btn btn-secondary btn-block">刷新预览</button>
+                <button id="downloadBtnBottom" class="btn btn-primary btn-block">下载 vscript</button>
+            </div>
+
+            <div class="preview-card">
+                <div class="preview-card__head">
+                    <h2>实时代码</h2>
+                    <span>可直接复制或下载</span>
+                </div>
+                <pre id="codePreview" class="code-preview"></pre>
+            </div>
+        </aside>
+    </main>
+
+    <script src="vscript_studio.js"></script>
+</body>
+</html>

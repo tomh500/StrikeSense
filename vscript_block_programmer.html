@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StrikeSense - 可视化图形编程平台</title>
+    <style>
+        /* ==========================================================================
+           💎 复用 StrikeSense 官方网站 - 极简明亮水色 / 冰晶天蓝浅色系 配色与样式变量
+           ========================================================================== */
+        :root {
+            --bg-main: #f0f7ff;       /* 极浅的微蓝白底色 */
+            --bg-card: #ffffff;       /* 纯白卡片底色 */
+            --bg-sub: #eef8ff;        /* 柔和的浅天蓝交替块底色 */
+            --text-main: #004a80;     /* 深水蓝 (主标题与正文文字，沉稳清晰) */
+            --text-dim: #5c85a3;      /* 灰蓝色调（辅助文字） */
+            
+            /* 水蓝色系配色 */
+            --col-td: #0077cc;        /* 核心水蓝色 */
+            --col-tb: #0099ff;        /* 亮天蓝色 */
+            --col-bb: #e0f2ff;        /* 冰蓝色填充 */
+            --col-bp: #aaddff;        /* 柔和水蓝色高光边框 */
+            --col-warning: #ff6666;   /* 警告淡红 */
+
+            /* 积木专属高雅分类色系 */
+            --block-cond-bg: #e0f2ff;
+            --block-cond-border: #aaddff;
+            --block-act-bg: #e6fcf5;
+            --block-act-border: #96f2d7;
+            --block-ctrl-bg: #fff9db;
+            --block-ctrl-border: #ffe066;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            scroll-behavior: smooth;
+            font-family: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* 导航栏样式复用 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background-color: rgba(243, 250, 252, 0.9);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(9, 114, 122, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--col-td);
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+
+        .badge {
+            display: inline-block;
+            background-color: var(--col-bb);
+            border: 1px solid var(--col-bp);
+            color: var(--col-td);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .script-name-input {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid rgba(9, 114, 122, 0.15);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            width: 220px;
+            transition: border-color 0.2s;
+        }
+
+        .script-name-input:focus {
+            border-color: var(--col-tb);
+            box-shadow: 0 0 0 3px rgba(0, 153, 255, 0.1);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 12px; 
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--col-td);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--col-tb);
+            box-shadow: 0 4px 12px rgba(0, 153, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: var(--col-bb);
+            color: var(--col-td);
+            border: 1px solid var(--col-bp);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0eaff;
+        }
+
+        /* 主体布局 */
+        .main-container {
+            display: flex;
+            height: calc(100% - 70px);
+            margin-top: 70px;
+            width: 100%;
+        }
+
+        /* 左侧积木工具箱 */
+        .toolbox {
+            width: 320px;
+            background: var(--bg-card);
+            border-right: 1px solid rgba(9, 114, 122, 0.08);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 16px;
+            gap: 20px;
+        }
+
+        .toolbox-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toolbox-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-dim);
+            padding-left: 4px;
+            border-left: 3px solid var(--col-td);
+            margin-bottom: 4px;
+        }
+
+        /* 中间工作台 */
+        .workspace-container {
+            flex: 1;
+            background-color: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .workspace-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .workspace-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .canvas {
+            flex: 1;
+            background: #ffffff;
+            border: 2px dashed rgba(0, 119, 204, 0.15);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 8px rgba(0, 74, 128, 0.02);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-content: flex-start;
+        }
+
+        .canvas.dragover {
+            background-color: #e6f4ff;
+            border-color: var(--col-tb);
+        }
+
+        /* 右侧实时源码预览 */
+        .preview-container {
+            width: 360px;
+            background: #1e1e1e;
+            border-left: 1px solid #2d2d2d;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .preview-header {
+            background: #252526;
+            padding: 14px 16px;
+            color: #d4d4d4;
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 1px solid #2d2d2d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-body {
+            flex: 1;
+            padding: 16px;
+            margin: 0;
+            font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #9cdcfe;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* ==========================================================================
+           🧩 积木组件核心样式设计 (Block Aesthetics)
+           ========================================================================== */
+        .block {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            cursor: grab;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-main);
+            user-select: none;
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+        }
+
+        .block:active {
+            cursor: grabbing;
+        }
+
+        /* 分类样式加持 */
+        .block-cond {
+            background-color: var(--block-cond-bg);
+            border-color: var(--block-cond-border);
+        }
+        .block-act {
+            background-color: var(--block-act-bg);
+            border-color: var(--block-act-border);
+        }
+        .block-ctrl {
+            background-color: var(--block-ctrl-bg);
+            border-color: var(--block-ctrl-border);
+        }
+
+        /* 积木内输入控件 */
+        .block input[type="text"], .block select {
+            padding: 3px 8px;
+            border: 1px solid rgba(0, 74, 128, 0.15);
+            border-radius: 6px;
+            background: #ffffff;
+            color: var(--text-main);
+            font-size: 12px;
+            outline: none;
+            font-weight: bold;
+        }
+        .block input[type="text"]:focus, .block select:focus {
+            border-color: var(--col-tb);
+        }
+
+        /* 嵌套槽孔 (Slot for If statements) */
+        .block-inner-slot {
+            width: 100%;
+            min-height: 44px;
+            background: rgba(255,255,255,0.6);
+            border: 1px dashed rgba(0,0,0,0.12);
+            border-radius: 8px;
+            margin-top: 6px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .block-inner-slot.dragover {
+            background: rgba(0, 153, 255, 0.1);
+            border-color: var(--col-tb);
+        }
+
+        /* 画布内积木附带删除与重排按钮 */
+        .canvas .block {
+            cursor: default;
+            padding-right: 40px; /* 预留给操作区 */
+        }
+        
+        .block-actions {
+            position: absolute;
+            right: 8px;
+            top: 10px;
+            display: none;
+            gap: 4px;
+        }
+
+        .canvas .block:hover .block-actions {
+            display: flex;
+        }
+
+        .block-btn {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: none;
+            background: rgba(0,0,0,0.05);
+            color: var(--text-main);
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .block-btn:hover {
+            background: rgba(0,0,0,0.1);
+        }
+        .block-btn.delete:hover {
+            background: var(--col-warning);
+            color: white;
+        }
+
+        /* 空提示 */
+        .empty-hint {
+            color: var(--text-dim);
+            font-size: 14px;
+            text-align: center;
+            margin: auto;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶栏区域 -->
+    <header class="navbar">
+        <div class="logo-area">
+            <span class="logo">StrikeSense BlockLab</span>
+            <span class="badge">VScript 积木编程</span>
+        </div>
+        <div class="nav-actions">
+            <label style="font-size: 13px; font-weight: bold; color: var(--text-dim);">生成文件名:</label>
+            <input type="text" id="scriptName" class="script-name-input" value="custom_trigger.vscript" placeholder="请输入脚本名...">
+            <button class="btn btn-primary" onclick="downloadVScript()">⚡ 编译并下载脚本</button>
+        </div>
+    </header>
+
+    <!-- 主布局面板 -->
+    <main class="main-container">
+        
+        <!-- 左侧积木仓库 -->
+        <aside class="toolbox">
+            
+            <!-- 分类：触发事件与条件判断 -->
+            <div class="toolbox-section">
+                <div class="toolbox-title">事件与条件判断</div>
+                
+                <div class="block block-cond" draggable="true" data-template="if_round_live">
+                    <span>当回合刚进入</span><strong>live (开始)</strong>
+                </div>
+
+                <div class="block block-cond" draggable="true" data-template="if_low_health">
+                    <span>当玩家血量低于或等于</span>
+                    <input type="text" value="20" style="width: 40px;" onclick="event.stopPropagation()">
+                </div>
+
+                <div class="block block-cond" draggable="true" data-template="if_kill_increment">
+                    <span>当玩家获得新击杀 (Kills增加)</span>
+                </div>
+
+                <div class="block block-cond" draggable="true" data-template="if_custom">
+                    <span>如果条件满足:</span>
+                    <select onclick="event.stopPropagation()">
+                        <option value="weapon_fired">武器开火 (weapon_fired)</option>
+                        <option value="weapon_reloading">正在换弹 (weapon_reloading)</option>
+                        <option value="self_alive">自身存活 (self_alive)</option>
+                        <option value="flashed > 0">处于被闪状态 (flashed)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 分类：内置动作与API -->
+            <div class="toolbox-section">
+                <div class="toolbox-title">动作与执行 API</div>
+
+                <div class="block block-act" draggable="true" data-template="action_log">
+                    <span>控制台打印日志:</span>
+                    <input type="text" value="触发成功！" style="width: 120px;" onclick="event.stopPropagation()">
+                </div>
+
+                <div class="block block-act" draggable="true" data-template="action_playsnd">
+                    <span>播放音效文件:</span>
+                    <input type="text" value="sounds/kill.wav" style="width: 130px;" onclick="event.stopPropagation()">
+                </div>
+
+                <div class="block block-act" draggable="true" data-template="action_sleep">
+                    <span>线程阻塞等待:</span>
+                    <input type="text" value="1000" style="width: 50px;" onclick="event.stopPropagation()">
+                    <span>毫秒</span>
+                </div>
+
+                <div class="block block-act" draggable="true" data-template="action_gsi_config">
+                    <span>自动重写本地 GSI 配置</span>
+                </div>
+            </div>
+
+            <!-- 分类：高级控制流 -->
+            <div class="toolbox-section">
+                <div class="toolbox-title">流程控制 / 冷却</div>
+
+                <div class="block block-ctrl" draggable="true" data-template="ctrl_cooldown">
+                    <span>限制冷却间隔: 键名</span>
+                    <input type="text" value="popup_cd" style="width: 70px;" onclick="event.stopPropagation()">
+                    <span>时间</span>
+                    <input type="text" value="3000" style="width: 50px;" onclick="event.stopPropagation()">
+                    <span>ms</span>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- 中间可视化工作布景 -->
+        <section class="workspace-container">
+            <div class="workspace-header">
+                <div class="workspace-title">🧩 拖拽积木块至下方画布进行编程组合</div>
+                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="clearCanvas()">清空画布</button>
+            </div>
+            
+            <div class="canvas" id="canvas" ondragover="allowDrop(event)" ondrop="handleCanvasDrop(event)">
+                <div class="empty-hint" id="emptyHint">
+                    <span>💡 暂无积木，从左侧拖拽条件或动作积木到这里</span>
+                    <span style="font-size: 12px; opacity: 0.7;">支持任意顺序串联，条件块内部可放置动作块</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右侧代码实时视窗 -->
+        <aside class="preview-container">
+            <div class="preview-header">
+                <span>📄 实时 VScript 代码预览</span>
+                <span style="font-size: 11px; font-weight: normal; color: #888;">C++ 风格解释内核</span>
+            </div>
+            <pre class="preview-body" id="codePreview">// 拖拽组合积木以生成 StrikeSense 代码...</pre>
+        </aside>
+
+    </main>
+
+    <!-- ==========================================================================
+       ⚙️ 核心前端拖拽、指令块生成与代码编译逻辑
+       ========================================================================== */ -->
+    <script>
+        let draggedTemplateType = null;
+
+        // 全局拖拽初始化监听
+        document.querySelectorAll('.toolbox .block').forEach(block => {
+            block.addEventListener('dragstart', (e) => {
+                draggedTemplateType = block.getAttribute('data-template');
+                e.dataTransfer.setData('text/plain', draggedTemplateType);
+            });
+        });
+
+        function allowDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('dragover');
+        }
+
+        // 画布监听离开
+        document.getElementById('canvas').addEventListener('dragleave', (e) => {
+            e.currentTarget.classList.remove('dragover');
+        });
+
+        // 统一克隆生成有生命周期的画布积木
+        function createBlockFromTemplate(templateType, values = []) {
+            // 获取模板节点
+            const tNode = document.querySelector(`.toolbox .block[data-template="${templateType}"]`);
+            if (!tNode) return null;
+
+            const clone = tNode.cloneNode(true);
+            clone.setAttribute('draggable', 'false'); // 拖入后不允许再次整体挪移（通过层级自然排序）
+            clone.removeAttribute('data-template');
+            clone.classList.add('canvas-block-instance');
+            clone.dataset.type = templateType;
+
+            // 如果已有保存的值，赋过去
+            const inputs = clone.querySelectorAll('input, select');
+            inputs.forEach((input, index) => {
+                if (values[index] !== undefined) {
+                    input.value = values[index];
+                }
+                // 绑定输入改变事件更新代码视图
+                input.addEventListener('input', updateCodePreview);
+                input.addEventListener('change', updateCodePreview);
+            });
+
+            // 创建操作按钮区
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'block-actions';
+            
+            const delBtn = document.createElement('button');
+            delBtn.className = 'block-btn delete';
+            delBtn.innerHTML = '✕';
+            delBtn.title = '删除此积木';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                clone.remove();
+                updateCodePreview();
+            };
+            
+            actionsDiv.appendChild(delBtn);
+            clone.appendChild(actionsDiv);
+
+            // 如果是条件判断积木，或者是冷却控制积木，则为其加挂内部插槽 Slot，允许在其包裹内拖入其他具体动作
+            if (templateType.startsWith('if_') || templateType === 'ctrl_cooldown') {
+                const slot = document.createElement('div');
+                slot.className = 'block-inner-slot';
+                slot.innerHTML = '<span style="font-size:11px;color:#a3b8cc;pointer-events:none;">⬇️ 满足条件时执行的动作插槽</span>';
+                
+                // 给插槽设置独立的拖拽事件接收
+                slot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    slot.classList.add('dragover');
+                });
+                slot.addEventListener('dragleave', (e) => {
+                    e.stopPropagation();
+                    slot.classList.remove('dragover');
+                });
+                slot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    slot.classList.remove('dragover');
+                    
+                    const type = e.dataTransfer.getData('text/plain');
+                    if (type) {
+                        const childBlock = createBlockFromTemplate(type);
+                        if (childBlock) {
+                            // 移除原有的空提示
+                            const hint = slot.querySelector('span');
+                            if (hint) hint.style.display = 'none';
+                            slot.appendChild(childBlock);
+                            updateCodePreview();
+                        }
+                    }
+                });
+
+                clone.appendChild(slot);
+            }
+
+            return clone;
+        }
+
+        // 画布放置处理
+        function handleCanvasDrop(e) {
+            e.preventDefault();
+            const canvas = document.getElementById('canvas');
+            canvas.classList.remove('dragover');
+            
+            const type = e.dataTransfer.getData('text/plain');
+            if (type) {
+                const newBlock = createBlockFromTemplate(type);
+                if (newBlock) {
+                    canvas.appendChild(newBlock);
+                    updateCodePreview();
+                }
+            }
+        }
+
+        // 核心编译器抽象树转换成代码字符串
+        function compileBlockToCode(block, indentLevel = 0) {
+            const type = block.dataset.type;
+            const indent = '    '.repeat(indentLevel);
+            const inputs = block.querySelectorAll(':scope > input, :scope > select');
+            let code = '';
+
+            switch(type) {
+                case 'if_round_live':
+                    code += `${indent}if(on:round_phase == "live"){
+`;
+                    code += compileSlot(block.querySelector('.block-inner-slot'), indentLevel + 1);
+                    code += `${indent}}
+`;
+                    break;
+                case 'if_low_health':
+                    const hp = inputs[0]?.value || '20';
+                    code += `${indent}if(health <= ${hp}){
+`;
+                    code += compileSlot(block.querySelector('.block-inner-slot'), indentLevel + 1);
+                    code += `${indent}}
+`;
+                    break;
+                case 'if_kill_increment':
+                    code += `${indent}if(Delta("kills") > 0){
+`;
+                    code += compileSlot(block.querySelector('.block-inner-slot'), indentLevel + 1);
+                    code += `${indent}}
+`;
+                    break;
+                case 'if_custom':
+                    const cond = inputs[0]?.value || 'self_alive';
+                    code += `${indent}if(${cond}){
+`;
+                    code += compileSlot(block.querySelector('.block-inner-slot'), indentLevel + 1);
+                    code += `${indent}}
+`;
+                    break;
+                case 'ctrl_cooldown':
+                    const key = inputs[0]?.value || 'popup_cd';
+                    const ms = inputs[1]?.value || '3000';
+                    code += `${indent}if(Cooldown("${key}", ${ms})){
+`;
+                    code += compileSlot(block.querySelector('.block-inner-slot'), indentLevel + 1);
+                    code += `${indent}}
+`;
+                    break;
+                case 'action_log':
+                    const logTxt = inputs[0]?.value || '';
+                    code += `${indent}Log("${logTxt}");
+`;
+                    break;
+                case 'action_playsnd':
+                    const sndPath = inputs[0]?.value || '';
+                    code += `${indent}Playsnd("%UserProfile%/StrikeSense/${sndPath}", 0.8, 0);
+`;
+                    break;
+                case 'action_sleep':
+                    const sleepMs = inputs[0]?.value || '1000';
+                    code += `${indent}Sleep(${sleepMs});
+`;
+                    break;
+                case 'action_gsi_config':
+                    code += `${indent}WriteSteamGSIConfig();
+`;
+                    break;
+            }
+            return code;
+        }
+
+        function compileSlot(slot, indentLevel) {
+            if (!slot) return '';
+            const childBlocks = slot.querySelectorAll(':scope > .canvas-block-instance');
+            let slotCode = '';
+            childBlocks.forEach(child => {
+                slotCode += compileBlockToCode(child, indentLevel);
+            });
+            if (slotCode === '') {
+                slotCode += '    '.repeat(indentLevel) + '// 在此执行相应逻辑
+';
+            }
+            return slotCode;
+        }
+
+        // 更新代码实时窗
+        function updateCodePreview() {
+            const canvas = document.getElementById('canvas');
+            const blocks = canvas.querySelectorAll(':scope > .canvas-block-instance');
+            const hint = document.getElementById('emptyHint');
+
+            if (blocks.length === 0) {
+                hint.style.display = 'flex';
+                document.getElementById('codePreview').innerText = '// 拖拽组合积木以生成 StrikeSense 代码...';
+                return;
+            } else {
+                hint.style.display = 'none';
+            }
+
+            let finalCode = `// ==========================================================
+`;
+            finalCode += `// 🤖 StrikeSense VScript 自动生成脚本
+`;
+            finalCode += `// 📅 构建时间: ${new Date().toLocaleString()}
+`;
+            finalCode += `// ==========================================================
+
+`;
+
+            blocks.forEach(block => {
+                finalCode += compileBlockToCode(block, 0) + '
+';
+            });
+
+            document.getElementById('codePreview').innerText = finalCode;
+        }
+
+        // 清空画布
+        function clearCanvas() {
+            const canvas = document.getElementById('canvas');
+            canvas.querySelectorAll('.canvas-block-instance').forEach(b => b.remove());
+            updateCodePreview();
+        }
+
+        // 文件下载控制器
+        function downloadVScript() {
+            const code = document.getElementById('codePreview').innerText;
+            let filename = document.getElementById('scriptName').value.trim();
+            if (!filename) filename = 'custom_trigger.vscript';
+            if (!filename.endsWith('.vscript')) filename += '.vscript';
+
+            const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+    </script>
+</body>
+</html>
