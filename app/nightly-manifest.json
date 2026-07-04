@@ -1,3 +1,16 @@
 {
-  "files": []
+  "files": [
+    {
+      "name": "StrikeSense-nightly-20260630.exe",
+      "path": "app/nightly/StrikeSense-nightly-20260630.exe",
+      "size": 5893136,
+      "modified": 1783135492
+    },
+    {
+      "name": "StrikeSense-nightly-20260704.exe",
+      "path": "app/nightly/StrikeSense-nightly-20260704.exe",
+      "size": 5827088,
+      "modified": 1783135541
+    }
+  ]
 }
