@@ -101,6 +101,57 @@ namespace gsi {
             }
             out[prefix] = JsonLeafToString(value);
         }
+
+        struct active_weapon_info {
+            std::string name;
+            std::string type;
+        };
+
+        active_weapon_info GetActiveWeaponInfo(const nlohmann::json& player)
+        {
+            active_weapon_info info;
+            if (!player.is_object() || !player.contains("weapons") || !player["weapons"].is_object()) {
+                return info;
+            }
+
+            for (auto it = player["weapons"].begin(); it != player["weapons"].end(); ++it) {
+                const auto& weapon = it.value();
+                if (!weapon.is_object()) continue;
+                if (weapon.value("state", "") != "active") continue;
+                info.name = weapon.value("name", "");
+                info.type = weapon.value("type", "");
+                return info;
+            }
+
+            return info;
+        }
+
+        bool IsC4Weapon(const active_weapon_info& weapon)
+        {
+            return weapon.type == "C4" || weapon.name == "weapon_c4";
+        }
+
+        std::string GetRoundBombState(const nlohmann::json& root)
+        {
+            if (root.contains("round") && root["round"].is_object()) {
+                const auto& round = root["round"];
+                if (round.contains("bomb") && round["bomb"].is_string()) {
+                    return round["bomb"].get<std::string>();
+                }
+            }
+
+            if (root.contains("added") && root["added"].is_object()) {
+                const auto& added = root["added"];
+                if (added.contains("round") && added["round"].is_object()) {
+                    const auto& round = added["round"];
+                    if (round.contains("bomb") && round["bomb"].is_string()) {
+                        return round["bomb"].get<std::string>();
+                    }
+                }
+            }
+
+            return "";
+        }
     }
 
     void state::SyncFromJson(const nlohmann::json& stateJson)
@@ -163,6 +214,8 @@ namespace gsi {
     static int s_mvpsAtRoundStart = 0;
     static bool s_gameoverPushed = false;
     static bool s_bombPlantedThisRound = false;
+    static bool s_bombPlantedBySelfThisRound = false;
+    static active_weapon_info s_lastAliveActiveWeapon;
     static std::atomic<bool> s_bombSoundPlaying{ false };
     static std::string s_playerTeam;
     std::string gamemap;
@@ -467,6 +520,7 @@ namespace gsi {
             int roundKills = 0, mvps = 0, health = 100;
             std::string mapMode = "competitive";
             std::string playerSteamid;
+            active_weapon_info currentActiveWeapon;
 
             // 提取玩家数据
             if (j.contains("player") && j["player"].is_object())
@@ -493,6 +547,8 @@ namespace gsi {
                     if (ms.contains("mvps") && ms["mvps"].is_number())
                         mvps = ms["mvps"].get<int>();
                 }
+
+                currentActiveWeapon = GetActiveWeaponInfo(pl);
             }
 
             if (j.contains("map") && j["map"].is_object())
@@ -566,6 +622,8 @@ namespace gsi {
                     s_mvpPushedThisRound = false;
                     s_deadMuted = false;
                     s_bombPlantedThisRound = false;
+                    s_bombPlantedBySelfThisRound = false;
+                    s_lastAliveActiveWeapon = active_weapon_info{};
                     s_waitingForLive = false;
                     s_roundStarted = true;
                     s_gameoverPushed = false;
@@ -617,9 +675,24 @@ namespace gsi {
                     }
 
                     // MVP 判定
+                    const std::string bombState = GetRoundBombState(j);
+                    const bool bombExploded = bombState == "exploded";
+                    const bool teamWon = hasWinTeam && winTeam == s_playerTeam;
+                    const bool plantedMvpBySelf = bombExploded && teamWon && s_bombPlantedBySelfThisRound;
+                    const bool invalidateThreeKillMvp = bombExploded && !s_bombPlantedBySelfThisRound;
+
                     bool isMvp = false;
-                    if (mvps > s_mvpsAtRoundStart) isMvp = true;
-                    if (hasWinTeam && winTeam == s_playerTeam && s_mvpCandidateKills >= 3) isMvp = true;
+                    if (mvps > s_mvpsAtRoundStart && teamWon && !s_deadMuted) isMvp = true;
+                    if (teamWon && s_mvpCandidateKills >= 3 && !invalidateThreeKillMvp) isMvp = true;
+                    if (plantedMvpBySelf) isMvp = true;
+
+                    std::cout << "[GSI] MVP结算：队伍胜利=" << (teamWon ? "是" : "否")
+                        << "，回合MVP数变化=" << (mvps - s_mvpsAtRoundStart)
+                        << "，本回合击杀候选=" << s_mvpCandidateKills
+                        << "，炸弹状态=" << (bombState.empty() ? "未知" : bombState)
+                        << "，本人下包=" << (s_bombPlantedBySelfThisRound ? "是" : "否")
+                        << "，三杀判定作废=" << (invalidateThreeKillMvp ? "是" : "否")
+                        << std::endl;
 
                     if (!s_mvpPushedThisRound && isMvp)
                     {
@@ -670,6 +743,7 @@ namespace gsi {
                     {
                         QueueEvent(-18);
                         s_deadMuted = true;
+                        std::cout << "[GSI] 玩家本回合已死亡，停止记录上一帧武器，避免观战数据污染。" << std::endl;
                     }
 
                     if (!s_deadMuted && roundKills > s_lastKills)
@@ -680,6 +754,13 @@ namespace gsi {
                         }
                         if (roundKills > s_mvpCandidateKills) s_mvpCandidateKills = roundKills;
                         s_lastKills = roundKills;
+                    }
+
+                    if (!s_deadMuted && !currentActiveWeapon.name.empty())
+                    {
+                        s_lastAliveActiveWeapon = currentActiveWeapon;
+                        std::cout << "[GSI] 记录活着时上一帧武器：name=" << s_lastAliveActiveWeapon.name
+                            << "，type=" << s_lastAliveActiveWeapon.type << std::endl;
                     }
                 }
             }
@@ -694,6 +775,10 @@ namespace gsi {
                     if (bs == "planted" && !s_bombPlantedThisRound)
                     {
                         s_bombPlantedThisRound = true;
+                        s_bombPlantedBySelfThisRound = IsC4Weapon(s_lastAliveActiveWeapon);
+                        std::cout << "[GSI] 检测到炸弹安放，上一帧武器 name=" << s_lastAliveActiveWeapon.name
+                            << "，type=" << s_lastAliveActiveWeapon.type
+                            << "，判定本人下包=" << (s_bombPlantedBySelfThisRound ? "是" : "否") << std::endl;
                         // ======= 炸弹安放，直接销毁十秒倒计时计时器 =======
                         std::cout << "[GSI] 炸弹已安放，强行销毁当前回合的比赛倒计时。" << std::endl;
                         StopRoundCountdown();
