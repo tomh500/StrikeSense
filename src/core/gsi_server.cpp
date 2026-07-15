@@ -230,6 +230,15 @@ namespace gsi {
     // ======= 在内存中缓存配置的变量 =============
     static config::Settings s_cachedCfg;
 
+    void InterruptMusicKitIfEnabled()
+    {
+        if (!s_cachedCfg.custom_musickit || !s_cachedCfg.force_interrupt)
+            return;
+
+        std::cout << "[音效] 强制打断已开启，立即中断当前自定义音乐盒播放。" << std::endl;
+        sound::StopMusicKitPlayback();
+    }
+
     void runtime::SyncDerived(
         const std::string& currentMapMode,
         const std::string& currentActivity,
@@ -337,7 +346,8 @@ namespace gsi {
                 std::cout << "[音效] 回合开始" << std::endl;
                 if (s_cachedCfg.custom_musickit)
                 {
-                    Mix_HaltChannel(3); sound::Play(-13, s_cachedCfg.volume);
+                    InterruptMusicKitIfEnabled();
+                    sound::Play(-13, s_cachedCfg.volume);
                 }
                    
             }
@@ -345,31 +355,46 @@ namespace gsi {
             {
                 std::cout << "[音效] 购买阶段" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-14, s_cachedCfg.volume);
+                }
             }
             else if (id == -12) // 炸弹—音乐包
             {
                 std::cout << "[音效] 炸弹" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-12, s_cachedCfg.volume);
+                }
             }
             else if (id == -2) // MVP—音乐包
             {
                 std::cout << "[音效] MVP" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-2, s_cachedCfg.volume);
+                }
             }
             else if (id == -3) // 胜利—音乐包
             {
                 std::cout << "[音效] 胜利!" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-3, s_cachedCfg.volume);
+                }
             }
             else if (id == -4) // 失败—音乐包
             {
                 std::cout << "[音效] 失败" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-4, s_cachedCfg.volume);
+                }
             }
             else if (id == -18) // 死亡—始终播放（不受 enable_kill_sound 控制）
             {
@@ -380,7 +405,10 @@ namespace gsi {
             {
                 std::cout << "[音效] 游戏结束" << std::endl;
                 if (s_cachedCfg.custom_musickit)
+                {
+                    InterruptMusicKitIfEnabled();
                     sound::Play(-19, s_cachedCfg.volume);
+                }
             }
             else if (id == -21) // 大厅菜单—音乐包
             {
@@ -603,6 +631,7 @@ namespace gsi {
                 // freezetime → buy 音效
                 if (phase == "freezetime" && s_lastPhase != "freezetime")
                 {
+                    StopBombSound();
                     if (s_bombPlantedThisRound) {
                         QueueEventAfterDelay(-14, std::chrono::milliseconds(3500));
                     }
@@ -772,6 +801,12 @@ namespace gsi {
                 if (r.contains("bomb") && r["bomb"].is_string())
                 {
                     std::string bs = r["bomb"].get<std::string>();
+                    if (bs == "defused" || bs == "exploded")
+                    {
+                        std::cout << "[GSI] 炸弹状态结束(" << bs << ")，立即停止炸弹播放。" << std::endl;
+                        StopBombSound();
+                    }
+
                     if (bs == "planted" && !s_bombPlantedThisRound)
                     {
                         s_bombPlantedThisRound = true;

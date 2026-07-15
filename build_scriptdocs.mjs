@@ -165,27 +165,29 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         }
         .docs-sidebar {
             position: sticky;
-            top: 95px;
+            top: 88px;
             background: var(--bg-card);
             border: 1px solid rgba(9, 114, 122, 0.08);
             border-radius: 12px;
             box-shadow: 0 10px 28px rgba(9, 114, 122, 0.05);
-            padding: 18px;
+            padding: 14px;
+            max-height: calc(100vh - 108px);
+            overflow: hidden;
         }
         .docs-sidebar h2 {
-            font-size: 18px;
-            margin-bottom: 14px;
+            font-size: 17px;
+            margin-bottom: 10px;
             color: var(--text-main);
         }
         .docs-search {
             width: 100%;
-            min-height: 42px;
+            min-height: 38px;
             border: 1px solid rgba(9, 114, 122, 0.15);
             border-radius: 10px;
-            padding: 10px 12px;
+            padding: 8px 11px;
             background: var(--bg-main);
             color: var(--text-main);
-            margin-bottom: 14px;
+            margin-bottom: 10px;
             outline: none;
         }
         .docs-search:focus {
@@ -194,9 +196,10 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         }
         .docs-toc {
             display: grid;
-            gap: 10px;
-            max-height: calc(100vh - 180px);
+            gap: 8px;
+            max-height: calc(100vh - 240px);
             overflow: auto;
+            padding-right: 4px;
         }
         .toc-group {
             display: grid;
@@ -227,9 +230,9 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
             background: var(--bg-main);
             border: 1px solid transparent;
             border-radius: 10px;
-            padding: 9px 11px;
+            padding: 7px 10px;
             transition: 0.2s ease;
-            line-height: 1.45;
+            line-height: 1.35;
         }
         .toc-link:hover {
             border-color: var(--col-bp);
@@ -237,11 +240,11 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
         }
         .toc-sub {
             margin-left: 12px;
-            font-size: 14px;
+            font-size: 13px;
         }
         .toc-sub2 {
             margin-left: 24px;
-            font-size: 13px;
+            font-size: 12px;
             opacity: 0.94;
         }
         .toc-toggle {
@@ -249,7 +252,7 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
             background: var(--bg-main);
             color: var(--text-main);
             border-radius: 9px;
-            padding: 7px 10px;
+            padding: 5px 8px;
             cursor: pointer;
             font-size: 12px;
             white-space: nowrap;
@@ -259,9 +262,9 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
             color: var(--col-td);
         }
         .docs-note {
-            margin-top: 12px;
+            margin-top: 8px;
             color: var(--text-dim);
-            font-size: 13px;
+            font-size: 12px;
         }
         .docs-hidden {
             display: none !important;

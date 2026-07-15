@@ -1,296 +1,171 @@
-﻿# StrikeSense VScript 手册
+# StrikeSense VScript 手册
 
 ## 文档版本
 
 - API 文档版本：`2026.07.04`
 - 对应程序构建时间戳：`202607040217`
 - 适用范围：StrikeSense 内置 VScript 解释器
-- 设计目标：尽量贴近 C++ 写法，但本质上仍然是面向玩家的解释型游戏脚本系统
-- 核心场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件，在不改主程序的前提下扩展行为
+- 适用场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件编写脚本
 
 ## 系统定位
 
-StrikeSense VScript 不是完整的 C++ 编译器，也不是通用操作系统脚本语言。
-它的核心职责只有两类：
-
-1. 把 CS2 GSI 推送来的状态同步成脚本变量。
-2. 把 StrikeSense 在 C++ 侧已经封装好的高价值能力，安全地暴露给玩家脚本使用。
-
-这意味着一个原则：
-普通脚本擅长写“当什么状态发生时，做什么”；
-真正难写、性能要求高、需要系统权限、需要处理复杂原生数据结构的事情，应当尽量在 C++ 侧封装成 API 再暴露给脚本。
+StrikeSense VScript 是用于编写游戏事件脚本的解释型脚本系统，写法尽量贴近 C++。
+它适合处理“当某个 GSI 状态变化时，执行某个动作”这一类场景。
 
 脚本目录：
 `%UserProfile%/StrikeSense/script`
 
 仓库中的 `vscript_examples` 是示例源码目录，不等于程序运行时只会从这里读脚本。
 
-## 权限与安全模型
+## 快速上手
 
-### 权限等级
+如果你是第一次写脚本，建议先只掌握三样东西：
 
-- `user`
-  - 普通用户模式。
-  - 默认仅允许安全 API。
-  - 即使脚本头部声明了 `@modifier: self_user=...`，也不会因此获得高权限。
-- `userdebug`
-  - 内测/调试模式。
-  - 可以执行高权限 API。
-  - 若脚本声明了 `self_user`，仍然会继续校验当前 Windows 用户是否匹配。
-- `oem`
-  - 与 `userdebug` 等价的高权限能力层。
-  - 本质上属于程序侧主动解锁的高级权限，不是脚本侧自报即可获得的权限。
-- `eng`
-  - 工程构建环境。
-  - 能力最高，用于开发与调试。
+1. 读 GSI 变量，比如 `health`、`round_phase`、`weapon_name`
+2. 用 `if(...)` 判断某个条件是否成立
+3. 用 `Log(...)`、`Browser(...)`、`Playsnd(...)` 之类的 API 执行动作
 
-### 关键规则
-
-- `@modifier: self_user=用户名` 现在只用于“附加限制”，不再作为“提权依据”。
-- `user` 模式下，高权限 API 必须通过程序侧能力解锁后才能执行。
-- `self_user` 的正确语义是“这个脚本只允许指定 Windows 用户使用”，而不是“只要写了当前用户名就能提权”。
-
-### 高权限 API 分组
-
-以下 API 仍然属于高权限能力：
-
-- `ShellExecute(command)`
-- `CFile(path, content)`
-- `OwriteFile(path, content)`
-- `AwriteFile(path, content)`
-- `DFile(path)`
-
-建议理解成：
-
-- 读状态、做判断、控制音量、取 Steam 本地信息，这些是常规能力。
-- 调起 shell、写文件、删文件，这些属于高权限能力。
-
-## 元信息
-
-脚本头部支持以下元信息：
+最简单的例子：
 
 ```cpp
-// @name: 语法总览示例
-// @author: jingy
-// @provider: StrikeSense
-// @version: 2026.07.04
-// @notice: 这是一个演示脚本
-// @modifier: self_user=jingy
-```
-
-### 字段说明
-
-| 字段 | 类型 | 作用 |
-| --- | --- | --- |
-| `@name` | `string` | 脚本显示名 |
-| `@author` | `string` | 作者名 |
-| `@provider` | `string` | 来源标识 |
-| `@version` | `string` | 脚本版本 |
-| `@notice` | `string` | UI 提示说明 |
-| `@modifier` | `string` | 额外限制条件，目前支持 `self_user=<Windows用户名>` |
-
-## 语法规则
-
-### 基础风格
-
-- 普通语句通常以 `;` 结尾。
-- 控制块结尾的 `;` 可以省略。
-- 函数定义结尾的 `;` 可以省略。
-- 这意味着 `{ ... }` 后面不必强行补 `;`，写法更接近 C++。
-- 支持 `//` 行注释。
-- 支持 `/* ... */` 块注释。
-
-### 当前支持的变量类型
-
-- `int`
-- `float`
-- `double`
-- `string`
-- `bool`
-- `void`
-- `auto`
-- `vector<T>`
-- `array<T>`
-- 运行时对象：`list`
-- 运行时对象：`object`
-
-### `auto` 规则
-
-`auto` 会尽量保留原值形态，不会强行把复杂对象压扁成字符串。
-
-- 如果函数返回 `list`，`auto` 仍然是 `list`
-- 如果函数返回 `object`，`auto` 仍然是 `object`
-- 如果函数返回数字、布尔或字符串，`auto` 保持对应基础值
-
-### `const`
-
-现已支持 `const` 变量声明，且不是纯装饰语法，而是有实际写保护。
-
-```cpp
-const int aliveLine = 1;
-const string modeName = "match";
-```
-
-一旦声明为 `const`，后续再赋值会被拒绝。
-
-### 运算符
-
-当前支持：
-
-- 赋值：`=`
-- 算术：`+` `-` `*` `/` `%`
-- 比较：`==` `!=` `>` `<` `>=` `<=`
-- 逻辑：`&&` `||` `!`
-- 复合赋值：`+=` `-=` `*=` `/=` `%=`
-- 自增自减：`i++` `++i` `i--` `--i`
-
-示例：
-
-```cpp
-int count = 7;
-count %= 3;
-
-if(count % 2 == 1){
-    Log("奇数");
+if(health <= 20){
+    Log("当前血量过低");
 }
 ```
 
-### 容器语法
-
-```cpp
-vector<int> nums = { 1, 2, 3 };
-array<string> states = { "idle", "live", "over" };
-
-int first = nums[0];
-string phase = states[1];
-```
-
-### 对象与字段访问
-
-当 API 返回 `object` 或 `list<object>` 时，可以使用点访问和索引访问：
-
-```cpp
-auto accounts = GetSteamAccounts();
-auto first = accounts[0];
-
-Log(first.persona_name);
-Log(first["account_name"]);
-Log(accounts[0].steam_id64);
-```
-
-### 控制流
-
-当前支持：
-
-- `if`
-- `else if`
-- `elseif`
-- `else`
-- `while`
-- `for`
-- `goto`
-- `break`
-- `continue`
-- `return`
-
-### `goto`
-
-`goto` 已按更接近 C/C++ 的行为修复：
-
-- 先在当前 block 查找目标标签。
-- 当前 block 找不到时，向外层 block 继续传播。
-- 不再出现某个局部跳转直接把整个脚本执行状态搞乱的问题。
-
-示例：
-
-```cpp
-for(int i=0; i<10; i++){
-    if(i == 6){
-        goto done;
-    }
-}
-
-done:
-Log("跳转完成");
-```
-
-### `return`
-
-`return` 已改成基于执行上下文处理，不再依赖全局静态返回标记。
-
-- 顶层脚本的 `return;` 只结束当前脚本。
-- 函数内的 `return expr;` 会把值返回给调用方。
-- 子脚本或函数的 `return` 不会把其他脚本一起截断。
-
-示例：
-
-```cpp
-int Sum3(int a, int b, int c){
-    return a + b + c;
-}
-
-void StopHere(){
-    Log("准备返回");
-    return;
-}
-```
-
-### `on:` 边沿触发
-
-`on:` 表示条件从假变真时只触发一次：
+只在某个状态刚发生时触发一次：
 
 ```cpp
 if(on:round_phase=="live"){
-    Log("刚进入 live");
+    Log("本回合刚进入 live");
 }
 ```
 
-这类写法非常适合 GSI 事件脚本。
-
-## 函数
-
-### 函数定义
+只在击杀数发生增长时触发：
 
 ```cpp
-int Add(int a, int b){
-    return a + b;
-}
-
-bool IsAlive(){
-    return health > 0;
-}
-
-void Ping(){
-    Log("ping");
+if(Delta("kills") > 0){
+    Log("刚拿到击杀");
 }
 ```
 
-### 建议使用的返回类型
+## GSI 变量
 
-- `int`
-- `float`
-- `double`
-- `string`
-- `bool`
-- `void`
-- `auto`
-- `vector<T>`
-- `array<T>`
+### GSI 原始展开变量
 
-### 函数返回值示例
+GSI 中收到的叶子字段会尽量同步成 `gsi_...` 变量。
 
-```cpp
-string JudgeState(int hp){
-    if(hp <= 0){
-        return "dead";
-    }
-    return "alive";
-}
-```
+示例：
+
+- `gsi_provider_name`：`string`
+- `gsi_map_team_ct_score`：`number`
+- `gsi_player_state_health`：`number`
+- `gsi_player_weapons_weapon_1_ammo_clip`：`number`
+- `gsi_field_count`：`number`
+
+### 常用便捷别名变量
+
+当前实现里明确同步的便捷别名变量如下：
+
+| 分类 | 变量 | 类型 |
+| --- | --- | --- |
+| Provider | `provider_name` | `string` |
+| Provider | `provider_appid` | `number` |
+| Provider | `provider_version` | `number|string` |
+| Provider | `provider_steamid` | `string` |
+| Provider | `provider_timestamp` | `number|string` |
+| 地图 | `map` | `string` |
+| 地图 | `map_mode` | `string` |
+| 地图 | `map_phase` | `string` |
+| 地图 | `map_round` | `number` |
+| 地图 | `map_num_matches_to_win_series` | `number` |
+| 队伍 | `team_ct_score` | `number` |
+| 队伍 | `team_ct_consecutive_round_losses` | `number` |
+| 队伍 | `team_ct_timeouts_remaining` | `number` |
+| 队伍 | `team_ct_matches_won_this_series` | `number` |
+| 队伍 | `team_t_score` | `number` |
+| 队伍 | `team_t_consecutive_round_losses` | `number` |
+| 队伍 | `team_t_timeouts_remaining` | `number` |
+| 队伍 | `team_t_matches_won_this_series` | `number` |
+| 回合 | `round_phase` | `string` |
+| 回合 | `round_win_team` | `string` |
+| 回合 | `bomb` | `string` |
+| 玩家 | `player_name` | `string` |
+| 玩家 | `activity` | `string` |
+| 玩家 | `steamid` | `string` |
+| 玩家 | `team` | `string` |
+| 玩家 | `observer_slot` | `number` |
+| 玩家状态 | `health` | `number` |
+| 玩家状态 | `armor` | `number` |
+| 玩家状态 | `helmet` | `bool|number` |
+| 玩家状态 | `flashed` | `number` |
+| 玩家状态 | `smoked` | `number` |
+| 玩家状态 | `burning` | `number` |
+| 玩家状态 | `money` | `number` |
+| 玩家状态 | `kills` | `number` |
+| 玩家状态 | `round_killhs` | `number` |
+| 玩家状态 | `equip_value` | `number` |
+| 比赛统计 | `mvps` | `number` |
+| 比赛统计 | `match_kills` | `number` |
+| 比赛统计 | `match_assists` | `number` |
+| 比赛统计 | `match_deaths` | `number` |
+| 比赛统计 | `match_score` | `number` |
+| 当前武器 | `weapon_name` | `string` |
+| 当前武器 | `weapon_type` | `string` |
+| 当前武器 | `weapon_state` | `string` |
+| 当前武器 | `weapon_ammo_clip` | `number` |
+| 当前武器 | `weapon_ammo_clip_max` | `number` |
+| 当前武器 | `weapon_ammo_reserve` | `number` |
+
+### 上一帧快照变量
+
+当前实现里明确提供的上一帧快照变量如下：
+
+- `prev_round_phase`：`string`
+- `prev_kills`：`number`
+- `prev_health`：`number`
+- `prev_weapon_name`：`string`
+- `prev_weapon_type`：`string`
+- `prev_weapon_state`：`string`
+- `prev_weapon_ammo_clip`：`number`
+- `prev_weapon_ammo_reserve`：`number`
+
+### 内部派生变量
+
+当前实现里明确提供的内部/派生变量如下：
+
+- `weapon_fired`：`bool`
+- `weapon_reloading`：`bool`
+- `weapon_switched`：`bool`
+- `weapon_clip_delta`：`number`
+- `weapon_reserve_delta`：`number`
+- `weapon_fire_count`：`number`
+- `weapon_reload_count`：`number`
+- `weapon_reserve_drop_count`：`number`
+- `death_mute`：`bool`
+- `self_alive`：`bool`
+- `self_dead_this_round`：`bool`
+- `internal_last_phase`：`string`
+- `internal_last_kills`：`number`
+- `internal_last_mvps`：`number`
+- `internal_dead_muted`：`bool`
+- `internal_waiting_for_live`：`bool`
+- `internal_round_started`：`bool`
+- `internal_mvp_candidate_kills`：`number`
+- `internal_mvp_pushed_this_round`：`bool`
+- `internal_mvps_at_round_start`：`number`
+- `internal_gameover_pushed`：`bool`
+- `internal_bomb_planted_this_round`：`bool`
+- `internal_player_team`：`string`
+- `internal_map_mode`：`string`
+- `internal_activity`：`string`
+- `internal_round_kills`：`number`
+- `internal_health`：`number`
+- `internal_in_lobby`：`bool`
 
 ## 事件辅助 API
 
-这些 API 的存在意义，是把“脚本里很难优雅写、或者必须依赖 C++ 历史状态”的逻辑，封装成更直接的原生能力。
+这些 API 最适合普通玩家优先上手，因为它们本来就是围绕 GSI 状态变化设计的。
 
 ### 变化检测
 
@@ -322,6 +197,22 @@ if(Cooldown("live_popup", 3000)){
 }
 ```
 
+## 第一个实用脚本
+
+```cpp
+if(on:round_phase=="live"){
+    Log("回合开始");
+}
+
+if(Delta("kills") > 0){
+    Playsnd("%UserProfile%/StrikeSense/sounds/kill.wav", 0.8, 1);
+}
+
+if(health <= 15 && Cooldown("low_hp_warn", 5000)){
+    Log("低血量警告");
+}
+```
+
 ## 常规工具 API
 
 | API | 参数 | 返回类型 | 说明 |
@@ -335,6 +226,49 @@ if(Cooldown("live_popup", 3000)){
 | `EndsWith(text, suffix)` | `string, string` | `bool` | 后缀判断 |
 | `Log(text)` | `any` | `bool` | 输出调试信息 |
 | `Sleep(ms)` | `number` | `bool` | 阻塞等待 |
+
+## GSI 强相关对象 API
+
+### 全部玩家对象
+
+| API | 参数 | 返回类型 | 说明 |
+| --- | --- | --- | --- |
+| `GetAllPlayers()` | 无 | `list<object>` | 返回当前 GSI `allplayers` 的完整对象列表 |
+
+每个玩家对象至少包含：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `slot` | `string` | GSI 玩家槽位键 |
+| `name` | `string` | 玩家名 |
+| `team` | `string` | 队伍 |
+| `match_stats` | `object` | 比赛统计对象 |
+| `state` | `object` | 当前状态对象 |
+| `weapons` | `object` 或 `list` | 武器结构，取决于当前 GSI 数据形态 |
+
+常见嵌套字段示例：
+
+- `player.state.health`：`number`
+- `player.state.armor`：`number`
+- `player.match_stats.kills`：`number`
+
+### 当前玩家武器对象
+
+| API | 参数 | 返回类型 | 说明 |
+| --- | --- | --- | --- |
+| `GetCurrentPlayerWeapons()` | 无 | `list<object>` | 返回当前玩家武器对象列表 |
+
+每个武器对象常见字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `slot` | `string` | 武器槽位键 |
+| `name` | `string` | 武器名 |
+| `type` | `string` | 武器类型 |
+| `state` | `string` | 武器状态 |
+| `ammo_clip` | `number` | 当前弹夹 |
+| `ammo_clip_max` | `number` | 弹夹上限 |
+| `ammo_reserve` | `number` | 备弹 |
 
 ## Steam 与本地环境 API
 
@@ -390,49 +324,6 @@ if(Cooldown("live_popup", 3000)){
 | `has_userdata` | `bool` | 本机是否存在对应 `userdata` |
 | `has_localconfig` | `bool` | 本机是否存在对应 `localconfig.vdf` |
 
-## GSI 强相关对象 API
-
-### 全部玩家对象
-
-| API | 参数 | 返回类型 | 说明 |
-| --- | --- | --- | --- |
-| `GetAllPlayers()` | 无 | `list<object>` | 返回当前 GSI `allplayers` 的完整对象列表 |
-
-每个玩家对象至少包含：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `slot` | `string` | GSI 玩家槽位键 |
-| `name` | `string` | 玩家名 |
-| `team` | `string` | 队伍 |
-| `match_stats` | `object` | 比赛统计对象 |
-| `state` | `object` | 当前状态对象 |
-| `weapons` | `object` 或 `list` | 武器结构，取决于当前 GSI 数据形态 |
-
-常见嵌套字段示例：
-
-- `player.state.health`：`number`
-- `player.state.armor`：`number`
-- `player.match_stats.kills`：`number`
-
-### 当前玩家武器对象
-
-| API | 参数 | 返回类型 | 说明 |
-| --- | --- | --- | --- |
-| `GetCurrentPlayerWeapons()` | 无 | `list<object>` | 返回当前玩家武器对象列表 |
-
-每个武器对象常见字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `slot` | `string` | 武器槽位键 |
-| `name` | `string` | 武器名 |
-| `type` | `string` | 武器类型 |
-| `state` | `string` | 武器状态 |
-| `ammo_clip` | `number` | 当前弹夹 |
-| `ammo_clip_max` | `number` | 弹夹上限 |
-| `ammo_reserve` | `number` | 备弹 |
-
 ## 窗口、启动与外部交互 API
 
 ### 常规系统控制
@@ -487,85 +378,327 @@ if(Cooldown("live_popup", 3000)){
 | `SetCrosshairConfig(r, g, b, style, thickness, scale)` | 同上 | `bool` | 与 `SetCrosshairVisual` 同义 |
 | `SetCrosshair(enabled, r, g, b, style, thickness, scale)` | `bool, int, int, int, int, int, float` | `bool` | 一次性设置准星开关与样式 |
 
-## 变量来源
+## 权限与安全模型
 
-### GSI 原始展开变量
+### 权限等级
 
-GSI 中收到的叶子字段会尽量同步成 `gsi_...` 变量。
+- `user`
+  - 普通用户模式。
+  - 默认仅允许安全 API。
+  - 即使脚本头部声明了 `@modifier: self_user=...`，也不会因此获得高权限。
+- `userdebug`
+  - 内测/调试模式。
+  - 可以执行高权限 API。
+  - 若脚本声明了 `self_user`，仍然会继续校验当前 Windows 用户是否匹配。
+- `oem`
+  - 与 `userdebug` 等价的高权限能力层。
+  - 本质上属于程序侧主动解锁的高级权限，不是脚本侧自报即可获得的权限。
+- `eng`
+  - 工程构建环境。
+  - 能力最高，用于开发与调试。
+
+### 关键规则
+
+- `@modifier: self_user=用户名` 只用于“附加限制”，不作为“提权依据”。
+- `user` 模式下，高权限 API 必须通过程序侧能力解锁后才能执行。
+- `self_user` 的语义是“这个脚本只允许指定 Windows 用户使用”。
+
+### 高权限 API 分组
+
+以下 API 属于高权限能力：
+
+- `ShellExecute(command)`
+- `CFile(path, content)`
+- `OwriteFile(path, content)`
+- `AwriteFile(path, content)`
+- `DFile(path)`
+
+## 元信息
+
+脚本头部支持以下元信息：
+
+```cpp
+// @name: 语法总览示例
+// @author: jingy
+// @provider: StrikeSense
+// @version: 2026.07.04
+// @notice: 这是一个演示脚本
+// @modifier: self_user=jingy
+```
+
+### 字段说明
+
+| 字段 | 类型 | 作用 |
+| --- | --- | --- |
+| `@name` | `string` | 脚本显示名 |
+| `@author` | `string` | 作者名 |
+| `@provider` | `string` | 来源标识 |
+| `@version` | `string` | 脚本版本 |
+| `@notice` | `string` | UI 提示说明 |
+| `@modifier` | `string` | 额外限制条件，目前支持 `self_user=<Windows用户名>` |
+
+## 语法规则
+
+### 基础风格
+
+- 普通语句通常以 `;` 结尾。
+- 控制块结尾的 `;` 可以省略。
+- 函数定义结尾的 `;` 可以省略。
+- `{ ... }` 后面不必强行补 `;`。
+- 支持 `//` 行注释。
+- 支持 `/* ... */` 块注释。
+
+### 当前支持的变量类型
+
+- `int`
+- `float`
+- `double`
+- `string`
+- `bool`
+- `void`
+- `auto`
+- `vector<T>`
+- `array<T>`
+- 运行时对象：`list`
+- 运行时对象：`object`
+
+### `auto` 规则
+
+`auto` 会尽量保留原值形态，不会强行把复杂对象压扁成字符串。
+
+- 如果函数返回 `list`，`auto` 仍然是 `list`
+- 如果函数返回 `object`，`auto` 仍然是 `object`
+- 如果函数返回数字、布尔或字符串，`auto` 保持对应基础值
+
+### `const`
+
+现已支持 `const` 变量声明，且不是纯装饰语法，而是有实际写保护。
+
+```cpp
+const int aliveLine = 1;
+const string modeName = "match";
+```
+
+一旦声明为 `const`，后续再赋值会被拒绝。
+
+### 运算符
+
+当前支持：
+
+- 赋值：`=`
+- 算术：`+` `-` `*` `/` `%`
+- 比较：`==` `!=` `>` `<` `>=` `<=`
+- 逻辑：`&&` `||` `!`
+- 复合赋值：`+=` `-=` `*=` `/=` `%=` 
+- 自增自减：`i++` `++i` `i--` `--i`
 
 示例：
 
-- `gsi_provider_name`：`string`
-- `gsi_map_team_ct_score`：`number`
-- `gsi_player_state_health`：`number`
-- `gsi_player_weapons_weapon_1_ammo_clip`：`number`
-- `gsi_field_count`：`number`
+```cpp
+int count = 7;
+count %= 3;
 
-### 常用便捷别名变量
+if(count % 2 == 1){
+    Log("奇数");
+}
+```
 
-常见变量包括：
+### 容器语法
 
-| 分类 | 变量 | 类型 |
-| --- | --- | --- |
-| Provider | `provider_name` | `string` |
-| Provider | `provider_appid` | `number` |
-| Provider | `provider_version` | `number|string` |
-| Provider | `provider_steamid` | `string` |
-| 地图 | `map` | `string` |
-| 地图 | `map_mode` | `string` |
-| 地图 | `map_phase` | `string` |
-| 地图 | `map_round` | `number` |
-| 队伍 | `team_ct_score` | `number` |
-| 队伍 | `team_t_score` | `number` |
-| 回合 | `round_phase` | `string` |
-| 回合 | `round_win_team` | `string` |
-| 玩家 | `player_name` | `string` |
-| 玩家 | `steamid` | `string` |
-| 玩家 | `team` | `string` |
-| 玩家状态 | `health` | `number` |
-| 玩家状态 | `armor` | `number` |
-| 玩家状态 | `helmet` | `bool|number` |
-| 玩家状态 | `money` | `number` |
-| 玩家状态 | `kills` | `number` |
-| 玩家状态 | `equip_value` | `number` |
-| 当前武器 | `weapon_name` | `string` |
-| 当前武器 | `weapon_type` | `string` |
-| 当前武器 | `weapon_state` | `string` |
-| 当前武器 | `weapon_ammo_clip` | `number` |
-| 当前武器 | `weapon_ammo_clip_max` | `number` |
-| 当前武器 | `weapon_ammo_reserve` | `number` |
+```cpp
+vector<int> nums = { 1, 2, 3 };
+array<string> states = { "idle", "live", "over" };
 
-### 上一帧快照变量
+int first = nums[0];
+string phase = states[1];
+```
 
-常见上一帧变量包括：
+### 对象与字段访问
 
-- `prev_round_phase`：`string`
-- `prev_kills`：`number`
-- `prev_health`：`number`
-- `prev_weapon_name`：`string`
-- `prev_weapon_type`：`string`
-- `prev_weapon_state`：`string`
-- `prev_weapon_ammo_clip`：`number`
-- `prev_weapon_ammo_reserve`：`number`
+当 API 返回 `object` 或 `list<object>` 时，可以使用点访问和索引访问：
 
-### 内部派生变量
+```cpp
+auto accounts = GetSteamAccounts();
+auto first = accounts[0];
 
-常见内部变量包括：
+Log(first.persona_name);
+Log(first["account_name"]);
+Log(accounts[0].steam_id64);
+```
 
-- `weapon_fired`：`bool`
-- `weapon_reloading`：`bool`
-- `weapon_switched`：`bool`
-- `weapon_clip_delta`：`number`
-- `weapon_reserve_delta`：`number`
-- `weapon_fire_count`：`number`
-- `weapon_reload_count`：`number`
-- `death_mute`：`bool`
-- `self_alive`：`bool`
-- `self_dead_this_round`：`bool`
-- `internal_last_phase`：`string`
-- `internal_round_started`：`bool`
-- `internal_mvp_candidate_kills`：`number`
-- `internal_bomb_planted_this_round`：`bool`
+### 控制流
+
+当前支持：
+
+- `if`
+- `else if`
+- `elseif`
+- `else`
+- `while`
+- `for`
+- `goto`
+- `break`
+- `continue`
+- `return`
+
+### `goto`
+
+`goto` 会先在当前 block 查找目标标签，当前 block 找不到时会继续向外层传播。
+
+```cpp
+for(int i=0; i<10; i++){
+    if(i == 6){
+        goto done;
+    }
+}
+
+done:
+Log("跳转完成");
+```
+
+### `return`
+
+- 顶层脚本的 `return;` 只结束当前脚本
+- 函数内的 `return expr;` 会把值返回给调用方
+- 子脚本或函数的 `return` 不会把其他脚本一起截断
+
+```cpp
+int Sum3(int a, int b, int c){
+    return a + b + c;
+}
+```
+
+### `on:` 边沿触发
+
+`on:` 表示条件从假变真时只触发一次：
+
+```cpp
+if(on:round_phase=="live"){
+    Log("刚进入 live");
+}
+```
+
+## 函数
+
+### 函数定义
+
+```cpp
+int Add(int a, int b){
+    return a + b;
+}
+
+bool IsAlive(){
+    return health > 0;
+}
+
+void Ping(){
+    Log("ping");
+}
+```
+
+### 建议使用的返回类型
+
+- `int`
+- `float`
+- `double`
+- `string`
+- `bool`
+- `void`
+- `auto`
+- `vector<T>`
+- `array<T>`
+
+### 函数返回值示例
+
+```cpp
+string JudgeState(int hp){
+    if(hp <= 0){
+        return "dead";
+    }
+    return "alive";
+}
+```
+
+## 内建函数总表
+
+下面这份清单与当前 `ExecuteFunction(...)` 实现一一对应，可直接用于核对当前版本到底有哪些可调用函数。
+
+### 数据与判断
+
+- `Size`
+- `TypeOf`
+- `IsVoid`
+- `HasField`
+- `Contains`
+- `StartsWith`
+- `EndsWith`
+- `Previous`
+- `Changed`
+- `ChangedTo`
+- `Delta`
+- `Cooldown`
+- `Log`
+- `Sleep`
+
+### Steam 与本地环境
+
+- `GetSteamPath`
+- `GetCS2InstallPath`
+- `GetCS2CfgPath`
+- `WriteSteamGSIConfig`
+- `GetSteamUserIDs32`
+- `GetSteamUserIDs64`
+- `HasSteamUser32`
+- `HasSteamUser64`
+- `Steam32To64`
+- `Steam64To32`
+- `GetSteamLocalConfigPath32`
+- `GetSteamLocalConfigPath64`
+- `GetSteamLaunchOptions32`
+- `GetSteamLaunchOptions64`
+- `GetSteamAccounts`
+
+### GSI 对象
+
+- `GetAllPlayers`
+- `GetCurrentPlayerWeapons`
+
+### 窗口、启动与控制
+
+- `CloseGameWindow`
+- `KillGameProcess`
+- `RunGameProcess`
+- `ShowGameProcess`
+- `Browser`
+- `Open`
+- `EnsureProcessWindow`
+- `Top`
+
+### 图像与音频
+
+- `Drawimg`
+- `Closeimg`
+- `Playsnd`
+- `Stopsnd`
+
+### 音量与准星
+
+- `SetProcessVolume`
+- `SetProcessMute`
+- `SetDeathVolume`
+- `SetDeathMute`
+- `SetCrosshairEnabled`
+- `SetCrosshairVisual`
+- `SetCrosshairConfig`
+- `SetCrosshair`
+
+### 高权限
+
+- `ShellExecute`
+- `CFile`
+- `OwriteFile`
+- `AwriteFile`
+- `DFile`
 
 ## 缺失值规则
 
@@ -583,7 +716,7 @@ if(!IsVoid(player_name)){
 
 ## 综合示范脚本
 
-下面这个脚本覆盖了当前最重要的语法与 API：
+下面这个脚本覆盖了当前最常用的语法与 API：
 
 ```cpp
 const int aliveLine = 1;
@@ -670,5 +803,3 @@ for(int i=0; i<Size(accounts); i++){
 
 - `vscript_examples/syntax_showcase.vscript`
 - `vscript_examples/steam_accounts_showcase.vscript`
-
-如果你要继续扩展自己的脚本，建议先从这两个示例改起。

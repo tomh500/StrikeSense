@@ -5,6 +5,7 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_map>
+#include <atomic>
 #include <SDL.h>
 #include <SDL_mixer.h>
 #include <mutex>
@@ -14,28 +15,29 @@ namespace fs = std::filesystem;
 namespace sound {
 
 static bool s_sdlInitialized = false;
-
-// 预加载的音效缓存（非低内存模式使用）
 static std::unordered_map<int, Mix_Chunk*> s_soundMap;
 static std::unordered_map<int, std::string> s_soundFileMap;
-// ----------------------------------------------------------
-// 
-// ======= 新增：受控延迟播放线程控制元 =======
 static std::thread s_delayThread;
 static std::atomic<bool> s_delayCancel{ false };
 static std::mutex s_delayMutex;
-// 安全停止并回收延迟线程的同步函数
+
 static void StopDelayThread()
 {
     s_delayCancel = true;
     std::lock_guard<std::mutex> lock(s_delayMutex);
     if (s_delayThread.joinable())
     {
-        s_delayThread.join(); // 阻塞等待线程安全退出
+        s_delayThread.join();
     }
 }
-// ===========================================
-// 
+
+void StopMusicKitPlayback()
+{
+    StopDelayThread();
+    Mix_HaltChannel(1);
+    Mix_HaltChannel(2);
+    Mix_HaltChannel(3);
+}
 
 bool Init()
 {
@@ -64,19 +66,16 @@ bool Init()
     return true;
 }
 
-// ----------------------------------------------------------
-// ----------------------------------------------------------
 void Quit()
 {
     if (!s_sdlInitialized) return;
 
-    // ======= 新增：优先切断并回收后台延迟线程，防止其在 SDL 销毁后越界访问 =======
     StopDelayThread();
-    // =======================================================================
 
-    // 释放预加载的音效
     for (auto& [id, chunk] : s_soundMap)
+    {
         if (chunk) Mix_FreeChunk(chunk);
+    }
     s_soundMap.clear();
     s_soundFileMap.clear();
 
@@ -86,21 +85,20 @@ void Quit()
     s_sdlInitialized = false;
 }
 
-// ----------------------------------------------------------
-static int SndIdToChannel(int id) {
+static int SndIdToChannel(int id)
+{
     switch (id) {
     case 1: case 2: case 3: case 4: case 5:
-    case -1: return 0;  // Kill
-    case -2: return 1;  // MVP
-    case -3: case -4: return 2; // Win/Lose
-    case -12: case -13: case -14: case -19: return 3; // 音乐包 (Bomb/Round/Buy/GameOver)
-    case -18: return 5; // 死亡音效单独通道
-    case -21: return 4; // 大厅音乐
-    default: return 3;  // 兜底：防止遗漏，默认归入通道3
+    case -1: return 0;
+    case -2: return 1;
+    case -3: case -4: return 2;
+    case -12: case -13: case -14: case -19: return 3;
+    case -18: return 5;
+    case -21: return 4;
+    default: return 3;
     }
 }
 
-// ----------------------------------------------------------
 static std::wstring ResolveSndPath(int id)
 {
     config::Settings cfg = config::Load();
@@ -110,17 +108,30 @@ static std::wstring ResolveSndPath(int id)
         &cfg.snd_bomb, &cfg.snd_round, &cfg.snd_buy, &cfg.snd_death,
         &cfg.snd_gameover, &cfg.snd_menu
     };
+
     int idx = -1;
     switch (id) {
-    case 1: idx=0; break; case 2: idx=1; break; case 3: idx=2; break;
-    case 4: idx=3; break; case 5: idx=4; break; case -1: idx=5; break;
-    case -2: idx=6; break; case -3: idx=7; break; case -4: idx=8; break;
-    case -12: idx=9; break; case -13: idx=10; break; case -14: idx=11; break;
-    case -18: idx=12; break; case -19: idx=13; break; case -21: idx=14; break;
+    case 1: idx = 0; break;
+    case 2: idx = 1; break;
+    case 3: idx = 2; break;
+    case 4: idx = 3; break;
+    case 5: idx = 4; break;
+    case -1: idx = 5; break;
+    case -2: idx = 6; break;
+    case -3: idx = 7; break;
+    case -4: idx = 8; break;
+    case -12: idx = 9; break;
+    case -13: idx = 10; break;
+    case -14: idx = 11; break;
+    case -18: idx = 12; break;
+    case -19: idx = 13; break;
+    case -21: idx = 14; break;
     default: return L"";
     }
+
     if (idx >= 0 && idx < 15 && !paths[idx]->empty())
         return *paths[idx];
+
     const wchar_t* names[] = {
         L"1", L"2", L"3", L"4", L"5", L"deathmatch",
         L"mvp", L"win", L"lose", L"bomb", L"round",
@@ -128,12 +139,10 @@ static std::wstring ResolveSndPath(int id)
     };
     if (idx >= 0 && idx < 15)
         return config::GetDefaultSndPath(names[idx], cfg.ogg);
+
     return L"";
 }
 
-// ----------------------------------------------------------
-// 预加载所有音效（非低内存模式用）
-// ----------------------------------------------------------
 void PreloadSounds()
 {
     config::Settings cfg = config::Load();
@@ -143,20 +152,25 @@ void PreloadSounds()
         return;
     }
 
-    std::vector<int> ids = {1,2,3,4,5,-1};
+    std::vector<int> ids = { 1, 2, 3, 4, 5, -1 };
     if (cfg.custom_musickit)
     {
-        ids.push_back(-2); ids.push_back(-3); ids.push_back(-4);
-        ids.push_back(-12); ids.push_back(-13); ids.push_back(-14);
-        ids.push_back(-18); ids.push_back(-19); ids.push_back(-21);
+        ids.push_back(-2);
+        ids.push_back(-3);
+        ids.push_back(-4);
+        ids.push_back(-12);
+        ids.push_back(-13);
+        ids.push_back(-14);
+        ids.push_back(-18);
+        ids.push_back(-19);
+        ids.push_back(-21);
     }
 
     for (int id : ids)
     {
         std::wstring path = ResolveSndPath(id);
         std::string pathA = fs::path(path).string();
-
-        s_soundFileMap[id] = pathA; 
+        s_soundFileMap[id] = pathA;
 
         Mix_Chunk* chunk = Mix_LoadWAV(pathA.c_str());
         if (!chunk)
@@ -164,57 +178,50 @@ void PreloadSounds()
             std::wcout << L"[音效] 预加载失败(id=" << id << L"): " << path << std::endl;
             continue;
         }
+
         s_soundMap[id] = chunk;
         std::wcout << L"[音效] 预加载成功(id=" << id << L"): " << path << std::endl;
     }
+
     std::cout << "[音效] 预加载完成，共 " << s_soundMap.size() << " 个音效。" << std::endl;
 }
 
-// ----------------------------------------------------------
-// ----------------------------------------------------------
 void Play(int id, float volume)
 {
-    // ======== 修改：防止重叠的异步安全等待队列 ========
-    if (id == -13 || id == -14)
+    config::Settings cfg = config::Load();
+
+    if ((id == -13 || id == -14) && !cfg.force_interrupt)
     {
         if (Mix_Playing(1) || Mix_Playing(2))
         {
-            std::cout << "[音效] 检测到结算或 MVP 音效仍在播放，正在创建后台异步等待队列..." << std::endl;
-
-            // 1. 先安全清理上一次可能残存的延迟线程
+            std::cout << "[音效] 检测到结算或 MVP 音效仍在播放，正在等待后再补播新阶段音效。" << std::endl;
             StopDelayThread();
 
-            // 2. 加锁拉起新线程任务
             std::lock_guard<std::mutex> lock(s_delayMutex);
             s_delayCancel = false;
             s_delayThread = std::thread([id, volume]() {
-                // 只要未触发取消信号，且结算音效仍在播放，就高频微步长等待
                 while (!s_delayCancel && (Mix_Playing(1) || Mix_Playing(2)))
                 {
                     SDL_Delay(50);
                 }
 
-                // 如果中途没有被取消（说明不是因为程序退出或被新回合音效覆盖），则安全执行播放
                 if (!s_delayCancel)
                 {
-                    std::cout << "[音效] 上回合结算音效已完全播放完毕，现在正式投递音效 (ID: " << id << ")" << std::endl;
+                    std::cout << "[音效] 上一段结算音效已结束，开始补播阶段音效(ID: " << id << ")" << std::endl;
                     Play(id, volume);
                 }
-                });
-
-            return; // 立刻返回，绝不阻塞当前 GSI 核心工作线程
+            });
+            return;
         }
     }
-    // ===================================================================================
 
-    config::Settings cfg = config::Load();
-
-    // 1. 特殊处理：大厅背景音乐 (ID: -21)
-    if (id == -21) {
+    if (id == -21)
+    {
         std::wstring path = ResolveSndPath(id);
         if (path.empty() || !fs::exists(path)) return;
 
-        if (s_soundMap.count(-21)) {
+        if (s_soundMap.count(-21) && s_soundMap[-21])
+        {
             Mix_FreeChunk(s_soundMap[-21]);
         }
 
@@ -222,26 +229,21 @@ void Play(int id, float volume)
         if (!s_soundMap[-21]) return;
 
         Mix_VolumeChunk(s_soundMap[-21], static_cast<int>(volume * MIX_MAX_VOLUME));
-        Mix_HaltChannel(4); // 【修复问题2】大厅独立占用通道4
-        Mix_PlayChannel(4, s_soundMap[-21], -1); // 通道4，无限循环
+        Mix_HaltChannel(4);
+        Mix_PlayChannel(4, s_soundMap[-21], -1);
         return;
     }
 
-    if (id == -18)
-    {
-        // 始终播放死亡音效
-    }
-    else if (id >= 1 && id <= 5 || id == -1)
+    if (id != -18 && ((id >= 1 && id <= 5) || id == -1))
     {
         if (!cfg.enable_kill_sound) return;
     }
     else if (!cfg.custom_musickit)
     {
-        if (id == -2 || id == -3 || id == -4 || id == -12 || id == -13 || id == -14)
+        if (id == -2 || id == -3 || id == -4 || id == -12 || id == -13 || id == -14 || id == -19)
             return;
     }
 
-    // ===== 低内存模式 =====
     if (cfg.low_memory)
     {
         std::wstring path = ResolveSndPath(id);
@@ -271,12 +273,11 @@ void Play(int id, float volume)
                 while (Mix_Playing(played))
                     SDL_Delay(6);
                 Mix_FreeChunk(chunk);
-                }).detach();
+            }).detach();
         }
         return;
     }
 
-    // ===== 正常模式：使用预加载缓存 =====
     auto it = s_soundMap.find(id);
     if (it == s_soundMap.end() || !it->second)
     {

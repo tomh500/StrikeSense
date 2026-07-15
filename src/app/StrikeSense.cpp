@@ -134,7 +134,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     flashoverlay::Initialize(hInst);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607040217" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607151735" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -198,6 +198,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
+    StopQuickStopHook();
     gsi::StopServer(); gsi::Cleanup(); vscript::Shutdown(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);
     if (g_hMutex) CloseHandle(g_hMutex);

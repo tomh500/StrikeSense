@@ -137,6 +137,9 @@ void EnsureDirectory(const fs::path& p)
             if (j.contains("custom_musickit") && j["custom_musickit"].is_boolean())
                 s.custom_musickit = j["custom_musickit"];
 
+            if (j.contains("force_interrupt") && j["force_interrupt"].is_boolean())
+                s.force_interrupt = j["force_interrupt"];
+
             if (j.contains("custom_flashbang") && j["custom_flashbang"].is_boolean())
                 s.custom_flashbang = j["custom_flashbang"];
 
@@ -188,6 +191,7 @@ void EnsureDirectory(const fs::path& p)
             j["vol"] = s.volume;
             j["ogg"] = s.ogg;
             j["custom_musickit"] = s.custom_musickit;
+            j["force_interrupt"] = s.force_interrupt;
             j["custom_flashbang"] = s.custom_flashbang;
             j["low_memory"] = s.low_memory;
             j["show_mvp"] = s.show_mvp;
@@ -203,6 +207,7 @@ void EnsureDirectory(const fs::path& p)
                 j["__comments"]["vol"] = "播放音量，取值范围vol∈(0.0 , 1.0]";
                 j["__comments"]["ogg"] = "音频格式是否使用 .ogg格式";
                 j["__comments"]["custom_musickit"] = "是否启用自定义音乐包逻辑";
+                j["__comments"]["force_interrupt"] = "是否在新阶段开始时强制打断当前自定义音乐盒通道，避免回合结束、MVP、安包等音效与下一阶段重叠";
                 j["__comments"]["custom_flashbang"] = "是否启用闪光叠加页面";
                 j["__comments"]["low_memory"] = "是否开启低内存模式";
                 j["__comments"]["show_mvp"] = "是否展示MVP信息板";

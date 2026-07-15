@@ -491,14 +491,14 @@ bool ConfirmContinuousAllowed(const std::wstring& path)
 {
     if (ScriptHasEdgeGuard(path)) return true;
     if (GetRuntimeCapability() == buildcode::eng) {
-        std::wcout << L"[鑴氭湰鏉冮檺] eng 鏋勫缓鍏佽鏃?on: 杞鑴氭湰: " << path << std::endl;
+        std::wcout << L"[脚本权限] eng 构建允许时：轮询脚本：" << path << std::endl;
         return true;
     }
     if (GetRuntimeCapability() == buildcode::userdebug) {
         int result = MessageBoxW(
             s_owner,
-            L"杩欎釜鑴氭湰娌℃湁 on: 鐘舵€佽竟娌垮垽鏂紝鎸佺画鎵ц鍙兘鍙嶅鎵撳紑缃戦〉銆侀噸澶嶅垱寤烘枃浠舵垨鍙嶅鎵ц鍛戒护銆俓n\n鏄惁浠嶇劧鍏佽瀹冭疆璇紵",
-            L"StrikeSense 鑴氭湰杞纭",
+            L"这个脚本没有 on: 状态边沿判断，持续执行可能反复打开网页、重复创建文件或反复执行命令。\n\n是否仍然允许它轮询？",
+            L"StrikeSense",
             MB_YESNO | MB_ICONWARNING
         );
         return result == IDYES;
@@ -666,7 +666,7 @@ bool EnsureOemUnlockFile()
     return exists;
     if (fs::exists(path)) return true;
     WriteUtf8(path, MakeOemKey(NowStamp(), L"24h"));
-    std::wcout << L"[OEM] 宸茬敓鎴愰粯璁?24 灏忔椂璋冭瘯瑙ｉ攣鏂囦欢: " << path.wstring() << std::endl;
+    std::wcout << L"[OEM] 系统已经自动为你生成了一个可以让设备持续运行（或保持调试模式开启）24 小时的解锁文件: " << path.wstring() << std::endl;
     return true;
 }
 
@@ -981,7 +981,7 @@ void TickContinuousScripts()
                 s_currentScriptPath = script.path;
                 execution_context exec;
                 execution_scope_guard guard(exec);
-                std::wcout << L"[鑴氭湰] 寮€濮嬭繛缁墽琛岃剼鏈紝涓婁笅鏂囧凡闅旂: " << script.path << std::endl;
+                //std::wcout << L"[脚本] 开始连续执行脚本，上下文已隔离： " << script.path << std::endl;
                 ExecuteBlock(StripComments(text));
                 s_currentPrivilegedAllowed = false;
                 s_currentScriptPath.clear();
@@ -1000,16 +1000,16 @@ bool ExecuteScriptFile(const std::wstring& path)
     if (!RefreshScriptState(temp, true)) return false;
     std::wstring script = ReadAllWide(path);
     if (script.empty()) {
-        std::wcout << L"[鑴氭湰] 鑴氭湰涓虹┖鎴栬鍙栧け璐? " << path << std::endl;
+        std::wcout << L"[脚本] 脚本为空或读取失败：" << path << std::endl;
         return false;
     }
     s_scriptCache[path] = script;
-    std::wcout << L"[鑴氭湰] 鎵ц鑴氭湰: " << path << std::endl;
+    std::wcout << L"[脚本] 执行脚本： " << path << std::endl;
     s_currentPrivilegedAllowed = temp.privilegedAllowed;
     s_currentScriptPath = path;
     execution_context exec;
     execution_scope_guard guard(exec);
-    std::wcout << L"[鑴氭湰] 寮€濮嬪崟娆℃墽琛岃剼鏈紝涓婁笅鏂囧凡闅旂: " << path << std::endl;
+    std::wcout << L"[脚本] 开始单次执行脚本，上下文已隔离：" << path << std::endl;
     ExecuteBlock(StripComments(script));
     s_currentPrivilegedAllowed = false;
     s_currentScriptPath.clear();
@@ -1059,9 +1059,9 @@ void LoadMountedScripts()
                 }
             }
         }
-        std::cout << "[鑴氭湰閰嶇疆] 宸插姞杞芥寕杞借剼鏈暟閲?" << s_mounted.size() << std::endl;
+        std::cout << "[脚本配置] 已加载挂载脚本数量：" << s_mounted.size() << std::endl;
     } catch (const std::exception& e) {
-        std::cerr << "[鑴氭湰閰嶇疆] 鍔犺浇澶辫触: " << e.what() << std::endl;
+        std::cerr << "[脚本配置] 加载失败： " << e.what() << std::endl;
     }
 }
 
@@ -1109,7 +1109,7 @@ void ToggleContinuous(size_t index)
         return;
     }
     if (!s_mounted[index].continuous && !ConfirmContinuousAllowed(s_mounted[index].path)) {
-        std::wcout << L"[鑴氭湰鏉冮檺] 宸叉嫆缁濆紑鍚寔缁墽琛? " << s_mounted[index].path << std::endl;
+        std::wcout << L"[脚本配置] 已保存挂载脚本数量： " << s_mounted[index].path << std::endl;
         return;
     }
     s_mounted[index].continuous = !s_mounted[index].continuous;
@@ -1120,7 +1120,7 @@ void EnsureExampleScript()
 {
     fs::path dir = GetDefaultScriptDir();
     fs::create_directories(dir);
-    std::cout << "[鑴氭湰] 宸茬‘璁よ剼鏈洰褰曞瓨鍦紝涓嶄細棰濆鐢熸垚绀轰緥璧勬簮鐩綍" << std::endl;
+    std::cout << "[脚本] 已确认脚本目录存在，不会额外生成示例资源目录" << std::endl;
 }
 
 const std::wstring& GetScriptDisplayName(const mounted_script& script)

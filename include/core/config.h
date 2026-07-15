@@ -12,6 +12,7 @@ struct Settings {
     float volume = 0.88f;
     bool ogg = false;
     bool custom_musickit = false;
+    bool force_interrupt = false;
     bool custom_flashbang = false;
     bool low_memory = false;
     bool show_mvp = false;

@@ -1,7 +1,12 @@
 #include "quickstop.h"
 #include "config.h"
+#include <algorithm>
+#include <array>
+#include <condition_variable>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <nlohmann/json.hpp>
 
 // CS2 窗口标题匹配
@@ -92,14 +97,50 @@ void SaveQuickStopConfig()
     }
 }
 
-// ===== 急停核心状态（完全复刻 CS2MouseHook/KICore） =====
+// ===== 急停核心状态 =====
 namespace {
-    std::atomic<bool> ws_blocking{ false }, ad_blocking{ false };
-    std::atomic<bool> ignore_w{ false }, ignore_s{ false }, ignore_a{ false }, ignore_d{ false };
-    bool is_holding_gun = true;
-    std::map<char, std::chrono::steady_clock::time_point> start_times;
-    bool jiting = false;
+    using Clock = std::chrono::steady_clock;
+
+    struct AxisControl {
+        std::atomic<std::uint64_t> generation{ 0 };
+        std::mutex request_mutex;
+        std::condition_variable request_cv;
+        bool request_pending = false;
+        bool shutdown = false;
+        WORD request_key = 0;
+        int request_pulse = 0;
+        std::uint64_t request_generation = 0;
+        std::thread worker;
+    };
+
+    constexpr std::array<char, 4> kMoveKeys{ 'W', 'A', 'S', 'D' };
+    std::array<bool, kMoveKeys.size()> physical_key_down{};
+    std::array<Clock::time_point, kMoveKeys.size()> start_times{};
+    std::mutex movement_mutex;
+    AxisControl ws_axis;
+    AxisControl ad_axis;
+    std::atomic<bool> is_holding_gun{ true };
     std::atomic<bool> pause_jiting{ false };
+
+    int MoveKeyIndex(char key)
+    {
+        const auto it = std::find(kMoveKeys.begin(), kMoveKeys.end(), key);
+        return it == kMoveKeys.end() ? -1 : static_cast<int>(std::distance(kMoveKeys.begin(), it));
+    }
+
+    AxisControl* GetAxis(char key)
+    {
+        if (key == 'W' || key == 'S') return &ws_axis;
+        if (key == 'A' || key == 'D') return &ad_axis;
+        return nullptr;
+    }
+
+    bool IsAxisKeyDownUnlocked(const AxisControl* axis)
+    {
+        if (axis == &ws_axis)
+            return physical_key_down[MoveKeyIndex('W')] || physical_key_down[MoveKeyIndex('S')];
+        return physical_key_down[MoveKeyIndex('A')] || physical_key_down[MoveKeyIndex('D')];
+    }
 
     bool IsSilentKeyPressed()
     {
@@ -120,38 +161,138 @@ namespace {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    void PerformDynamicStop(WORD vKey, int move_duration_ms, std::atomic<bool>* blocking_flag)
+    int CalculateStopPulse(int move_duration_ms)
     {
-        if (GetAsyncKeyState(vKey) & 0x8000)
-        {
-            blocking_flag->store(false);
-            return;
-        }
-
-        // 线性插值计算脉冲
         const auto& cfg = s_qsConfig;
-        int stop_pulse = cfg.min_pulse;
-        if (move_duration_ms > cfg.move_start_at)
+        const int min_pulse = (std::max)(1, cfg.min_pulse);
+        const int max_pulse = (std::max)(min_pulse, cfg.max_pulse);
+        const int cap_pulse = (std::max)(1, cfg.cap_pulse);
+
+        if (move_duration_ms <= cfg.move_start_at)
+            return (std::min)(min_pulse, cap_pulse);
+        if (cfg.move_cap_at <= cfg.move_start_at)
+            return (std::min)(max_pulse, cap_pulse);
+
+        const auto duration = std::clamp(move_duration_ms, cfg.move_start_at, cfg.move_cap_at);
+        const auto range = static_cast<long long>(max_pulse - min_pulse);
+        const auto elapsed = static_cast<long long>(duration - cfg.move_start_at);
+        const auto window = static_cast<long long>(cfg.move_cap_at - cfg.move_start_at);
+        return (std::min)(min_pulse + static_cast<int>(elapsed * range / window), cap_pulse);
+    }
+
+    void PerformDynamicStop(WORD vKey, int stop_pulse, AxisControl* axis, std::uint64_t generation)
+    {
         {
-            stop_pulse = cfg.min_pulse + (move_duration_ms - cfg.move_start_at) * (cfg.max_pulse - cfg.min_pulse) / (cfg.move_cap_at - cfg.move_start_at);
+            std::lock_guard movement_lock(movement_mutex);
+            if (axis->generation.load() != generation || IsAxisKeyDownUnlocked(axis))
+                return;
+            SendHardwareKey(vKey, true);
         }
-        if (stop_pulse > cfg.cap_pulse) stop_pulse = cfg.cap_pulse;
 
-        // 执行模拟按键
-        SendHardwareKey(vKey, true);
-        std::this_thread::sleep_for(std::chrono::milliseconds(stop_pulse));
+        const auto deadline = Clock::now() + std::chrono::milliseconds(stop_pulse);
+        while (Clock::now() < deadline)
+        {
+            if (axis->generation.load() != generation)
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
 
-        // 设置忽略旗标，防止反向按键触发自己的 start 事件
-        if (vKey == 'W') ignore_w = true;
-        else if (vKey == 'S') ignore_s = true;
-        else if (vKey == 'A') ignore_a = true;
-        else if (vKey == 'D') ignore_d = true;
+        {
+            std::lock_guard movement_lock(movement_mutex);
+            SendHardwareKey(vKey, false);
 
-        SendHardwareKey(vKey, false);
+            // 合成 KEYUP 可能覆盖玩家刚按下的同一个键，立即恢复真实按住状态。
+            const int key_index = MoveKeyIndex(static_cast<char>(vKey));
+            if (key_index >= 0 && physical_key_down[key_index])
+                SendHardwareKey(vKey, true);
+        }
+    }
 
-        // 阻塞保护期：防止连点抽风
-        std::this_thread::sleep_for(std::chrono::milliseconds(60));
-        blocking_flag->store(false);
+    void AxisWorkerLoop(AxisControl* axis)
+    {
+        while (true)
+        {
+            WORD vKey = 0;
+            int stop_pulse = 0;
+            std::uint64_t generation = 0;
+            {
+                std::unique_lock request_lock(axis->request_mutex);
+                axis->request_cv.wait(request_lock, [axis] {
+                    return axis->shutdown || axis->request_pending;
+                });
+                if (axis->shutdown) return;
+
+                vKey = axis->request_key;
+                stop_pulse = axis->request_pulse;
+                generation = axis->request_generation;
+                axis->request_pending = false;
+            }
+
+            PerformDynamicStop(vKey, stop_pulse, axis, generation);
+        }
+    }
+
+    void StartAxisWorker(AxisControl& axis)
+    {
+        std::lock_guard request_lock(axis.request_mutex);
+        if (axis.worker.joinable()) return;
+        axis.shutdown = false;
+        axis.request_pending = false;
+        axis.worker = std::thread(AxisWorkerLoop, &axis);
+    }
+
+    void StopAxisWorker(AxisControl& axis)
+    {
+        axis.generation.fetch_add(1);
+        {
+            std::lock_guard request_lock(axis.request_mutex);
+            axis.shutdown = true;
+            axis.request_pending = false;
+        }
+        axis.request_cv.notify_one();
+        if (axis.worker.joinable())
+            axis.worker.join();
+    }
+
+    void StartAxisPulse(WORD vKey, int move_duration_ms, AxisControl* axis)
+    {
+        const int stop_pulse = CalculateStopPulse(move_duration_ms);
+        const auto generation = axis->generation.fetch_add(1) + 1;
+
+        {
+            std::lock_guard request_lock(axis->request_mutex);
+            axis->request_key = vKey;
+            axis->request_pulse = stop_pulse;
+            axis->request_generation = generation;
+            axis->request_pending = true;
+        }
+        axis->request_cv.notify_one();
+
+        std::cout << "[急停] 移动 " << move_duration_ms
+                  << "ms，反向脉冲 " << stop_pulse << "ms" << std::endl;
+    }
+
+    void CancelAxis(AxisControl& axis)
+    {
+        axis.generation.fetch_add(1);
+    }
+
+    void StopAllPulses()
+    {
+        for (AxisControl* axis : { &ws_axis, &ad_axis })
+        {
+            CancelAxis(*axis);
+            std::lock_guard request_lock(axis->request_mutex);
+            axis->request_pending = false;
+        }
+    }
+
+    void ResetPhysicalKeys()
+    {
+        std::lock_guard movement_lock(movement_mutex);
+        physical_key_down.fill(false);
+        CancelAxis(ws_axis);
+        CancelAxis(ad_axis);
     }
 
     void UpdateWeaponState(const std::string& json)
@@ -168,12 +309,16 @@ namespace {
         bool active_is_nade = (weaponZone.find("\"type\": \"Grenade\"") != std::string::npos);
         bool active_is_c4 = (weaponZone.find("\"type\": \"C4\"") != std::string::npos);
 
-        is_holding_gun = !(active_is_knife || active_is_nade || active_is_c4);
+        is_holding_gun.store(!(active_is_knife || active_is_nade || active_is_c4));
     }
 }
 
 // ===== 暂停控制 =====
-void SetQuickStopPause(bool paused) { pause_jiting = paused; }
+void SetQuickStopPause(bool paused)
+{
+    pause_jiting = paused;
+    if (paused) StopAllPulses();
+}
 bool IsQuickStopPaused() { return pause_jiting; }
 
 // ===== 全局键盘钩子 =====
@@ -184,12 +329,16 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
 {
     if (nCode == HC_ACTION)
     {
-        // 只在 CS2 前台时才处理急停
-        if (!IsCS2Foreground()) return CallNextHookEx(nullptr, nCode, wParam, lParam);
-
         auto* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-        if (kb)
+        // SendInput 产生的按键不参与真实移动计时，也不会反过来触发急停。
+        if (kb && !(kb->flags & LLKHF_INJECTED))
         {
+            if (!IsCS2Foreground())
+            {
+                ResetPhysicalKeys();
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
+            }
+
             WORD vk = (WORD)kb->vkCode;
             char keyChar = 0;
             if (vk == 'W') keyChar = 'W';
@@ -216,13 +365,17 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
 void StartQuickStopHook()
 {
     if (g_hookRunning) return;
-    g_hookRunning = true;
     g_quickStopHook = SetWindowsHookExW(WH_KEYBOARD_LL, QuickStopLowLevelKeyboardProc,
         GetModuleHandleW(nullptr), 0);
     if (g_quickStopHook)
+    {
+        StartAxisWorker(ws_axis);
+        StartAxisWorker(ad_axis);
+        g_hookRunning = true;
         std::cout << "[急停] 键盘钩子已安装" << std::endl;
+    }
     else
-        std::cout << "[急停] 键盘钩子安装失败" << std::endl;
+        std::cout << "[急停] 键盘钩子安装失败，错误码: " << GetLastError() << std::endl;
 }
 
 void StopQuickStopHook()
@@ -233,6 +386,10 @@ void StopQuickStopHook()
         g_quickStopHook = nullptr;
     }
     g_hookRunning = false;
+    ResetPhysicalKeys();
+    StopAllPulses();
+    StopAxisWorker(ws_axis);
+    StopAxisWorker(ad_axis);
     std::cout << "[急停] 键盘钩子已卸载" << std::endl;
 }
 
@@ -250,32 +407,47 @@ void ProcessQuickStopCommand(const std::string& cmd)
     if (cmd.find("quickstart_") != std::string::npos)
     {
         char key = toupper(cmd.back());
-        start_times[key] = std::chrono::steady_clock::now();
+        const int key_index = MoveKeyIndex(key);
+        AxisControl* axis = GetAxis(key);
+        if (key_index < 0 || !axis) return;
+
+        std::lock_guard movement_lock(movement_mutex);
+        if (physical_key_down[key_index]) return; // 忽略系统长按产生的重复 KEYDOWN
+        physical_key_down[key_index] = true;
+        start_times[key_index] = Clock::now();
+        CancelAxis(*axis); // 新的真实移动输入立即结束同轴反向脉冲
         return;
     }
 
     // C. 执行急停
     if (cmd.find("quickstop_") != std::string::npos)
     {
+        char key = toupper(cmd.back());
+        const int key_index = MoveKeyIndex(key);
+        AxisControl* axis = GetAxis(key);
+        if (key_index < 0 || !axis) return;
+
+        int duration = 0;
+        {
+            std::lock_guard movement_lock(movement_mutex);
+            if (!physical_key_down[key_index]) return; // 忽略重复或非真实 KEYUP
+            physical_key_down[key_index] = false;
+            duration = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                Clock::now() - start_times[key_index]).count());
+        }
+
         if (pause_jiting) return;           // pause键控制的全局急停开关
         if (!s_qsConfig.enabled) return;    // 总开关
         if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
-        if (!is_holding_gun) return;        // 刀/雷 拦截
+        if (!is_holding_gun.load()) return; // 刀/雷 拦截
 
-        char key = toupper(cmd.back());
         WORD counterKey = 0;
-        std::atomic<bool>* flag = nullptr;
+        if (key == 'W') counterKey = 'S';
+        else if (key == 'S') counterKey = 'W';
+        else if (key == 'A') counterKey = 'D';
+        else if (key == 'D') counterKey = 'A';
 
-        if (key == 'W') { if (ignore_w.exchange(false)) return; counterKey = 'S'; flag = &ws_blocking; }
-        else if (key == 'S') { if (ignore_s.exchange(false)) return; counterKey = 'W'; flag = &ws_blocking; }
-        else if (key == 'A') { if (ignore_a.exchange(false)) return; counterKey = 'D'; flag = &ad_blocking; }
-        else if (key == 'D') { if (ignore_d.exchange(false)) return; counterKey = 'A'; flag = &ad_blocking; }
-
-        if (counterKey && flag && !flag->exchange(true))
-        {
-            auto now = std::chrono::steady_clock::now();
-            int duration = (int)std::chrono::duration_cast<std::chrono::milliseconds>(now - start_times[key]).count();
-            std::thread(PerformDynamicStop, counterKey, duration, flag).detach();
-        }
+        if (counterKey)
+            StartAxisPulse(counterKey, duration, axis);
     }
 }
