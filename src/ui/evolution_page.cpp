@@ -208,10 +208,33 @@ void LoadEvolutionParams() {
 static HWND g_crossHWnd = nullptr;
 static std::thread g_crossThread;
 bool g_crossThreadRunning = false;
+static bool g_crosshairWindowVisible = false;
+static constexpr UINT_PTR kCrosshairVisibilityTimer = 1;
+
+static void UpdateCrosshairWindowVisibility(HWND hw)
+{
+    const bool shouldShow = IsCS2WindowActive();
+    if (shouldShow == g_crosshairWindowVisible) return;
+
+    g_crosshairWindowVisible = shouldShow;
+    ShowWindow(hw, shouldShow ? SW_SHOWNOACTIVATE : SW_HIDE);
+    if (shouldShow) {
+        InvalidateRect(hw, nullptr, FALSE);
+        UpdateWindow(hw);
+    }
+    std::cout << "[狙击准星] CS2 窗口状态变化，覆盖层已"
+              << (shouldShow ? "显示" : "隐藏") << std::endl;
+}
 
 static LRESULT CALLBACK CrosshairWndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     switch (m) {
     case WM_CLOSE: DestroyWindow(hw); return 0;
+    case WM_TIMER:
+        if (wp == kCrosshairVisibilityTimer) {
+            UpdateCrosshairWindowVisibility(hw);
+            return 0;
+        }
+        break;
     case WM_PAINT: {
         PAINTSTRUCT ps; HDC hdc = BeginPaint(hw, &ps);
         RECT rc; GetClientRect(hw, &rc);
@@ -230,7 +253,11 @@ static LRESULT CALLBACK CrosshairWndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) 
         EndPaint(hw, &ps); return 0;
     }
     case WM_ERASEBKGND: return 1;
-    case WM_DESTROY: PostQuitMessage(0); return 0;
+    case WM_DESTROY:
+        KillTimer(hw, kCrosshairVisibilityTimer);
+        g_crosshairWindowVisible = false;
+        PostQuitMessage(0);
+        return 0;
     }
     return DefWindowProc(hw, m, wp, lp);
 }
@@ -245,11 +272,14 @@ static void StartCrosshair(HINSTANCE hInst) {
         wc.lpszClassName = L"StrikeSense_Crosshair";
         RegisterClassExW(&wc);
         int sw = GetSystemMetrics(SM_CXSCREEN), sh = GetSystemMetrics(SM_CYSCREEN);
-        HWND cw = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW,
+        HWND cw = CreateWindowExW(WS_EX_TOPMOST | WS_EX_TRANSPARENT | WS_EX_LAYERED
+            | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
             L"StrikeSense_Crosshair", L"", WS_POPUP, 0, 0, sw, sh, nullptr, nullptr, hInst, nullptr);
         if (!cw) { g_crossThreadRunning = false; return; }
         SetLayeredWindowAttributes(cw, RGB(0, 0, 0), 0, LWA_COLORKEY);
-        ShowWindow(cw, SW_SHOW); UpdateWindow(cw); g_crossHWnd = cw;
+        g_crossHWnd = cw;
+        SetTimer(cw, kCrosshairVisibilityTimer, 1000, nullptr);
+        UpdateCrosshairWindowVisibility(cw);
         MSG m; while (GetMessage(&m, nullptr, 0, 0)) { TranslateMessage(&m); DispatchMessage(&m); }
         g_crossHWnd = nullptr; g_crossThreadRunning = false;
     });
@@ -266,7 +296,8 @@ void DestroyCrosshairInternal() { StopCrosshair(); }
 void RefreshCrosshairOverlay()
 {
     if (!g_crossHWnd) return;
-    RedrawWindow(g_crossHWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
+    InvalidateRect(g_crossHWnd, nullptr, FALSE);
+    if (IsWindowVisible(g_crossHWnd)) UpdateWindow(g_crossHWnd);
 }
 
 void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale,
