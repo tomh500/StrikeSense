@@ -20,7 +20,7 @@ struct QuickStopConfig {
 QuickStopConfig& GetQSConfig();
 void LoadQuickStopConfig();
 void SaveQuickStopConfig();
-void SetQuickStopEnabled(bool enabled, bool persist = true);
+void SetQuickStopEnabled(bool enabled);
 bool IsQuickStopEnabled();
 void ProcessQuickStopCommand(const std::string& cmd);
 void StartQuickStopHook();

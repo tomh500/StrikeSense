@@ -84,6 +84,7 @@ void CheckLegalCfgClick(HWND hw, int mx, int my);
 void CheckRageClick(HWND hw, int mx, int my);
 void CheckItemHelperClick(HWND hw, int mx, int my);
 void CheckVscriptClick(HWND hw, int mx, int my);
+bool IsRageModeEnabled();
 
 // ===== 合法配置键盘输入 =====
 void InitLegalCfgPage();

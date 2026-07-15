@@ -1,5 +1,6 @@
 #include "quickstop.h"
 #include "config.h"
+#include "pages.h"
 #include <algorithm>
 #include <array>
 #include <condition_variable>
@@ -42,8 +43,14 @@ bool IsQuickStopEnabled()
     return s_qsConfig.enabled;
 }
 
-void SetQuickStopEnabled(bool enabled, bool persist)
+void SetQuickStopEnabled(bool enabled)
 {
+    if (enabled && !IsRageModeEnabled())
+    {
+        std::cout << "[急停] 超频配置未开启，拒绝打开自动急停。" << std::endl;
+        enabled = false;
+    }
+
     if (s_qsConfig.enabled == enabled)
     {
         if (enabled && !g_hookRunning.load())
@@ -56,8 +63,6 @@ void SetQuickStopEnabled(bool enabled, bool persist)
 
     s_qsConfig.enabled = enabled;
     std::cout << "[急停] 自动急停开关已切换为: " << (enabled ? "开启" : "关闭") << std::endl;
-
-    if (persist) SaveQuickStopConfig();
 
     if (enabled)
         StartQuickStopHook();
@@ -86,19 +91,14 @@ void LoadQuickStopConfig()
         auto gb = [&](const char* k, bool& v) { if (j.contains(k) && j[k].is_boolean()) v = j[k]; };
         auto gi = [&](const char* k, int& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<int>(); };
 
-        gb("enabled", s_qsConfig.enabled);
         gi("min_pulse", s_qsConfig.min_pulse);
         gi("max_pulse", s_qsConfig.max_pulse);
         gi("cap_pulse", s_qsConfig.cap_pulse);
         gi("move_start_at", s_qsConfig.move_start_at);
         gi("move_cap_at", s_qsConfig.move_cap_at);
+        s_qsConfig.enabled = false;
 
         std::cout << "[急停] quickstop.json 加载成功。" << std::endl;
-        if (s_qsConfig.enabled)
-        {
-            std::cout << "[急停] 检测到配置中已开启自动急停，准备自动启动钩子。" << std::endl;
-            StartQuickStopHook();
-        }
     }
     catch (const std::exception& e) {
         std::cerr << "[急停] 加载失败: " << e.what() << std::endl;
@@ -112,7 +112,6 @@ void SaveQuickStopConfig()
 
     try {
         nlohmann::json j;
-        j["enabled"] = s.enabled;
         j["min_pulse"] = s.min_pulse;
         j["max_pulse"] = s.max_pulse;
         j["cap_pulse"] = s.cap_pulse;

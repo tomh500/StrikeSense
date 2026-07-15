@@ -434,8 +434,8 @@ bool RefreshScriptState(mounted_script& script, bool showDialogs)
         script.riskNotice = script.notice;
         script.dangerStyle = true;
         if (showDialogs && s_owner) {
-            std::wstring msg = L"鑴氭湰鏂囦欢涓嶅瓨鍦紝宸插仠姝㈡寕杞界姸鎬侊細\n" + script.path;
-            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 鑴氭湰鏂囦欢涓㈠け", MB_OK | MB_ICONWARNING);
+            std::wstring msg = L"脚本文件不存在，已停止挂载状态：\n" + script.path;
+            MessageBoxW(s_owner, msg.c_str(), L"StrikeSense 脚本文件丢失", MB_OK | MB_ICONWARNING);
         }
         return false;
     }
@@ -631,8 +631,8 @@ void Initialize(HINSTANCE instance, HWND owner)
     if (s_runtimeCapability == buildcode::user && s_oemValid) s_runtimeCapability = buildcode::userdebug;
     RegisterBuildWarning();
     LoadMountedScripts();
-    std::cout << "[鑴氭湰] vscript 鍒濆鍖栧畬鎴愶紝鏋勫缓绛夌骇=" << (int)GetBuildCode()
-              << " 杩愯鑳藉姏=" << (int)s_runtimeCapability << std::endl;
+    std::cout << "[脚本] vscript 初始化完成，构建等级=" << (int)GetBuildCode()
+              << " 运行能力=" << (int)s_runtimeCapability << std::endl;
 }
 
 void Shutdown()
@@ -1076,7 +1076,7 @@ void SaveMountedScripts()
     }
     std::ofstream out(path);
     out << j.dump(2);
-    std::cout << "[鑴氭湰閰嶇疆] 宸蹭繚瀛樻寕杞借剼鏈暟閲?" << s_mounted.size() << std::endl;
+    std::cout << "[脚本配置] 已保存挂载脚本数量：" << s_mounted.size() << std::endl;
 }
 
 void AddMountedScript(const std::wstring& path)

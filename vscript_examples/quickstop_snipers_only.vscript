@@ -2,19 +2,33 @@
 // @author: Codex
 // @provider: StrikeSense
 // @version: 2026.07.15
-// @notice: 手持 AWP、鸟狙、连狙时自动开启急停，切回其他武器时自动关闭。
+// @notice: 按当前手持武器自动控制急停。手持 AWP、鸟狙、连狙时开启，其他武器关闭。
+
+auto weapons = GetCurrentPlayerWeapons();
+string activeWeapon = "void";
+
+for(int i=0; i<Size(weapons); i++){
+    auto weapon = weapons[i];
+    if(weapon.state == "active"){
+        activeWeapon = weapon.name;
+        break;
+    }
+}
 
 if(on:Changed("weapon_name")){
     if(
-        weapon_name=="weapon_awp" ||
-        weapon_name=="weapon_ssg08" ||
-        weapon_name=="weapon_scar20" ||
-        weapon_name=="weapon_g3sg1"
+        activeWeapon == "weapon_awp" ||
+        activeWeapon == "weapon_ssg08" ||
+        activeWeapon == "weapon_scar20" ||
+        activeWeapon == "weapon_g3sg1"
     ){
-        SetQuickStopEnabled(true);
-        Log("当前武器为狙，已自动开启急停: " + weapon_name);
+        if(SetQuickStopEnabled(true)){
+            Log("当前手持狙击枪，已自动开启急停: " + activeWeapon);
+        }else{
+            Log("检测到狙击枪，但超频配置未开启，无法打开急停: " + activeWeapon);
+        }
     }else{
         SetQuickStopEnabled(false);
-        Log("当前武器非目标狙，已自动关闭急停: " + weapon_name);
+        Log("当前手持非目标狙击枪，已自动关闭急停: " + activeWeapon);
     }
 };

@@ -124,7 +124,7 @@ bool FocusKnownBrowserWindow()
             return true;
         }
     }
-    std::wcout << L"[鑴氭湰] 褰撳墠鏈壘鍒板凡鎵撳紑鐨勬祻瑙堝櫒绐楀彛" << std::endl;
+    std::wcout << L"[脚本] 当前未找到已打开的浏览器窗口" << std::endl;
     return false;
 }
 
@@ -175,7 +175,7 @@ bool OpenTargetExternal(const std::wstring& target)
     const std::wstring expanded = ExpandEnvText(target);
     const INT_PTR result = (INT_PTR)ShellExecuteW(nullptr, L"open", expanded.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     const bool ok = result > 32;
-    std::wcout << L"[鑴氭湰] " << (ok ? L"宸茶姹傛墦寮€鐩爣: " : L"鎵撳紑鐩爣澶辫触: ") << expanded << std::endl;
+    std::wcout << L"[脚本] " << (ok ? L"已请求打开目标: " : L"打开目标失败: ") << expanded << std::endl;
     return ok;
 }
 
@@ -186,7 +186,7 @@ bool IsProcessRunningByName(const std::wstring& processName)
 
     HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snap == INVALID_HANDLE_VALUE) {
-        std::wcout << L"[鑴氭湰] 杩涚▼鏋氫妇澶辫触锛屾棤娉曟鏌ユ槸鍚﹁繍琛? " << normalized << std::endl;
+        std::wcout << L"[脚本] 进程枚举失败，无法检查是否运行: " << normalized << std::endl;
         return false;
     }
 
@@ -211,17 +211,17 @@ bool EnsureProcessWindow(const std::wstring& processName, const std::wstring& la
 {
     const std::wstring normalized = NormalizeProcessName(processName);
     if (normalized.empty()) {
-        std::wcout << L"[鑴氭湰] EnsureProcessWindow 澶辫触锛氳繘绋嬪悕涓虹┖" << std::endl;
+        std::wcout << L"[脚本] EnsureProcessWindow 失败：进程名为空" << std::endl;
         return false;
     }
 
     if (IsProcessRunningByName(normalized)) {
-        std::wcout << L"[鑴氭湰] 鐩爣杩涚▼宸插瓨鍦紝鍑嗗鍒囨崲绐楀彛: " << normalized << std::endl;
+        std::wcout << L"[脚本] 目标进程已存在，准备切换窗口: " << normalized << std::endl;
         return TopProcess(normalized, activate);
     }
 
     if (launchTarget.empty()) {
-        std::wcout << L"[鑴氭湰] 鐩爣杩涚▼涓嶅瓨鍦紝涓旀湭鎻愪緵鍚姩鐩爣: " << normalized << std::endl;
+        std::wcout << L"[脚本] 目标进程不存在，且未提供启动目标: " << normalized << std::endl;
         return false;
     }
 
@@ -236,7 +236,7 @@ bool EnsureProcessWindow(const std::wstring& processName, const std::wstring& la
                 return;
             }
         }
-        std::wcout << L"[鑴氭湰] 宸插惎鍔ㄧ洰鏍囷紝浣嗚秴鏃舵湭鎵惧埌绐楀彛: " << normalized << std::endl;
+        std::wcout << L"[脚本] 已启动目标，但超时未找到窗口: " << normalized << std::endl;
     }).detach();
     return true;
 }
@@ -260,11 +260,11 @@ bool HideGameWindowSafely()
     }
 
     if (FindProcessMainWindow(L"cs2.exe")) {
-        std::wcout << L"[鑴氭湰] 妫€娴嬪埌 CS2 涓荤獥鍙ｏ紝浣嗕负浜嗗畨鍏ㄦ湭鎵ц寮哄埗鏈€灏忓寲锛岃閰嶅悎 Browser(...) 浣跨敤" << std::endl;
+        std::wcout << L"[脚本] 检测到 CS2 主窗口，但为了安全未执行强制最小化，请配合 Browser(...) 使用" << std::endl;
         return true;
     }
 
-    std::wcout << L"[鑴氭湰] 鏈壘鍒?CS2 涓荤獥鍙ｏ紝鏃犳硶鍒囧嚭娓告垙" << std::endl;
+    std::wcout << L"[脚本] 未找到 CS2 主窗口，无法切出游戏" << std::endl;
     return false;
 }
 
@@ -272,7 +272,7 @@ bool ShowGameProcessSafely()
 {
     auto hwnd = FindProcessMainWindow(L"cs2.exe");
     if (!hwnd) {
-        std::wcout << L"[鑴氭湰] 鏈壘鍒?CS2 涓荤獥鍙ｏ紝鏃犳硶鍒囧洖娓告垙" << std::endl;
+        std::wcout << L"[脚本] 未找到 CS2 主窗口，无法切回游戏" << std::endl;
         return false;
     }
 
@@ -324,7 +324,7 @@ LRESULT CALLBACK ImageProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     if (msg == WM_DESTROY) {
         int id = (int)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
         s_images.erase(id);
-        std::cout << "[鑴氭湰] 鍥剧墖绐楀彛宸查攢姣?ID=" << id << std::endl;
+        std::cout << "[脚本] 图片窗口已销毁，ID=" << id << std::endl;
         return 0;
     }
     if (msg == WM_ERASEBKGND) return TRUE;
@@ -349,7 +349,7 @@ void CloseImage(int id)
     auto it = s_images.find(id);
     if (it == s_images.end()) return;
     if (it->second.hwnd) PostMessageW(it->second.hwnd, WM_CLOSE, 0, 0);
-    std::cout << "[鑴氭湰] 宸插叧闂浘鐗?ID=" << id << std::endl;
+    std::cout << "[脚本] 已关闭图片，ID=" << id << std::endl;
 }
 
 bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int height, int x, int y, float opacity)
@@ -367,7 +367,7 @@ bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int he
     Gdiplus::Rect rect(0, 0, width, height);
     Gdiplus::BitmapData bitmapData{};
     if (surface.LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &bitmapData) != Gdiplus::Ok) {
-        std::wcout << L"[鑴氭湰] 閿佸畾浣嶅浘鍍忕礌澶辫触锛屾棤娉曞簲鐢ㄧ湡 alpha 閫氶亾" << std::endl;
+        std::wcout << L"[脚本] 锁定位图像素失败，无法应用真 alpha 通道" << std::endl;
         return false;
     }
 
@@ -414,7 +414,7 @@ bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int he
     if (screenDc) ReleaseDC(nullptr, screenDc);
 
     if (!ok) {
-        std::wcout << L"[鑴氭湰] UpdateLayeredWindow 澶辫触锛屾棤娉曟樉绀虹湡 alpha 鍥剧墖" << std::endl;
+        std::wcout << L"[脚本] UpdateLayeredWindow 失败，无法显示真 alpha 图片" << std::endl;
     }
     return ok;
 }
@@ -425,7 +425,7 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
     EnsureImageClass();
     auto img = std::make_unique<Gdiplus::Image>(path.c_str());
     if (img->GetLastStatus() != Gdiplus::Ok) {
-        std::wcout << L"[鑴氭湰] 鍥剧墖鍔犺浇澶辫触: " << path.wstring() << std::endl;
+        std::wcout << L"[脚本] 图片加载失败: " << path.wstring() << std::endl;
         return false;
     }
     int w = (int)img->GetWidth();
@@ -461,7 +461,7 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
             }
         }).detach();
     }
-    std::wcout << L"[鑴氭湰] 宸茬粯鍒跺浘鐗? " << path.wstring() << L" ID=" << id << std::endl;
+    std::wcout << L"[脚本] 已绘制图片: " << path.wstring() << L" ID=" << id << std::endl;
     return true;
 }
 
@@ -475,7 +475,7 @@ bool PlaySoundCommand(const std::filesystem::path& path, float volume, int id)
     }
     Mix_Chunk* chunk = Mix_LoadWAV(path.string().c_str());
     if (!chunk) {
-        std::wcout << L"[鑴氭湰] 闊抽鍔犺浇澶辫触: " << path.wstring() << std::endl;
+        std::wcout << L"[脚本] 音频加载失败: " << path.wstring() << std::endl;
         return false;
     }
     Mix_VolumeChunk(chunk, std::clamp((int)(volume * MIX_MAX_VOLUME), 0, MIX_MAX_VOLUME));
@@ -485,7 +485,7 @@ bool PlaySoundCommand(const std::filesystem::path& path, float volume, int id)
         return false;
     }
     s_sounds[id] = sound_slot{ chunk, channel };
-    std::wcout << L"[鑴氭湰] 鎾斁闊抽: " << path.wstring() << L" ID=" << id << std::endl;
+    std::wcout << L"[脚本] 播放音频: " << path.wstring() << L" ID=" << id << std::endl;
     return true;
 }
 
@@ -496,7 +496,7 @@ void StopSoundCommand(int id)
     if (it->second.channel >= 0) Mix_HaltChannel(it->second.channel);
     if (it->second.chunk) Mix_FreeChunk(it->second.chunk);
     s_sounds.erase(it);
-    std::cout << "[鑴氭湰] 宸插仠姝㈤煶棰?ID=" << id << std::endl;
+    std::cout << "[脚本] 已停止音频，ID=" << id << std::endl;
 }
 
 bool RequiresUserDebug(const std::wstring& name)
@@ -605,7 +605,7 @@ value ExecuteScriptFunctionValue(const std::wstring& name, const std::vector<val
     const size_t closeParenPos = definition.rfind(L')');
     const size_t endBracePos = definition.rfind(L'}');
     if (bracePos == std::wstring::npos || parenPos == std::wstring::npos || closeParenPos == std::wstring::npos || endBracePos == std::wstring::npos) {
-        std::wcout << L"[鑴氭湰] 鍑芥暟瀹氫箟鎹熷潖锛屾棤娉曟墽琛? " << name << std::endl;
+        std::wcout << L"[脚本] 函数定义损坏，无法执行: " << name << std::endl;
         return TextValue(L"void");
     }
 
@@ -622,15 +622,15 @@ value ExecuteScriptFunctionValue(const std::wstring& name, const std::vector<val
     for (size_t i = 0; i < params.size(); ++i) {
         const value assigned = i < args.size() ? args[i] : TextValue(L"void");
         child.localScopes.back()[params[i]] = assigned;
-        std::wcout << L"[鑴氭湰] 缁戝畾鍑芥暟鍙傛暟: " << name << L"." << params[i] << L" = " << ToText(assigned) << std::endl;
+        std::wcout << L"[脚本] 绑定函数参数: " << name << L"." << params[i] << L" = " << ToText(assigned) << std::endl;
     }
 
     function_execution_guard guard(child);
-    std::wcout << L"[鑴氭湰] 寮€濮嬫墽琛岃剼鏈嚱鏁? " << name << std::endl;
+    std::wcout << L"[脚本] 开始执行脚本函数: " << name << std::endl;
     ExecuteBlock(body);
 
     const value result = CoerceValueForType(child.returnValue.value_or(TextValue(L"void")), returnType);
-    std::wcout << L"[鑴氭湰] 鑴氭湰鍑芥暟杩斿洖: " << name << L" -> " << ToText(result) << std::endl;
+    std::wcout << L"[脚本] 脚本函数返回: " << name << L" -> " << ToText(result) << std::endl;
     return result;
 }
 
@@ -639,8 +639,8 @@ value ExecuteScriptFunctionValue(const std::wstring& name, const std::vector<val
 value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>& rawArgs)
 {
     if (RequiresUserDebug(name) && !s_currentPrivilegedAllowed) {
-        std::wcout << L"[鑴氭湰鏉冮檺] 褰撳墠鑴氭湰鏃犳潈鎵ц楂樻潈闄愬懡浠? " << name
-                   << L"  鑴氭湰=" << s_currentScriptPath << std::endl;
+        std::wcout << L"[脚本权限] 当前脚本无权执行高权限命令: " << name
+                   << L"  脚本=" << s_currentScriptPath << std::endl;
         return BoolValue(false);
     }
 
@@ -747,7 +747,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         if (preferExisting) {
             ok = FocusKnownBrowserWindow();
             if (!ok) {
-                std::wcout << L"[鑴氭湰] 鏈壘鍒扮幇鏈夋祻瑙堝櫒绐楀彛锛屽噯澶囨墦寮€鐩爣缃戝潃" << std::endl;
+                std::wcout << L"[脚本] 未找到现有浏览器窗口，准备打开目标网址" << std::endl;
             }
         }
         if (!ok) ok = LaunchUrlExternal(ToText(args[0]));
@@ -796,21 +796,21 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         return BoolValue(true);
     }
     if (name == L"Log" && args.size() >= 1) {
-        std::wcout << L"[鑴氭湰] " << ToText(args[0]) << std::endl;
+        std::wcout << L"[脚本] " << ToText(args[0]) << std::endl;
         return BoolValue(true);
     }
     if (name == L"SetProcessVolume" && args.size() >= 2) {
         const std::wstring processName = ToText(args[0]);
         const float volumePercent = (float)ToNumber(args[1]);
-        std::wcout << L"[鑴氭湰] 璇锋眰璁剧疆杩涚▼闊抽噺锛岃繘绋?" << processName
-                   << L"锛岀洰鏍囩櫨鍒嗘瘮=" << volumePercent << std::endl;
+        std::wcout << L"[脚本] 请求设置进程音量，进程=" << processName
+                   << L"，目标百分比=" << volumePercent << std::endl;
         return BoolValue(SetProcessVolumeByName(processName, volumePercent));
     }
     if (name == L"SetProcessMute" && args.size() >= 2) {
         const std::wstring processName = ToText(args[0]);
         const bool muted = Truthy(args[1]);
-        std::wcout << L"[鑴氭湰] 璇锋眰璁剧疆杩涚▼闈欓煶锛岃繘绋?" << processName
-                   << L"锛岄潤闊?" << (muted ? L"true" : L"false") << std::endl;
+        std::wcout << L"[脚本] 请求设置进程静音，进程=" << processName
+                   << L"，静音=" << (muted ? L"true" : L"false") << std::endl;
         return BoolValue(SetProcessMuteByName(processName, muted));
     }
     if (name == L"SetDeathVolume" && args.size() >= 1) {
@@ -837,7 +837,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         std::wcout << L"[脚本] 请求设置自动急停开关: " << (enabled ? L"开启" : L"关闭") << std::endl;
         SetQuickStopEnabled(enabled);
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return BoolValue(true);
+        return BoolValue(IsQuickStopEnabled() == enabled);
     }
     if (name == L"GetQuickStopEnabled") {
         const bool enabled = IsQuickStopEnabled();
@@ -886,7 +886,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
     }
-    std::wcout << L"[鑴氭湰] 鏈煡鍑芥暟: " << name << std::endl;
+    std::wcout << L"[脚本] 未知函数: " << name << std::endl;
     return BoolValue(false);
 }
 

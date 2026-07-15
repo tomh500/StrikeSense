@@ -1,4 +1,4 @@
-﻿//Microsoft Visual C++ 鐢熸垚鐨勮祫婧愯剼鏈€?
+//Microsoft Visual C++ 生成的资源脚本。
 //
 #pragma code_page(65001)
 
@@ -7,7 +7,7 @@
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
-// 浠?TEXTINCLUDE 璧勬簮鐢熸垚銆?
+// 从 TEXTINCLUDE 资源生成。
 //
 #ifndef APSTUDIO_INVOKED
 #include "targetver.h"
@@ -23,7 +23,7 @@ LANGUAGE 4, 2
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 鐗堟湰淇℃伅
+// 版本信息
 //
 /////////////////////////////////////////////////////////////////////////////
 
@@ -44,15 +44,15 @@ BEGIN
     BEGIN
         BLOCK "080404B0"
         BEGIN
-            VALUE "CompanyName", "StrikeSense"
-            VALUE "FileDescription", "StrikeSense - CS2 GSI Client"
-            VALUE "FileVersion", "Test Build 202607151750"
+            VALUE "CompanyName", "无损平方集团"
+            VALUE "FileDescription", "StrikeSense - CS2 GSI客户端"
+            VALUE "FileVersion", "测试发布版 202607151750"
             VALUE "InternalName", "StrikeSense"
-            VALUE "LegalCopyright", "Copyright (C) 2026 StrikeSense"
+            VALUE "LegalCopyright", "Copyright (C) 2026 无损平方集团"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "Test Build 202607151750"
-            VALUE "PrivateBuild", "\nOffline only.\nFast and simple.\n"
+            VALUE "ProductVersion", "测试发布版 202607151750"
+            VALUE "PrivateBuild", "\n本程序承诺：\n永不联网！\n绝对无毒！\n数据安全！\n快速好用！\n\n因供应商要求，无法检查更新。"
         END
     END
     BLOCK "VarFileInfo"
@@ -63,7 +63,7 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 鍥炬爣
+// 图标
 //
 
 IDI_STRIKESENSE       ICON         "StrikeSense.ico"
@@ -71,31 +71,31 @@ IDI_SMALL               ICON         "small.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 鑿滃崟
+// 菜单
 //
 
 IDC_STRIKESENSE MENU
 BEGIN
-    POPUP "鏂囦欢(&F)"
+    POPUP "文件(&F)"
     BEGIN
-        MENUITEM "鍒涘缓 GSI 閰嶇疆鏂囦欢(&G)...",  IDM_CREATE_GSI_CFG
+        MENUITEM "创建 GSI 配置文件(&G)...",  IDM_CREATE_GSI_CFG
         MENUITEM SEPARATOR
-        MENUITEM "璁剧疆(&S)...",             IDM_SETTINGS
+        MENUITEM "设置(&S)...",             IDM_SETTINGS
         MENUITEM SEPARATOR
-        MENUITEM "閫€鍑?&X)",                IDM_EXIT
+        MENUITEM "退出(&X)",                IDM_EXIT
     END
-    POPUP "甯姪(&H)"
+    POPUP "帮助(&H)"
     BEGIN
         MENUITEM "Debugger(&D)",            IDM_DEBUGGER
         MENUITEM SEPARATOR
-        MENUITEM "鍏充簬(&A) ...",           IDM_ABOUT
+        MENUITEM "关于(&A) ...",           IDM_ABOUT
     END
 END
 
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 蹇嵎閿?
+// 快捷键
 //
 
 IDC_STRIKESENSE ACCELERATORS
@@ -107,73 +107,73 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 瀵硅瘽妗?
+// 对话框
 //
 
-// 鍏充簬瀵硅瘽妗?
+// 关于对话框
 IDD_ABOUTBOX DIALOGEX 0, 0, 280, 120
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "鍏充簬 StrikeSense"
+CAPTION "关于 StrikeSense"
 FONT 9, "MS Shell Dlg"
 BEGIN
     ICON            IDI_STRIKESENSE,IDC_STATIC,14,14,21,20
     LTEXT           "StrikeSense",IDC_STATIC,42,8,100,8,SS_NOPREFIX
-    LTEXT           "Test Build 202607151750",IDC_STATIC,42,20,120,8
-    LTEXT           "Copyright (C) 2026 StrikeSense",IDC_STATIC,42,32,140,8
-    LTEXT           "Offline only. No update check.",IDC_STATIC,14,50,250,16
-    LTEXT           "Fast | Simple | Local data only",IDC_STATIC,14,66,250,12
-    DEFPUSHBUTTON   "OK",IDOK,115,88,50,14,WS_GROUP
+    LTEXT           "测试发布版 202607151750",IDC_STATIC,42,20,120,8
+    LTEXT           "Copyright (C) 2026 无损平方集团",IDC_STATIC,42,32,140,8
+    LTEXT           "本程序承诺绝不联网！所以无法检查更新",IDC_STATIC,14,50,250,16
+    LTEXT           "永不联网 | 绝对无毒 | 数据安全 | 快速好用",IDC_STATIC,14,66,250,12
+    DEFPUSHBUTTON   "确定",IDOK,115,88,50,14,WS_GROUP
 END
 
-// Debugger 璋冭瘯杈撳嚭绐楀彛
+// Debugger 调试输出窗口
 IDD_DEBUGGER DIALOGEX 0, 0, 480, 360
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
-CAPTION "Debugger 璋冭瘯杈撳嚭"
-FONT 9, "寰蒋闆呴粦", 400, 0, 0x80
+CAPTION "Debugger 调试输出"
+FONT 9, "微软雅黑", 400, 0, 0x80
 BEGIN
     EDITTEXT        IDC_DEBUG_EDIT, 8, 8, 464, 304, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL
-    PUSHBUTTON      "娓呴櫎", IDC_COPYALL, 380, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
-    PUSHBUTTON      "鍏抽棴", IDOK, 8, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
+    PUSHBUTTON      "清除", IDC_COPYALL, 380, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
+    PUSHBUTTON      "关闭", IDOK, 8, 320, 70, 24, BS_PUSHBUTTON | WS_TABSTOP
 END
 
-// GSI 閰嶇疆璺緞纭瀵硅瘽妗?
+// GSI 配置路径确认对话框
 IDD_CONFIRM_PATH DIALOGEX 0, 0, 450, 215
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "纭 GSI 閰嶇疆鏂囦欢璺緞"
-FONT 9, "寰蒋闆呴粦", 400, 0, 0x80
+CAPTION "确认 GSI 配置文件路径"
+FONT 9, "微软雅黑", 400, 0, 0x80
 BEGIN
-    LTEXT           "CS2 cfg path:",IDC_STATIC,12,12,300,12
+    LTEXT           "CS2 游戏配置目录路径：",IDC_STATIC,12,12,300,12
     EDITTEXT        IDC_PATH_LABEL,12,28,426,20, ES_READONLY | ES_AUTOHSCROLL | ES_LEFT
-    LTEXT           "Install GSI config to this folder?",IDC_STATIC,12,58,300,12
-    DEFPUSHBUTTON   "Yes(&Y)", IDYES, 30, 85, 90, 25, WS_TABSTOP
-    PUSHBUTTON      "Browse...(&B)", IDC_BROWSE_BTN, 140, 85, 90, 25, WS_TABSTOP
-    PUSHBUTTON      "Delete file(&D)", IDC_DELETE_CFG, 250, 85, 100, 25, WS_TABSTOP
-    PUSHBUTTON      "Cancel(&C)", IDCANCEL, 360, 85, 70, 25, WS_TABSTOP
+    LTEXT           "是否将 GSI 配置文件安装到此目录？",IDC_STATIC,12,58,300,12
+    DEFPUSHBUTTON   "是(&Y)", IDYES, 30, 85, 90, 25, WS_TABSTOP
+    PUSHBUTTON      "浏览...(&B)", IDC_BROWSE_BTN, 140, 85, 90, 25, WS_TABSTOP
+    PUSHBUTTON      "删除已安装文件(&D)", IDC_DELETE_CFG, 250, 85, 100, 25, WS_TABSTOP
+    PUSHBUTTON      "取消(&C)", IDCANCEL, 360, 85, 70, 25, WS_TABSTOP
 END
 
-// 璁剧疆瀵硅瘽妗?
+// 设置对话框
 IDD_SETTINGS DIALOGEX 0, 0, 350, 230
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "StrikeSense 璁剧疆"
-FONT 9, "寰蒋闆呴粦", 400, 0, 0x80
+CAPTION "StrikeSense 设置"
+FONT 9, "微软雅黑", 400, 0, 0x80
 BEGIN
-    CONTROL         "鑷畾涔夐煶涔愬寘 (custom_musickit)", IDC_CK_CUSTOM_KIT,
+    CONTROL         "自定义音乐包 (custom_musickit)", IDC_CK_CUSTOM_KIT,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 12, 220, 16
-    CONTROL         "鍚敤鍑绘潃闊虫晥鏇挎崲 (enable_kill_sound)", IDC_CK_ENABLE_KILL_SOUND,
+    CONTROL         "启用击杀音效替换 (enable_kill_sound)", IDC_CK_ENABLE_KILL_SOUND,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 34, 250, 16
-    CONTROL         "闂厜鍙犲姞椤甸潰 (custom_flashbang)", IDC_CK_FLASHBANG,
+    CONTROL         "闪光叠加页面 (custom_flashbang)", IDC_CK_FLASHBANG,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 56, 220, 16
-    CONTROL         "浣庡唴瀛樻ā寮?(low_memory)", IDC_CK_LOW_MEMORY,
+    CONTROL         "低内存模式 (low_memory)", IDC_CK_LOW_MEMORY,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 78, 220, 16
-    CONTROL         "鏄剧ずMVP淇℃伅鏉?(show_mvp)", IDC_CK_SHOW_MVP,
+    CONTROL         "显示MVP信息板 (show_mvp)", IDC_CK_SHOW_MVP,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 100, 220, 16
-    CONTROL         "浣跨敤 OGG 闊抽鏍煎紡 (ogg)", IDC_CK_USE_OGG,
+    CONTROL         "使用 OGG 音频格式 (ogg)", IDC_CK_USE_OGG,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 12, 122, 220, 16
-    LTEXT           "闊抽噺 (vol):", IDC_STATIC, 12, 150, 60, 12
+    LTEXT           "音量 (vol):", IDC_STATIC, 12, 150, 60, 12
     EDITTEXT        IDC_EDIT_VOL, 80, 146, 60, 16, ES_LEFT
     LTEXT           "(0.0 ~ 1.0)", IDC_STATIC, 150, 150, 80, 12
-    DEFPUSHBUTTON   "淇濆瓨", IDOK, 200, 190, 60, 25, WS_TABSTOP
-    PUSHBUTTON      "鍙栨秷", IDCANCEL, 270, 190, 60, 25, WS_TABSTOP
+    DEFPUSHBUTTON   "保存", IDOK, 200, 190, 60, 25, WS_TABSTOP
+    PUSHBUTTON      "取消", IDCANCEL, 270, 190, 60, 25, WS_TABSTOP
 END
 
 /////////////////////////////////////////////////////////////////////////////
@@ -225,7 +225,7 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 //
-// 瀛楃涓茶〃
+// 字符串表
 //
 
 STRINGTABLE
@@ -240,9 +240,8 @@ END
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
 //
-// 浠?TEXTINCLUDE 璧勬簮鐢熸垚銆?
+// 从 TEXTINCLUDE 资源生成。
 //
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

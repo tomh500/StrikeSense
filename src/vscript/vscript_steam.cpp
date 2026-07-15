@@ -143,7 +143,7 @@ std::wstring GetSteamLocalConfigPathText(const std::wstring& steamId, bool steam
 {
     const fs::path path = GetLocalConfigPathForSteamId(steamId, steam64);
     if (path.empty()) return L"";
-    std::wcout << L"[Steam API] localconfig 璺緞: " << path.wstring() << std::endl;
+    std::wcout << L"[Steam API] localconfig 路径: " << path.wstring() << std::endl;
     return path.wstring();
 }
 
@@ -151,18 +151,18 @@ std::wstring GetSteamLaunchOptionsText(const std::wstring& steamId, bool steam64
 {
     const fs::path localConfigPath = GetLocalConfigPathForSteamId(steamId, steam64);
     if (localConfigPath.empty() || !fs::exists(localConfigPath)) {
-        std::wcout << L"[Steam API] 鏈壘鍒?localconfig.vdf" << std::endl;
+        std::wcout << L"[Steam API] 未找到 localconfig.vdf" << std::endl;
         return L"";
     }
     const std::wstring content = ReadAllWideLocal(localConfigPath);
     if (content.empty()) return L"";
     const size_t app730 = content.find(L"\"730\"");
     if (app730 == std::wstring::npos) {
-        std::wcout << L"[Steam API] localconfig 涓湭鎵惧埌 AppID 730" << std::endl;
+        std::wcout << L"[Steam API] localconfig 中未找到 AppID 730" << std::endl;
         return L"";
     }
     const std::wstring launchOptions = ExtractQuotedValueAfterKey(content.substr(app730), L"\"LaunchOptions\"");
-    std::wcout << L"[Steam API] 璇诲彇鍚姩椤? " << (launchOptions.empty() ? L"<empty>" : launchOptions) << std::endl;
+    std::wcout << L"[Steam API] 读取启动项: " << (launchOptions.empty() ? L"<empty>" : launchOptions) << std::endl;
     return launchOptions;
 }
 

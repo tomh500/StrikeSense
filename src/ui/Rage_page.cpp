@@ -165,6 +165,11 @@ void CheckRageClick(HWND hw, int mx, int my) {
             if (ret != IDYES) return;
         }
         g_rageEnabled = !g_rageEnabled;
+        if (!g_rageEnabled)
+        {
+            g_qsEnabled = false;
+            SetQuickStopEnabled(false);
+        }
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
