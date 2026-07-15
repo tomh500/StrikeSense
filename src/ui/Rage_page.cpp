@@ -84,7 +84,6 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     SolidBrush tdCol(Color(255, 30, 60, 100));
     SolidBrush knB(Color(255, 60, 160, 230));
     SolidBrush warnCol(Color(255, 200, 80, 80));
-    SolidBrush hintCol(Color(180, 100, 130, 160));
     SolidBrush valueBackground(Color(255, 252, 254, 255));
     Pen valueBorder(Color(255, 145, 195, 225), 1.0f);
 
@@ -176,14 +175,6 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         g_sliderRects[i] = RectF((REAL)barX, (REAL)(sy - 8), (REAL)slW, 24.f);
     }
 
-    // 触发条件说明
-    const int hintY = yBase + 142 + kQSSliderCount * 34 + 8;
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE4), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 48)), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE5), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 64)), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE6), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 80)), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
