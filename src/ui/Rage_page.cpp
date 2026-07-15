@@ -71,19 +71,6 @@ static bool PromptQuickStopValue(HWND owner, const wchar_t* label, int current, 
     return true;
 }
 
-static float QuickStopSliderPosition(int value, int minimum, int maximum)
-{
-    const double clamped = std::clamp(value, minimum, maximum);
-    const double linear = (clamped - minimum) / static_cast<double>(maximum - minimum);
-    return static_cast<float>(std::pow(linear, 0.72));
-}
-
-static int QuickStopSliderValue(float position, int minimum, int maximum)
-{
-    const double linear = std::pow(std::clamp(position, 0.0f, 1.0f), 1.0 / 0.72);
-    return static_cast<int>(std::lround(minimum + linear * (maximum - minimum)));
-}
-
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::Rage_TITLE));
@@ -143,12 +130,12 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, 1, 1000 },
         { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, 1, 1000 },
         { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, 1, 1000 },
-        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 100 },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 2000 },
-        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 50, 2000 },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 5000 },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 5000 },
+        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 50, 5000 },
         { i18n::Keys::Rage_CURVE, &cfg.curve_percent, 10, 1000 },
-        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 1, 200 },
-        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 1, 200 },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 1, 500 },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 1, 500 },
     };
 
     int slW = cw - 280;
@@ -159,7 +146,9 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
         int barX = cx + 160;
-        const float norm = QuickStopSliderPosition(*defs[i].value, defs[i].minV, defs[i].maxV);
+        const int clampedValue = std::clamp(*defs[i].value, defs[i].minV, defs[i].maxV);
+        const float norm = static_cast<float>(clampedValue - defs[i].minV)
+            / static_cast<float>(defs[i].maxV - defs[i].minV);
 
         ui::DrawSlider(g, barX, sy, slW, norm);
         float kx2 = (REAL)(barX + (int)(slW * norm) - 8.f);
@@ -327,7 +316,8 @@ void CheckRageClick(HWND hw, int mx, int my) {
             float t = (float)(mx - r.X) / r.Width;
             if (t < 0) t = 0;
             if (t > 1) t = 1;
-            *targets[i].v = QuickStopSliderValue(t, targets[i].min, targets[i].max);
+            *targets[i].v = static_cast<int>(std::lround(
+                targets[i].min + t * (targets[i].max - targets[i].min)));
             ApplyQuickStopConfigChanges();
             std::cout << "[急停] 滑块 " << i << " = " << *targets[i].v << std::endl;
             InvalidateRect(hw, nullptr, FALSE);
