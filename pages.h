@@ -54,7 +54,9 @@ extern float g_crosshairScale;
 // Textgui 变量
 extern bool  g_textguiEnabled;
 extern float g_textguiX, g_textguiY, g_textguiScale, g_textguiOpacity;
+extern float g_textguiLineSpacing, g_textguiShadowStrength;
 extern float g_textguiRainbowSpeed;
+extern float g_textguiRainbowSpread, g_textguiRainbowSaturation, g_textguiRainbowBrightness;
 extern int   g_textguiR, g_textguiG, g_textguiB;
 extern bool  g_textguiShowWatermark;
 extern bool  g_textguiRainbow;
@@ -100,6 +102,11 @@ void CheckVscriptClick(HWND hw, int mx, int my);
 bool IsRageModeEnabled();
 void EnableRageModeFromLaunch(HWND hw);
 bool IsLegalCfgManaged();
+bool HasLegalCfgSOCD();
+bool HasLegalCfgMwheelJump();
+bool HasLegalCfgMixedSensitivity();
+bool HasLegalCfgCrosshairSwitch();
+bool HasLegalCfgSoundReplace();
 
 // ===== 合法配置键盘输入 =====
 void InitLegalCfgPage();

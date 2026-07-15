@@ -31,6 +31,8 @@ namespace evolutionui {
 constexpr int kCrosshairStyleCount = 6;
 constexpr float kTextguiRainbowSpeedMin = 0.1f;
 constexpr float kTextguiRainbowSpeedMax = 5.0f;
+constexpr float kTextguiRainbowSpreadMin = 4.0f;
+constexpr float kTextguiRainbowSpreadMax = 45.0f;
 Gdiplus::RectF crosshairEnableRect;
 Gdiplus::RectF hotkeyRect;
 Gdiplus::RectF centerDotRect;
@@ -41,7 +43,7 @@ std::array<Gdiplus::RectF, 4> parameterSliderRects;
 Gdiplus::RectF textguiEnableRect;
 Gdiplus::RectF textguiWatermarkRect;
 Gdiplus::RectF textguiRainbowRect;
-std::array<Gdiplus::RectF, 5> textguiSliderRects;
+std::array<Gdiplus::RectF, 10> textguiSliderRects;
 std::array<Gdiplus::RectF, 3> textguiColorRects;
 
 bool Hit(const Gdiplus::RectF& rect, int x, int y)
@@ -131,7 +133,12 @@ void SaveEvolutionParams() {
     j["textgui_enabled"] = g_textguiEnabled;
     j["textgui_x"] = g_textguiX; j["textgui_y"] = g_textguiY;
     j["textgui_scale"] = g_textguiScale; j["textgui_opacity"] = g_textguiOpacity;
+    j["textgui_line_spacing"] = g_textguiLineSpacing;
+    j["textgui_shadow_strength"] = g_textguiShadowStrength;
     j["textgui_rainbow_speed"] = g_textguiRainbowSpeed;
+    j["textgui_rainbow_spread"] = g_textguiRainbowSpread;
+    j["textgui_rainbow_saturation"] = g_textguiRainbowSaturation;
+    j["textgui_rainbow_brightness"] = g_textguiRainbowBrightness;
     j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
     j["textgui_show_watermark"] = g_textguiShowWatermark;
     j["textgui_rainbow"] = g_textguiRainbow;
@@ -188,7 +195,12 @@ void LoadEvolutionParams() {
         gb("textgui_enabled", g_textguiEnabled);
         gv("textgui_x", g_textguiX); gv("textgui_y", g_textguiY);
         gv("textgui_scale", g_textguiScale); gv("textgui_opacity", g_textguiOpacity);
+        gv("textgui_line_spacing", g_textguiLineSpacing);
+        gv("textgui_shadow_strength", g_textguiShadowStrength);
         gv("textgui_rainbow_speed", g_textguiRainbowSpeed);
+        gv("textgui_rainbow_spread", g_textguiRainbowSpread);
+        gv("textgui_rainbow_saturation", g_textguiRainbowSaturation);
+        gv("textgui_rainbow_brightness", g_textguiRainbowBrightness);
         gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
         gb("textgui_show_watermark", g_textguiShowWatermark);
         gb("textgui_rainbow", g_textguiRainbow);
@@ -356,8 +368,14 @@ void ApplyTextguiEnabled(bool enabled)
     g_textguiY = std::clamp(g_textguiY, 0.f, 1.f);
     g_textguiScale = std::clamp(g_textguiScale, 0.75f, 1.8f);
     g_textguiOpacity = std::clamp(g_textguiOpacity, 0.2f, 1.f);
+    g_textguiLineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
+    g_textguiShadowStrength = std::clamp(g_textguiShadowStrength, 0.f, 1.f);
     g_textguiRainbowSpeed = std::clamp(g_textguiRainbowSpeed,
         evolutionui::kTextguiRainbowSpeedMin, evolutionui::kTextguiRainbowSpeedMax);
+    g_textguiRainbowSpread = std::clamp(g_textguiRainbowSpread,
+        evolutionui::kTextguiRainbowSpreadMin, evolutionui::kTextguiRainbowSpreadMax);
+    g_textguiRainbowSaturation = std::clamp(g_textguiRainbowSaturation, 0.f, 1.f);
+    g_textguiRainbowBrightness = std::clamp(g_textguiRainbowBrightness, 0.2f, 1.f);
     g_textguiR = std::clamp(g_textguiR, 0, 255);
     g_textguiG = std::clamp(g_textguiG, 0, 255);
     g_textguiB = std::clamp(g_textguiB, 0, 255);
@@ -707,24 +725,37 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         const wchar_t* labels[] = {
             i18n::T("EVO_TEXTGUI_X"), i18n::T("EVO_TEXTGUI_Y"),
             i18n::T("EVO_TEXTGUI_SCALE"), i18n::T("EVO_TEXTGUI_OPACITY"),
-            i18n::T("EVO_TEXTGUI_RAINBOW_SPEED")
+            i18n::T("EVO_TEXTGUI_LINE_SPACING"), i18n::T("EVO_TEXTGUI_SHADOW"),
+            i18n::T("EVO_TEXTGUI_RAINBOW_SPEED"), i18n::T("EVO_TEXTGUI_RAINBOW_SPREAD"),
+            i18n::T("EVO_TEXTGUI_RAINBOW_SATURATION"), i18n::T("EVO_TEXTGUI_RAINBOW_BRIGHTNESS")
         };
         const float values[] = {
             g_textguiX, g_textguiY, (g_textguiScale - 0.75f) / 1.05f,
             (g_textguiOpacity - 0.2f) / 0.8f,
+            (g_textguiLineSpacing - 0.75f) / 1.05f,
+            g_textguiShadowStrength,
             (g_textguiRainbowSpeed - evolutionui::kTextguiRainbowSpeedMin)
-                / (evolutionui::kTextguiRainbowSpeedMax - evolutionui::kTextguiRainbowSpeedMin)
+                / (evolutionui::kTextguiRainbowSpeedMax - evolutionui::kTextguiRainbowSpeedMin),
+            (g_textguiRainbowSpread - evolutionui::kTextguiRainbowSpreadMin)
+                / (evolutionui::kTextguiRainbowSpreadMax - evolutionui::kTextguiRainbowSpreadMin),
+            g_textguiRainbowSaturation,
+            (g_textguiRainbowBrightness - 0.2f) / 0.8f
         };
         const std::wstring shown[] = {
             std::to_wstring(static_cast<int>(std::lround(g_textguiX * 100.f))) + L"%",
             std::to_wstring(static_cast<int>(std::lround(g_textguiY * 100.f))) + L"%",
             std::to_wstring(static_cast<int>(std::lround(g_textguiScale * 100.f))) + L"%",
             std::to_wstring(static_cast<int>(std::lround(g_textguiOpacity * 100.f))) + L"%",
-            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowSpeed * 100.f))) + L"%"
+            std::to_wstring(static_cast<int>(std::lround(g_textguiLineSpacing * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiShadowStrength * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowSpeed * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowSpread))) + L"°",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowSaturation * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowBrightness * 100.f))) + L"%"
         };
         const int textguiBodyY = textguiSectionY + 32;
         const int textguiBarWidth = (std::max)(90, sectionWidth / 2 - 150);
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < 10; ++i) {
             const int column = i % 2;
             const int row = i / 2;
             const int x = sectionX + 14 + column * (sectionWidth / 2);
@@ -740,7 +771,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
 
         const wchar_t* colorLabels[] = { L"R", L"G", L"B" };
         const int colorValues[] = { g_textguiR, g_textguiG, g_textguiB };
-        const int colorY = textguiBodyY + 108;
+        const int colorY = textguiBodyY + 176;
         const int colorWidth = (std::max)(72, (sectionWidth - 210) / 3);
         for (int i = 0; i < 3; ++i) {
             const int x = sectionX + 14 + i * (colorWidth + 70);
@@ -940,7 +971,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
 
     if (g_textguiEnabled) {
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < 10; ++i) {
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
                 static_cast<int>(textguiSliderRects[i].Y + 8.f),
                 static_cast<int>(textguiSliderRects[i].Width), value)) continue;
@@ -948,8 +979,14 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             else if (i == 1) g_textguiY = value;
             else if (i == 2) g_textguiScale = 0.75f + value * 1.05f;
             else if (i == 3) g_textguiOpacity = 0.2f + value * 0.8f;
-            else g_textguiRainbowSpeed = evolutionui::kTextguiRainbowSpeedMin
+            else if (i == 4) g_textguiLineSpacing = 0.75f + value * 1.05f;
+            else if (i == 5) g_textguiShadowStrength = value;
+            else if (i == 6) g_textguiRainbowSpeed = evolutionui::kTextguiRainbowSpeedMin
                 + value * (evolutionui::kTextguiRainbowSpeedMax - evolutionui::kTextguiRainbowSpeedMin);
+            else if (i == 7) g_textguiRainbowSpread = evolutionui::kTextguiRainbowSpreadMin
+                + value * (evolutionui::kTextguiRainbowSpreadMax - evolutionui::kTextguiRainbowSpreadMin);
+            else if (i == 8) g_textguiRainbowSaturation = value;
+            else g_textguiRainbowBrightness = 0.2f + value * 0.8f;
             ApplyTextguiEnabled(g_textguiEnabled);
             SaveEvolutionParams();
             RefreshTextguiOverlay();

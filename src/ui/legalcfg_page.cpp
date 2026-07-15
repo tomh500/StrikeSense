@@ -200,6 +200,31 @@ bool IsLegalCfgManaged()
     return g_autoexecContent.find(L"//--StrikeSense ") != std::wstring::npos;
 }
 
+bool HasLegalCfgSOCD()
+{
+    return g_autoexecContent.find(L"//--StrikeSense SOCD--") != std::wstring::npos;
+}
+
+bool HasLegalCfgMwheelJump()
+{
+    return g_autoexecContent.find(L"//--StrikeSense MwheelJump--") != std::wstring::npos;
+}
+
+bool HasLegalCfgMixedSensitivity()
+{
+    return g_autoexecContent.find(L"//--StrikeSense MS--") != std::wstring::npos;
+}
+
+bool HasLegalCfgCrosshairSwitch()
+{
+    return g_autoexecContent.find(L"//--StrikeSense CrosshairSW--") != std::wstring::npos;
+}
+
+bool HasLegalCfgSoundReplace()
+{
+    return g_autoexecContent.find(L"//--StrikeSense SRP--") != std::wstring::npos;
+}
+
 static void EnsureVis(const std::vector<std::wstring>& l) {
     int cl, cc; LCFromPos(l, g_cursorPos, cl, cc);
     if (cl < g_scrollOffset) g_scrollOffset = cl;

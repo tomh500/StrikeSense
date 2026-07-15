@@ -31,6 +31,19 @@ bool has_window()
     return s_hwnd && IsWindow(s_hwnd);
 }
 
+void hide_overlay()
+{
+    if (!has_window() || !s_visible) return;
+    ShowWindow(s_hwnd, SW_HIDE);
+    s_visible = false;
+    std::cout << "[Textgui] 游戏窗口未激活，覆盖层已隐藏。" << std::endl;
+}
+
+bool should_show_overlay()
+{
+    return g_textguiEnabled && IsCS2WindowActive();
+}
+
 std::wstring script_display_name(const vscript::mounted_script& script)
 {
     if (script.hasMetadataName) return vscript::GetScriptDisplayName(script);
@@ -48,12 +61,16 @@ std::vector<std::wstring> collect_enabled_features()
     if (settings.custom_flashbang) features.push_back(L"闪光覆盖图");
     if (settings.low_memory) features.push_back(L"低内存模式");
     if (settings.show_mvp) features.push_back(L"MVP信息");
-    if (IsLegalCfgManaged()) features.push_back(L"合法CFG接管");
+    if (HasLegalCfgSOCD()) features.push_back(L"SOCD");
+    if (HasLegalCfgMwheelJump()) features.push_back(L"滚轮跳");
+    if (HasLegalCfgMixedSensitivity()) features.push_back(L"混合灵敏度");
+    if (HasLegalCfgCrosshairSwitch()) features.push_back(L"准星跟随切换");
+    if (HasLegalCfgSoundReplace()) features.push_back(L"切刀音效替换");
     if (g_deathMute) features.push_back(L"死亡音量控制");
     if (g_crosshairEnabled) features.push_back(L"狙击准星");
     if (g_itemHelperEnabled) features.push_back(L"道具助手");
     if (IsRageModeEnabled()) features.push_back(L"超频配置");
-    if (IsQuickStopEnabled()) features.push_back(L"自动急停");
+    if (IsRageModeEnabled() && IsQuickStopEnabled()) features.push_back(L"自动急停");
     if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
     if (consolelog::IsEnabled()) features.push_back(L"控制台日志");
 
@@ -83,12 +100,15 @@ int text_width(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& te
     return static_cast<int>(std::ceil(width));
 }
 
-Gdiplus::Color color_from_hue(float hue, BYTE alpha)
+Gdiplus::Color color_from_hue(float hue, BYTE alpha, float saturation, float brightness)
 {
     hue = std::fmod(hue, 360.f);
     if (hue < 0.f) hue += 360.f;
-    const float c = 1.f;
+    saturation = std::clamp(saturation, 0.f, 1.f);
+    brightness = std::clamp(brightness, 0.2f, 1.f);
+    const float c = brightness * saturation;
     const float x = c * (1.f - std::fabs(std::fmod(hue / 60.f, 2.f) - 1.f));
+    const float m = brightness - c;
     float r = 0.f, g = 0.f, b = 0.f;
     if (hue < 60.f) { r = c; g = x; }
     else if (hue < 120.f) { r = x; g = c; }
@@ -97,39 +117,44 @@ Gdiplus::Color color_from_hue(float hue, BYTE alpha)
     else if (hue < 300.f) { r = x; b = c; }
     else { r = c; b = x; }
     return Gdiplus::Color(alpha,
-        static_cast<BYTE>(r * 255.f),
-        static_cast<BYTE>(g * 255.f),
-        static_cast<BYTE>(b * 255.f));
+        static_cast<BYTE>((r + m) * 255.f),
+        static_cast<BYTE>((g + m) * 255.f),
+        static_cast<BYTE>((b + m) * 255.f));
 }
 
 void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
     float x, float y, const Gdiplus::Color& color, BYTE alpha)
 {
-    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
+    const float shadowStrength = std::clamp(g_textguiShadowStrength, 0.f, 1.f);
+    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * shadowStrength), 0, 0, 0));
     Gdiplus::SolidBrush brush(color);
-    g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x + 1.f, y + 1.f), &shadow);
+    if (shadowStrength > 0.01f) g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x + 1.f, y + 1.f), &shadow);
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x, y), &brush);
 }
 
 void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
     float x, float y, BYTE alpha, float baseHue)
 {
-    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
+    const float shadowStrength = std::clamp(g_textguiShadowStrength, 0.f, 1.f);
+    const float hueStep = std::clamp(g_textguiRainbowSpread, 4.f, 45.f);
+    const float saturation = std::clamp(g_textguiRainbowSaturation, 0.f, 1.f);
+    const float brightness = std::clamp(g_textguiRainbowBrightness, 0.2f, 1.f);
+    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * shadowStrength), 0, 0, 0));
     Gdiplus::StringFormat fmt(Gdiplus::StringFormat::GenericTypographic());
     fmt.SetFormatFlags(fmt.GetFormatFlags() | Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
     for (size_t i = 0; i < text.size(); ++i) {
         const std::wstring ch(1, text[i]);
         const float cursor = x + text_width_f(g, font, text.substr(0, i));
-        const float hue = baseHue + static_cast<float>(i) * 18.f;
-        Gdiplus::SolidBrush brush(color_from_hue(hue, alpha));
-        g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &fmt, &shadow);
+        const float hue = baseHue + static_cast<float>(i) * hueStep;
+        Gdiplus::SolidBrush brush(color_from_hue(hue, alpha, saturation, brightness));
+        if (shadowStrength > 0.01f) g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &fmt, &shadow);
         g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor, y), &fmt, &brush);
     }
 }
 
 void redraw()
 {
-    if (!has_window() || !g_textguiEnabled) return;
+    if (!has_window() || !should_show_overlay()) return;
 
     const int sw = GetSystemMetrics(SM_CXSCREEN);
     const int sh = GetSystemMetrics(SM_CYSCREEN);
@@ -167,6 +192,7 @@ void redraw()
         Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
         const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
         const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
+        const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
 
         auto features = collect_enabled_features();
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
@@ -174,7 +200,7 @@ void redraw()
         });
 
         const float margin = 18.f * scale;
-        const float rowH = 25.f * scale;
+        const float rowH = 25.f * scale * lineSpacing;
         const int maxFeatureW = features.empty() ? 0 : text_width(g, itemFont, features.front());
         const int maxTextW = (std::max)(text_width(g, titleFont, L"StrikeSense"), maxFeatureW);
         const float areaW = (std::max)(185.f * scale, maxTextW + 4.f * scale);
@@ -219,6 +245,11 @@ void redraw()
 void update_visibility()
 {
     if (!has_window() || !g_textguiEnabled) return;
+    if (!should_show_overlay()) {
+        hide_overlay();
+        return;
+    }
+
     if (!s_visible) {
         ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
         s_visible = true;
@@ -300,9 +331,7 @@ void Refresh()
 {
     if (!g_textguiEnabled) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
-    s_visible = true;
-    ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
-    redraw();
+    update_visibility();
 }
 
 void Shutdown()

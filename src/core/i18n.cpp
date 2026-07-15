@@ -60,7 +60,12 @@ void i18n::Init() {
     cn["EVO_TEXTGUI_Y"] = L"Y"; en["EVO_TEXTGUI_Y"] = L"Y";
     cn["EVO_TEXTGUI_SCALE"] = L"\u7f29\u653e"; en["EVO_TEXTGUI_SCALE"] = L"Scale";
     cn["EVO_TEXTGUI_OPACITY"] = L"\u900f\u660e\u5ea6"; en["EVO_TEXTGUI_OPACITY"] = L"Opacity";
+    cn["EVO_TEXTGUI_LINE_SPACING"] = L"\u884c\u8ddd"; en["EVO_TEXTGUI_LINE_SPACING"] = L"Line Spacing";
+    cn["EVO_TEXTGUI_SHADOW"] = L"\u9634\u5f71"; en["EVO_TEXTGUI_SHADOW"] = L"Shadow";
     cn["EVO_TEXTGUI_RAINBOW_SPEED"] = L"\u5f69\u8679\u901f\u5ea6"; en["EVO_TEXTGUI_RAINBOW_SPEED"] = L"Rainbow Speed";
+    cn["EVO_TEXTGUI_RAINBOW_SPREAD"] = L"\u5f69\u8679\u8de8\u5ea6"; en["EVO_TEXTGUI_RAINBOW_SPREAD"] = L"Rainbow Spread";
+    cn["EVO_TEXTGUI_RAINBOW_SATURATION"] = L"\u5f69\u8679\u9971\u548c"; en["EVO_TEXTGUI_RAINBOW_SATURATION"] = L"Rainbow Saturation";
+    cn["EVO_TEXTGUI_RAINBOW_BRIGHTNESS"] = L"\u5f69\u8679\u4eae\u5ea6"; en["EVO_TEXTGUI_RAINBOW_BRIGHTNESS"] = L"Rainbow Brightness";
     cn["EVO_TEXTGUI_MARK"] = L"StrikeSense \u6807\u8bc6"; en["EVO_TEXTGUI_MARK"] = L"StrikeSense Mark";
     cn["EVO_TEXTGUI_RAINBOW"] = L"ARGB \u5f69\u8679"; en["EVO_TEXTGUI_RAINBOW"] = L"ARGB Rainbow";
 
