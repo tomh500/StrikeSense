@@ -1,0 +1,26 @@
+// @name: 狙击枪自动急停开关
+// @author: Codex
+// @provider: StrikeSense
+// @version: 2026.07.15.2
+// @notice: 按当前手持武器自动控制急停。手持 AWP、鸟狙、连狙时开启，其他武器关闭。
+
+if(on:(weapon_name=="weapon_awp" || weapon_name=="weapon_ssg08")){
+    if(SetQuickStopEnabled(true)){
+        Log("当前手持狙击枪，已自动开启急停: " + weapon_name);
+    }else{
+        Log("检测到狙击枪，但超频配置未开启，无法打开急停: " + weapon_name);
+    }
+};
+
+if(on:(weapon_name=="weapon_scar20" || weapon_name=="weapon_g3sg1")){
+    if(SetQuickStopEnabled(true)){
+        Log("当前手持连狙，已自动开启急停: " + weapon_name);
+    }else{
+        Log("检测到连狙，但超频配置未开启，无法打开急停: " + weapon_name);
+    }
+};
+
+if(on:weapon_type!="SniperRifle"){
+    SetQuickStopEnabled(false);
+    Log("当前手持非狙击枪，已自动关闭急停: " + weapon_name);
+};

@@ -165,16 +165,16 @@
 <body>
     <header class="navbar">
         <div class="container nav-container">
-            <a href="index.html" class="logo">StrikeSense</a>
+            <a href="#" class="logo">StrikeSense</a>
             <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
                 <span></span><span></span><span></span>
             </button>
             <nav class="nav-links" id="navLinks">
-                <a href="index.html#about">产品介绍</a>
-                <a href="index.html#showcase">软件截图</a>
-                <a href="index.html#features">功能特性</a>
+                <a href="#about">产品介绍</a>
+                <a href="#showcase">软件截图</a>
+                <a href="#features">功能特性</a>
                 <!-- <a href="#rage-notice">超频说明</a> -->
-                <a href="index.html#faq">常见问题 Q&A</a>
+                <a href="#faq">常见问题 Q&A</a>
                 <a href="itemmaker.html" class="nav-special-link">道具图制作</a>
                 <a href="rescenter.html" class="nav-special-link">资源下载中心</a>
                 <a href="oemkeygen.html" class="nav-special-link">OEM申请</a>
@@ -187,8 +187,8 @@
     <main class="docs-shell">
         <article class="markdown-body" id="docsBody">
 <h1 id="strikesense-vscript-手册">StrikeSense VScript 手册</h1><h2 id="sec-1-文档版本">文档版本</h2><ul>
-<li>API 文档版本：<code>2026.07.04</code></li>
-<li>对应程序构建时间戳：<code>202607040217</code></li>
+<li>API 文档版本：<code>2026.07.15</code></li>
+<li>对应程序构建时间戳：<code>202607151838</code></li>
 <li>适用范围：StrikeSense 内置 VScript 解释器</li>
 <li>适用场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件编写脚本</li>
 </ul>
@@ -554,6 +554,36 @@
 <td><code>bool</code></td>
 <td>冷却通过返回 <code>true</code>，冷却中返回 <code>false</code></td>
 </tr>
+<tr>
+<td><code>TakeConsoleLog(text)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>从控制台日志队列中精确匹配并消费一条日志；匹配后同一条不会再次触发</td>
+</tr>
+<tr>
+<td><code>ConsumeConsoleLog(text)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td><code>TakeConsoleLog</code> 的同义函数</td>
+</tr>
+<tr>
+<td><code>TakeConsoleLogContains(text)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>从控制台日志队列中匹配包含指定文本的一条日志并消费</td>
+</tr>
+<tr>
+<td><code>TakeConsoleLogPrefix(prefix)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td>从控制台日志队列中匹配指定前缀的一条日志并消费，并写入 <code>console_log_taken_payload</code></td>
+</tr>
+<tr>
+<td><code>GetConsoleLogQueueSize()</code></td>
+<td>无</td>
+<td><code>number</code></td>
+<td>返回当前尚未被消费的控制台日志数量</td>
+</tr>
 </tbody></table>
 <p>示例：</p>
 <pre><code class="language-cpp">if(Changed(&quot;health&quot;)){
@@ -572,7 +602,111 @@ if(Cooldown(&quot;live_popup&quot;, 3000)){
     Log(&quot;3 秒内只会通过一次&quot;);
 }
 </code></pre>
-<h2 id="sec-11-第一个实用脚本">第一个实用脚本</h2><pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
+<p><code>Changed(...)</code> 和 <code>ChangedTo(...)</code> 本身就是边沿条件，可以直接用于持续脚本。
+系统也兼容 <code>on:Changed(...)</code>，但额外的 <code>on:</code> 没有必要。</p>
+<h3 id="sec-11-控制台日志事件">控制台日志事件</h3><p>开启超频配置里的“为读控制台的方法提供支持”后，StrikeSense 会监听 CS2 的 <code>console.log</code> 新增内容。开启时会跳到文件末尾，只读取之后新增的日志，避免把历史 <code>echoln</code> 一次性重放。</p>
+<p>脚本可以读取最近一条日志变量：</p>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>console_log_raw</code></td>
+<td><code>string</code></td>
+<td>原始日志行，包含时间前缀</td>
+</tr>
+<tr>
+<td><code>console_log_text</code></td>
+<td><code>string</code></td>
+<td>去掉时间前缀后的日志内容</td>
+</tr>
+<tr>
+<td><code>console_log_count</code></td>
+<td><code>number</code></td>
+<td>新增日志计数</td>
+</tr>
+<tr>
+<td><code>console_log_queue_size</code></td>
+<td><code>number</code></td>
+<td>尚未被 <code>TakeConsoleLog*</code> 消费的日志数量</td>
+</tr>
+<tr>
+<td><code>console_log_is_script_signal</code></td>
+<td><code>bool</code></td>
+<td>最近一行是否为 <code>/log ...</code></td>
+</tr>
+<tr>
+<td><code>console_log_payload</code></td>
+<td><code>string</code></td>
+<td>最近一行 <code>/log ...</code> 后面的内容</td>
+</tr>
+<tr>
+<td><code>console_log_is_chat</code></td>
+<td><code>bool</code></td>
+<td>最近一行是否被解析为玩家聊天</td>
+</tr>
+<tr>
+<td><code>console_log_channel</code></td>
+<td><code>string</code></td>
+<td>聊天频道，例如 <code>ALL</code>、<code>CT</code></td>
+</tr>
+<tr>
+<td><code>console_log_player</code></td>
+<td><code>string</code></td>
+<td>聊天玩家名</td>
+</tr>
+<tr>
+<td><code>console_log_location</code></td>
+<td><code>string</code></td>
+<td>聊天位置，没有则为 <code>void</code></td>
+</tr>
+<tr>
+<td><code>console_log_message</code></td>
+<td><code>string</code></td>
+<td>聊天内容</td>
+</tr>
+<tr>
+<td><code>console_log_taken_text</code></td>
+<td><code>string</code></td>
+<td>最近一次 <code>TakeConsoleLog*</code> 消费到的完整文本</td>
+</tr>
+<tr>
+<td><code>console_log_taken_payload</code></td>
+<td><code>string</code></td>
+<td>最近一次 <code>TakeConsoleLogPrefix(prefix)</code> 消费到的前缀后文本</td>
+</tr>
+<tr>
+<td><code>console_log_taken_matched</code></td>
+<td><code>bool</code></td>
+<td>最近一次消费函数是否匹配成功</td>
+</tr>
+</tbody></table>
+<p>推荐使用消费式 API 写触发逻辑。消费成功后，同一条日志会从队列中移除，不会在下一轮持续脚本里重复执行：</p>
+<pre><code class="language-cpp">// 游戏控制台执行：echoln testcommand
+if(TakeConsoleLog(&quot;testcommand&quot;)){
+    Log(&quot;检测到 testcommand&quot;);
+}
+
+// 游戏控制台执行：echoln /log hello
+if(TakeConsoleLogPrefix(&quot;/log &quot;)){
+    Log(console_log_taken_payload);
+}
+
+// 任意日志或玩家聊天里包含指定文本时触发
+if(TakeConsoleLogContains(&quot;rush b&quot;)){
+    Log(&quot;检测到 rush b&quot;);
+}
+</code></pre>
+<p>如果只关心最近一行，也可以使用变量式写法：</p>
+<pre><code class="language-cpp">if(Changed(&quot;console_log_count&quot;) &amp;&amp; console_log_text == &quot;testcommand&quot;){
+    Log(&quot;最近一行是 testcommand&quot;);
+}
+</code></pre>
+<h2 id="sec-12-第一个实用脚本">第一个实用脚本</h2><pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
     Log(&quot;回合开始&quot;);
 }
 
@@ -584,7 +718,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
     Log(&quot;低血量警告&quot;);
 }
 </code></pre>
-<h2 id="sec-12-常规工具-api">常规工具 API</h2><table>
+<h2 id="sec-13-常规工具-api">常规工具 API</h2><table>
 <thead>
 <tr>
 <th>API</th>
@@ -648,7 +782,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>阻塞等待</td>
 </tr>
 </tbody></table>
-<h2 id="sec-13-gsi-强相关对象-api">GSI 强相关对象 API</h2><h3 id="sec-14-全部玩家对象">全部玩家对象</h3><table>
+<h2 id="sec-14-gsi-强相关对象-api">GSI 强相关对象 API</h2><h3 id="sec-15-全部玩家对象">全部玩家对象</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -710,7 +844,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <li><code>player.state.armor</code>：<code>number</code></li>
 <li><code>player.match_stats.kills</code>：<code>number</code></li>
 </ul>
-<h3 id="sec-15-当前玩家武器对象">当前玩家武器对象</h3><table>
+<h3 id="sec-16-当前玩家武器对象">当前玩家武器对象</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -771,7 +905,10 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>备弹</td>
 </tr>
 </tbody></table>
-<h2 id="sec-16-steam-与本地环境-api">Steam 与本地环境 API</h2><h3 id="sec-17-路径与基础环境">路径与基础环境</h3><table>
+<p>列表包含 GSI 当前提供的全部武器；通过 <code>weapon.state == &quot;active&quot;</code> 可以寻找手持武器。
+如果只需要判断当前手持武器，优先使用始终与活动武器同步的 <code>weapon_name</code>、<code>weapon_type</code> 和 <code>weapon_state</code>。
+离开游戏或 GSI 尚未提供 <code>player.weapons</code> 时，本 API 返回空列表。</p>
+<h2 id="sec-17-steam-与本地环境-api">Steam 与本地环境 API</h2><h3 id="sec-18-路径与基础环境">路径与基础环境</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -805,7 +942,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>写入 GSI 配置文件</td>
 </tr>
 </tbody></table>
-<h3 id="sec-18-steam-用户-id">Steam 用户 ID</h3><table>
+<h3 id="sec-19-steam-用户-id">Steam 用户 ID</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -851,7 +988,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>Steam64 转 Steam32</td>
 </tr>
 </tbody></table>
-<h3 id="sec-19-本地配置读取">本地配置读取</h3><table>
+<h3 id="sec-20-本地配置读取">本地配置读取</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -885,7 +1022,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>读取 <code>LaunchOptions</code></td>
 </tr>
 </tbody></table>
-<h3 id="sec-20-本地账号对象">本地账号对象</h3><table>
+<h3 id="sec-21-本地账号对象">本地账号对象</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -971,7 +1108,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>本机是否存在对应 <code>localconfig.vdf</code></td>
 </tr>
 </tbody></table>
-<h2 id="sec-21-窗口启动与外部交互-api">窗口、启动与外部交互 API</h2><h3 id="sec-22-常规系统控制">常规系统控制</h3><table>
+<h2 id="sec-22-窗口启动与外部交互-api">窗口、启动与外部交互 API</h2><h3 id="sec-23-常规系统控制">常规系统控制</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -1038,7 +1175,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>置顶指定进程窗口</td>
 </tr>
 </tbody></table>
-<h3 id="sec-23-高权限文件与命令">高权限文件与命令</h3><table>
+<h3 id="sec-24-高权限文件与命令">高权限文件与命令</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -1084,7 +1221,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>删除文件</td>
 </tr>
 </tbody></table>
-<h2 id="sec-24-图像音频音量与准星-api">图像、音频、音量与准星 API</h2><h3 id="sec-55-图像与音频">图像与音频</h3><table>
+<h2 id="sec-25-图像音频音量与准星-api">图像、音频、音量与准星 API</h2><h3 id="sec-56-图像与音频">图像与音频</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -1118,7 +1255,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>停止音频</td>
 </tr>
 </tbody></table>
-<h3 id="sec-26-音量控制">音量控制</h3><table>
+<h3 id="sec-27-音量控制">音量控制</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -1131,7 +1268,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td><code>SetProcessVolume(process_name, volume_percent)</code></td>
 <td><code>string, float</code></td>
 <td><code>bool</code></td>
-<td>设置进程音量</td>
+<td>设置进程音量，百分比范围 <code>0</code> 到 <code>100</code></td>
 </tr>
 <tr>
 <td><code>SetProcessMute(process_name, muted)</code></td>
@@ -1143,16 +1280,82 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td><code>SetDeathVolume(value)</code></td>
 <td><code>float</code></td>
 <td><code>bool</code></td>
-<td>设置死亡静音音量参数</td>
+<td>设置死亡静音音量参数，范围 <code>0.0</code> 到 <code>1.0</code></td>
 </tr>
 <tr>
 <td><code>SetDeathMute(enabled)</code></td>
 <td><code>bool</code></td>
 <td><code>bool</code></td>
-<td>开关死亡静音功能</td>
+<td>开关死亡静音功能；开启失败（例如无管理员权限）返回 <code>false</code></td>
+</tr>
+<tr>
+<td><code>SetQuickStopEnabled(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>实时开关自动急停；开启要求超频模式已启用</td>
+</tr>
+<tr>
+<td><code>GetQuickStopEnabled()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取自动急停总开关状态</td>
+</tr>
+<tr>
+<td><code>SetQuickStopPaused(paused)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>暂停或恢复自动急停脉冲执行</td>
+</tr>
+<tr>
+<td><code>GetQuickStopPaused()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取自动急停暂停状态</td>
+</tr>
+<tr>
+<td><code>SetMouseJitterSupportEnabled(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>开关“为多绑定的脚本提供支持”；开启要求超频配置已启用，且只在 CS2 前台抖动</td>
+</tr>
+<tr>
+<td><code>GetMouseJitterSupportEnabled()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取多绑定脚本支持开关状态</td>
+</tr>
+<tr>
+<td><code>SetConsoleLogSupportEnabled(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>开关“为读控制台的方法提供支持”；开启要求超频配置已启用，并会同步刷新 UI</td>
+</tr>
+<tr>
+<td><code>GetConsoleLogSupportEnabled()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取读控制台支持开关状态</td>
+</tr>
+<tr>
+<td><code>SetLenientCS2WindowDetection(enabled)</code></td>
+<td><code>bool</code></td>
+<td><code>bool</code></td>
+<td>开关“宽容检测游戏窗口”；开启后公共前台检测始终返回真，并同步刷新 UI</td>
+</tr>
+<tr>
+<td><code>GetLenientCS2WindowDetection()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取宽容检测游戏窗口开关状态</td>
+</tr>
+<tr>
+<td><code>IsCS2WindowActive()</code></td>
+<td>无</td>
+<td><code>bool</code></td>
+<td>读取当前公共 CS2 前台检测结果</td>
 </tr>
 </tbody></table>
-<h3 id="sec-27-准星控制">准星控制</h3><table>
+<h3 id="sec-28-准星控制">准星控制</h3><table>
 <thead>
 <tr>
 <th>API</th>
@@ -1186,7 +1389,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>一次性设置准星开关与样式</td>
 </tr>
 </tbody></table>
-<h2 id="sec-28-权限与安全模型">权限与安全模型</h2><h3 id="sec-29-权限等级">权限等级</h3><ul>
+<h2 id="sec-29-权限与安全模型">权限与安全模型</h2><h3 id="sec-30-权限等级">权限等级</h3><ul>
 <li><code>user</code><ul>
 <li>普通用户模式。</li>
 <li>默认仅允许安全 API。</li>
@@ -1210,12 +1413,12 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 </ul>
 </li>
 </ul>
-<h3 id="sec-30-关键规则">关键规则</h3><ul>
+<h3 id="sec-31-关键规则">关键规则</h3><ul>
 <li><code>@modifier: self_user=用户名</code> 只用于“附加限制”，不作为“提权依据”。</li>
 <li><code>user</code> 模式下，高权限 API 必须通过程序侧能力解锁后才能执行。</li>
 <li><code>self_user</code> 的语义是“这个脚本只允许指定 Windows 用户使用”。</li>
 </ul>
-<h3 id="sec-31-高权限-api-分组">高权限 API 分组</h3><p>以下 API 属于高权限能力：</p>
+<h3 id="sec-32-高权限-api-分组">高权限 API 分组</h3><p>以下 API 属于高权限能力：</p>
 <ul>
 <li><code>ShellExecute(command)</code></li>
 <li><code>CFile(path, content)</code></li>
@@ -1223,7 +1426,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <li><code>AwriteFile(path, content)</code></li>
 <li><code>DFile(path)</code></li>
 </ul>
-<h2 id="sec-32-元信息">元信息</h2><p>脚本头部支持以下元信息：</p>
+<h2 id="sec-33-元信息">元信息</h2><p>脚本头部支持以下元信息：</p>
 <pre><code class="language-cpp">// @name: 语法总览示例
 // @author: jingy
 // @provider: StrikeSense
@@ -1231,7 +1434,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 // @notice: 这是一个演示脚本
 // @modifier: self_user=jingy
 </code></pre>
-<h3 id="sec-33-字段说明">字段说明</h3><table>
+<h3 id="sec-34-字段说明">字段说明</h3><table>
 <thead>
 <tr>
 <th>字段</th>
@@ -1270,7 +1473,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <td>额外限制条件，目前支持 <code>self_user=&lt;Windows用户名&gt;</code></td>
 </tr>
 </tbody></table>
-<h2 id="sec-34-语法规则">语法规则</h2><h3 id="sec-35-基础风格">基础风格</h3><ul>
+<h2 id="sec-35-语法规则">语法规则</h2><h3 id="sec-36-基础风格">基础风格</h3><ul>
 <li>普通语句通常以 <code>;</code> 结尾。</li>
 <li>控制块结尾的 <code>;</code> 可以省略。</li>
 <li>函数定义结尾的 <code>;</code> 可以省略。</li>
@@ -1278,7 +1481,7 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <li>支持 <code>//</code> 行注释。</li>
 <li>支持 <code>/* ... */</code> 块注释。</li>
 </ul>
-<h3 id="sec-36-当前支持的变量类型">当前支持的变量类型</h3><ul>
+<h3 id="sec-37-当前支持的变量类型">当前支持的变量类型</h3><ul>
 <li><code>int</code></li>
 <li><code>float</code></li>
 <li><code>double</code></li>
@@ -1291,18 +1494,18 @@ if(health &lt;= 15 &amp;&amp; Cooldown(&quot;low_hp_warn&quot;, 5000)){
 <li>运行时对象：<code>list</code></li>
 <li>运行时对象：<code>object</code></li>
 </ul>
-<h3 id="sec-37-auto-规则">`auto` 规则</h3><p><code>auto</code> 会尽量保留原值形态，不会强行把复杂对象压扁成字符串。</p>
+<h3 id="sec-38-auto-规则">`auto` 规则</h3><p><code>auto</code> 会尽量保留原值形态，不会强行把复杂对象压扁成字符串。</p>
 <ul>
 <li>如果函数返回 <code>list</code>，<code>auto</code> 仍然是 <code>list</code></li>
 <li>如果函数返回 <code>object</code>，<code>auto</code> 仍然是 <code>object</code></li>
 <li>如果函数返回数字、布尔或字符串，<code>auto</code> 保持对应基础值</li>
 </ul>
-<h3 id="sec-38-const">`const`</h3><p>现已支持 <code>const</code> 变量声明，且不是纯装饰语法，而是有实际写保护。</p>
+<h3 id="sec-39-const">`const`</h3><p>现已支持 <code>const</code> 变量声明，且不是纯装饰语法，而是有实际写保护。</p>
 <pre><code class="language-cpp">const int aliveLine = 1;
 const string modeName = &quot;match&quot;;
 </code></pre>
 <p>一旦声明为 <code>const</code>，后续再赋值会被拒绝。</p>
-<h3 id="sec-39-运算符">运算符</h3><p>当前支持：</p>
+<h3 id="sec-40-运算符">运算符</h3><p>当前支持：</p>
 <ul>
 <li>赋值：<code>=</code></li>
 <li>算术：<code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code></li>
@@ -1311,6 +1514,7 @@ const string modeName = &quot;match&quot;;
 <li>复合赋值：<code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code> </li>
 <li>自增自减：<code>i++</code> <code>++i</code> <code>i--</code> <code>--i</code></li>
 </ul>
+<p>比较与逻辑表达式不仅能写在 <code>if</code>、<code>while</code> 中，也能用于变量初始化、赋值、函数参数和 <code>return</code>。</p>
 <p>示例：</p>
 <pre><code class="language-cpp">int count = 7;
 count %= 3;
@@ -1319,13 +1523,13 @@ if(count % 2 == 1){
     Log(&quot;奇数&quot;);
 }
 </code></pre>
-<h3 id="sec-40-容器语法">容器语法</h3><pre><code class="language-cpp">vector&lt;int&gt; nums = { 1, 2, 3 };
+<h3 id="sec-41-容器语法">容器语法</h3><pre><code class="language-cpp">vector&lt;int&gt; nums = { 1, 2, 3 };
 array&lt;string&gt; states = { &quot;idle&quot;, &quot;live&quot;, &quot;over&quot; };
 
 int first = nums[0];
 string phase = states[1];
 </code></pre>
-<h3 id="sec-41-对象与字段访问">对象与字段访问</h3><p>当 API 返回 <code>object</code> 或 <code>list&lt;object&gt;</code> 时，可以使用点访问和索引访问：</p>
+<h3 id="sec-42-对象与字段访问">对象与字段访问</h3><p>当 API 返回 <code>object</code> 或 <code>list&lt;object&gt;</code> 时，可以使用点访问和索引访问：</p>
 <pre><code class="language-cpp">auto accounts = GetSteamAccounts();
 auto first = accounts[0];
 
@@ -1333,7 +1537,7 @@ Log(first.persona_name);
 Log(first[&quot;account_name&quot;]);
 Log(accounts[0].steam_id64);
 </code></pre>
-<h3 id="sec-42-控制流">控制流</h3><p>当前支持：</p>
+<h3 id="sec-43-控制流">控制流</h3><p>当前支持：</p>
 <ul>
 <li><code>if</code></li>
 <li><code>else if</code></li>
@@ -1346,7 +1550,7 @@ Log(accounts[0].steam_id64);
 <li><code>continue</code></li>
 <li><code>return</code></li>
 </ul>
-<h3 id="sec-43-goto">`goto`</h3><p><code>goto</code> 会先在当前 block 查找目标标签，当前 block 找不到时会继续向外层传播。</p>
+<h3 id="sec-44-goto">`goto`</h3><p><code>goto</code> 会先在当前 block 查找目标标签，当前 block 找不到时会继续向外层传播。</p>
 <pre><code class="language-cpp">for(int i=0; i&lt;10; i++){
     if(i == 6){
         goto done;
@@ -1356,7 +1560,7 @@ Log(accounts[0].steam_id64);
 done:
 Log(&quot;跳转完成&quot;);
 </code></pre>
-<h3 id="sec-44-return">`return`</h3><ul>
+<h3 id="sec-45-return">`return`</h3><ul>
 <li>顶层脚本的 <code>return;</code> 只结束当前脚本</li>
 <li>函数内的 <code>return expr;</code> 会把值返回给调用方</li>
 <li>子脚本或函数的 <code>return</code> 不会把其他脚本一起截断</li>
@@ -1365,12 +1569,12 @@ Log(&quot;跳转完成&quot;);
     return a + b + c;
 }
 </code></pre>
-<h3 id="sec-45-on-边沿触发">`on:` 边沿触发</h3><p><code>on:</code> 表示条件从假变真时只触发一次：</p>
+<h3 id="sec-46-on-边沿触发">`on:` 边沿触发</h3><p><code>on:</code> 表示条件从假变真时只触发一次：</p>
 <pre><code class="language-cpp">if(on:round_phase==&quot;live&quot;){
     Log(&quot;刚进入 live&quot;);
 }
 </code></pre>
-<h2 id="sec-46-函数">函数</h2><h3 id="sec-47-函数定义">函数定义</h3><pre><code class="language-cpp">int Add(int a, int b){
+<h2 id="sec-47-函数">函数</h2><h3 id="sec-48-函数定义">函数定义</h3><pre><code class="language-cpp">int Add(int a, int b){
     return a + b;
 }
 
@@ -1382,7 +1586,7 @@ void Ping(){
     Log(&quot;ping&quot;);
 }
 </code></pre>
-<h3 id="sec-48-建议使用的返回类型">建议使用的返回类型</h3><ul>
+<h3 id="sec-49-建议使用的返回类型">建议使用的返回类型</h3><ul>
 <li><code>int</code></li>
 <li><code>float</code></li>
 <li><code>double</code></li>
@@ -1393,15 +1597,15 @@ void Ping(){
 <li><code>vector&lt;T&gt;</code></li>
 <li><code>array&lt;T&gt;</code></li>
 </ul>
-<h3 id="sec-49-函数返回值示例">函数返回值示例</h3><pre><code class="language-cpp">string JudgeState(int hp){
+<h3 id="sec-50-函数返回值示例">函数返回值示例</h3><pre><code class="language-cpp">string JudgeState(int hp){
     if(hp &lt;= 0){
         return &quot;dead&quot;;
     }
     return &quot;alive&quot;;
 }
 </code></pre>
-<h2 id="sec-50-内建函数总表">内建函数总表</h2><p>下面这份清单与当前 <code>ExecuteFunction(...)</code> 实现一一对应，可直接用于核对当前版本到底有哪些可调用函数。</p>
-<h3 id="sec-51-数据与判断">数据与判断</h3><ul>
+<h2 id="sec-51-内建函数总表">内建函数总表</h2><p>下面这份清单与当前 <code>ExecuteFunction(...)</code> 实现一一对应，可直接用于核对当前版本到底有哪些可调用函数。</p>
+<h3 id="sec-52-数据与判断">数据与判断</h3><ul>
 <li><code>Size</code></li>
 <li><code>TypeOf</code></li>
 <li><code>IsVoid</code></li>
@@ -1417,7 +1621,7 @@ void Ping(){
 <li><code>Log</code></li>
 <li><code>Sleep</code></li>
 </ul>
-<h3 id="sec-52-steam-与本地环境">Steam 与本地环境</h3><ul>
+<h3 id="sec-53-steam-与本地环境">Steam 与本地环境</h3><ul>
 <li><code>GetSteamPath</code></li>
 <li><code>GetCS2InstallPath</code></li>
 <li><code>GetCS2CfgPath</code></li>
@@ -1434,11 +1638,11 @@ void Ping(){
 <li><code>GetSteamLaunchOptions64</code></li>
 <li><code>GetSteamAccounts</code></li>
 </ul>
-<h3 id="sec-53-gsi-对象">GSI 对象</h3><ul>
+<h3 id="sec-54-gsi-对象">GSI 对象</h3><ul>
 <li><code>GetAllPlayers</code></li>
 <li><code>GetCurrentPlayerWeapons</code></li>
 </ul>
-<h3 id="sec-54-窗口启动与控制">窗口、启动与控制</h3><ul>
+<h3 id="sec-55-窗口启动与控制">窗口、启动与控制</h3><ul>
 <li><code>CloseGameWindow</code></li>
 <li><code>KillGameProcess</code></li>
 <li><code>RunGameProcess</code></li>
@@ -1448,37 +1652,53 @@ void Ping(){
 <li><code>EnsureProcessWindow</code></li>
 <li><code>Top</code></li>
 </ul>
-<h3 id="sec-55-图像与音频">图像与音频</h3><ul>
+<h3 id="sec-56-图像与音频">图像与音频</h3><ul>
 <li><code>Drawimg</code></li>
 <li><code>Closeimg</code></li>
 <li><code>Playsnd</code></li>
 <li><code>Stopsnd</code></li>
 </ul>
-<h3 id="sec-56-音量与准星">音量与准星</h3><ul>
+<h3 id="sec-57-音量与准星">音量与准星</h3><ul>
 <li><code>SetProcessVolume</code></li>
 <li><code>SetProcessMute</code></li>
 <li><code>SetDeathVolume</code></li>
 <li><code>SetDeathMute</code></li>
+<li><code>SetQuickStopEnabled</code></li>
+<li><code>GetQuickStopEnabled</code></li>
+<li><code>SetQuickStopPaused</code></li>
+<li><code>GetQuickStopPaused</code></li>
+<li><code>SetMouseJitterSupportEnabled</code></li>
+<li><code>GetMouseJitterSupportEnabled</code></li>
+<li><code>SetConsoleLogSupportEnabled</code></li>
+<li><code>GetConsoleLogSupportEnabled</code></li>
+<li><code>TakeConsoleLog</code></li>
+<li><code>ConsumeConsoleLog</code></li>
+<li><code>TakeConsoleLogContains</code></li>
+<li><code>TakeConsoleLogPrefix</code></li>
+<li><code>GetConsoleLogQueueSize</code></li>
+<li><code>SetLenientCS2WindowDetection</code></li>
+<li><code>GetLenientCS2WindowDetection</code></li>
+<li><code>IsCS2WindowActive</code></li>
 <li><code>SetCrosshairEnabled</code></li>
 <li><code>SetCrosshairVisual</code></li>
 <li><code>SetCrosshairConfig</code></li>
 <li><code>SetCrosshair</code></li>
 </ul>
-<h3 id="sec-57-高权限">高权限</h3><ul>
+<h3 id="sec-58-高权限">高权限</h3><ul>
 <li><code>ShellExecute</code></li>
 <li><code>CFile</code></li>
 <li><code>OwriteFile</code></li>
 <li><code>AwriteFile</code></li>
 <li><code>DFile</code></li>
 </ul>
-<h2 id="sec-58-缺失值规则">缺失值规则</h2><p>当某个字段当前不存在时，脚本层会得到：</p>
+<h2 id="sec-59-缺失值规则">缺失值规则</h2><p>当某个字段当前不存在时，脚本层会得到：</p>
 <p><code>void</code></p>
 <p>建议写法：</p>
 <pre><code class="language-cpp">if(!IsVoid(player_name)){
     Log(player_name);
 }
 </code></pre>
-<h2 id="sec-59-综合示范脚本">综合示范脚本</h2><p>下面这个脚本覆盖了当前最常用的语法与 API：</p>
+<h2 id="sec-60-综合示范脚本">综合示范脚本</h2><p>下面这个脚本覆盖了当前最常用的语法与 API：</p>
 <pre><code class="language-cpp">const int aliveLine = 1;
 vector&lt;int&gt; marks = { 1, 2, 3 };
 array&lt;string&gt; states = { &quot;idle&quot;, &quot;live&quot;, &quot;over&quot; };
@@ -1530,7 +1750,7 @@ for(int i=0; i&lt;Size(accounts); i++){
 
 return;
 </code></pre>
-<h2 id="sec-60-steam-多元对象提取示例">Steam 多元对象提取示例</h2><p>这个例子专门演示如何从复杂对象里抽字段，再做 <code>if / else if / elseif / else</code>：</p>
+<h2 id="sec-61-steam-多元对象提取示例">Steam 多元对象提取示例</h2><p>这个例子专门演示如何从复杂对象里抽字段，再做 <code>if / else if / elseif / else</code>：</p>
 <pre><code class="language-cpp">string DescribeAccount(auto account){
     if(account.most_recent){
         return &quot;最近登录&quot;;
@@ -1551,11 +1771,15 @@ for(int i=0; i&lt;Size(accounts); i++){
     Log(DescribeAccount(account));
 }
 </code></pre>
-<h2 id="sec-61-示例文件">示例文件</h2><p>仓库中当前示例脚本：</p>
+<h2 id="sec-62-示例文件">示例文件</h2><p>仓库中当前示例脚本：</p>
 <ul>
 <li><code>vscript_examples/syntax_showcase.vscript</code></li>
 <li><code>vscript_examples/steam_accounts_showcase.vscript</code></li>
+<li><code>vscript_examples/quickstop_snipers_only.vscript</code></li>
+<li><code>vscript_examples/console_log_signal.vscript</code></li>
+<li><code>vscript_examples/sniper_crosshair.vscrpit</code></li>
 </ul>
+<p>文件选择器同时兼容标准扩展名 <code>.vscript</code> 和早期示例使用的拼写 <code>.vscrpit</code>。</p>
 
         </article>
         <aside class="docs-sidebar">
@@ -1615,296 +1839,302 @@ for(int i=0; i&lt;Size(accounts); i++){
     
   </div>
   
+</div><div class="toc-section">
+  <div class="toc-row">
+    <a class="toc-link toc-sub toc-branch" href="#sec-11-控制台日志事件" data-search="控制台日志事件">控制台日志事件</a>
+    
+  </div>
+  
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-11-第一个实用脚本" data-search="第一个实用脚本">第一个实用脚本</a>
+  <a class="toc-link toc-top" href="#sec-12-第一个实用脚本" data-search="第一个实用脚本">第一个实用脚本</a>
   <div class="toc-group-children">
     
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-12-常规工具-api" data-search="常规工具 api">常规工具 API</a>
+  <a class="toc-link toc-top" href="#sec-13-常规工具-api" data-search="常规工具 api">常规工具 API</a>
   <div class="toc-group-children">
     
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-13-gsi-强相关对象-api" data-search="gsi 强相关对象 api">GSI 强相关对象 API</a>
+  <a class="toc-link toc-top" href="#sec-14-gsi-强相关对象-api" data-search="gsi 强相关对象 api">GSI 强相关对象 API</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-14-全部玩家对象" data-search="全部玩家对象">全部玩家对象</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-15-全部玩家对象" data-search="全部玩家对象">全部玩家对象</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-15-当前玩家武器对象" data-search="当前玩家武器对象">当前玩家武器对象</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-16-当前玩家武器对象" data-search="当前玩家武器对象">当前玩家武器对象</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-16-steam-与本地环境-api" data-search="steam 与本地环境 api">Steam 与本地环境 API</a>
+  <a class="toc-link toc-top" href="#sec-17-steam-与本地环境-api" data-search="steam 与本地环境 api">Steam 与本地环境 API</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-17-路径与基础环境" data-search="路径与基础环境">路径与基础环境</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-18-路径与基础环境" data-search="路径与基础环境">路径与基础环境</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-18-steam-用户-id" data-search="steam 用户 id">Steam 用户 ID</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-19-steam-用户-id" data-search="steam 用户 id">Steam 用户 ID</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-19-本地配置读取" data-search="本地配置读取">本地配置读取</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-20-本地配置读取" data-search="本地配置读取">本地配置读取</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-20-本地账号对象" data-search="本地账号对象">本地账号对象</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-21-本地账号对象" data-search="本地账号对象">本地账号对象</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-21-窗口启动与外部交互-api" data-search="窗口、启动与外部交互 api">窗口、启动与外部交互 API</a>
+  <a class="toc-link toc-top" href="#sec-22-窗口启动与外部交互-api" data-search="窗口、启动与外部交互 api">窗口、启动与外部交互 API</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-22-常规系统控制" data-search="常规系统控制">常规系统控制</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-23-常规系统控制" data-search="常规系统控制">常规系统控制</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-23-高权限文件与命令" data-search="高权限文件与命令">高权限文件与命令</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-24-高权限文件与命令" data-search="高权限文件与命令">高权限文件与命令</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-24-图像音频音量与准星-api" data-search="图像、音频、音量与准星 api">图像、音频、音量与准星 API</a>
+  <a class="toc-link toc-top" href="#sec-25-图像音频音量与准星-api" data-search="图像、音频、音量与准星 api">图像、音频、音量与准星 API</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-25-图像与音频" data-search="图像与音频">图像与音频</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-26-图像与音频" data-search="图像与音频">图像与音频</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-26-音量控制" data-search="音量控制">音量控制</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-27-音量控制" data-search="音量控制">音量控制</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-27-准星控制" data-search="准星控制">准星控制</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-28-准星控制" data-search="准星控制">准星控制</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-28-权限与安全模型" data-search="权限与安全模型">权限与安全模型</a>
+  <a class="toc-link toc-top" href="#sec-29-权限与安全模型" data-search="权限与安全模型">权限与安全模型</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-29-权限等级" data-search="权限等级">权限等级</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-30-权限等级" data-search="权限等级">权限等级</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-30-关键规则" data-search="关键规则">关键规则</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-31-关键规则" data-search="关键规则">关键规则</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-31-高权限-api-分组" data-search="高权限 api 分组">高权限 API 分组</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-32-高权限-api-分组" data-search="高权限 api 分组">高权限 API 分组</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-32-元信息" data-search="元信息">元信息</a>
+  <a class="toc-link toc-top" href="#sec-33-元信息" data-search="元信息">元信息</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-33-字段说明" data-search="字段说明">字段说明</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-34-字段说明" data-search="字段说明">字段说明</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-34-语法规则" data-search="语法规则">语法规则</a>
+  <a class="toc-link toc-top" href="#sec-35-语法规则" data-search="语法规则">语法规则</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-35-基础风格" data-search="基础风格">基础风格</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-36-基础风格" data-search="基础风格">基础风格</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-36-当前支持的变量类型" data-search="当前支持的变量类型">当前支持的变量类型</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-37-当前支持的变量类型" data-search="当前支持的变量类型">当前支持的变量类型</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-37-auto-规则" data-search="`auto` 规则">`auto` 规则</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-38-auto-规则" data-search="`auto` 规则">`auto` 规则</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-38-const" data-search="`const`">`const`</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-39-const" data-search="`const`">`const`</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-39-运算符" data-search="运算符">运算符</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-40-运算符" data-search="运算符">运算符</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-40-容器语法" data-search="容器语法">容器语法</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-41-容器语法" data-search="容器语法">容器语法</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-41-对象与字段访问" data-search="对象与字段访问">对象与字段访问</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-42-对象与字段访问" data-search="对象与字段访问">对象与字段访问</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-42-控制流" data-search="控制流">控制流</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-43-控制流" data-search="控制流">控制流</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-43-goto" data-search="`goto`">`goto`</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-44-goto" data-search="`goto`">`goto`</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-44-return" data-search="`return`">`return`</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-45-return" data-search="`return`">`return`</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-45-on-边沿触发" data-search="`on:` 边沿触发">`on:` 边沿触发</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-46-on-边沿触发" data-search="`on:` 边沿触发">`on:` 边沿触发</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-46-函数" data-search="函数">函数</a>
+  <a class="toc-link toc-top" href="#sec-47-函数" data-search="函数">函数</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-47-函数定义" data-search="函数定义">函数定义</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-48-函数定义" data-search="函数定义">函数定义</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-48-建议使用的返回类型" data-search="建议使用的返回类型">建议使用的返回类型</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-49-建议使用的返回类型" data-search="建议使用的返回类型">建议使用的返回类型</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-49-函数返回值示例" data-search="函数返回值示例">函数返回值示例</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-50-函数返回值示例" data-search="函数返回值示例">函数返回值示例</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-50-内建函数总表" data-search="内建函数总表">内建函数总表</a>
+  <a class="toc-link toc-top" href="#sec-51-内建函数总表" data-search="内建函数总表">内建函数总表</a>
   <div class="toc-group-children">
     <div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-51-数据与判断" data-search="数据与判断">数据与判断</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-52-数据与判断" data-search="数据与判断">数据与判断</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-52-steam-与本地环境" data-search="steam 与本地环境">Steam 与本地环境</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-53-steam-与本地环境" data-search="steam 与本地环境">Steam 与本地环境</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-53-gsi-对象" data-search="gsi 对象">GSI 对象</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-54-gsi-对象" data-search="gsi 对象">GSI 对象</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-54-窗口启动与控制" data-search="窗口、启动与控制">窗口、启动与控制</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-55-窗口启动与控制" data-search="窗口、启动与控制">窗口、启动与控制</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-55-图像与音频" data-search="图像与音频">图像与音频</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-56-图像与音频" data-search="图像与音频">图像与音频</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-56-音量与准星" data-search="音量与准星">音量与准星</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-57-音量与准星" data-search="音量与准星">音量与准星</a>
     
   </div>
   
 </div><div class="toc-section">
   <div class="toc-row">
-    <a class="toc-link toc-sub toc-branch" href="#sec-57-高权限" data-search="高权限">高权限</a>
+    <a class="toc-link toc-sub toc-branch" href="#sec-58-高权限" data-search="高权限">高权限</a>
     
   </div>
   
 </div>
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-58-缺失值规则" data-search="缺失值规则">缺失值规则</a>
+  <a class="toc-link toc-top" href="#sec-59-缺失值规则" data-search="缺失值规则">缺失值规则</a>
   <div class="toc-group-children">
     
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-59-综合示范脚本" data-search="综合示范脚本">综合示范脚本</a>
+  <a class="toc-link toc-top" href="#sec-60-综合示范脚本" data-search="综合示范脚本">综合示范脚本</a>
   <div class="toc-group-children">
     
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-60-steam-多元对象提取示例" data-search="steam 多元对象提取示例">Steam 多元对象提取示例</a>
+  <a class="toc-link toc-top" href="#sec-61-steam-多元对象提取示例" data-search="steam 多元对象提取示例">Steam 多元对象提取示例</a>
   <div class="toc-group-children">
     
   </div>
 </div><div class="toc-group">
-  <a class="toc-link toc-top" href="#sec-61-示例文件" data-search="示例文件">示例文件</a>
+  <a class="toc-link toc-top" href="#sec-62-示例文件" data-search="示例文件">示例文件</a>
   <div class="toc-group-children">
     
   </div>
