@@ -28,6 +28,7 @@ namespace fs = std::filesystem;
 
 static QuickStopConfig s_qsConfig;
 static HHOOK g_quickStopHook = nullptr;
+static HHOOK g_quickStopMouseHook = nullptr;
 static std::atomic<bool> g_hookRunning{ false };
 
 static std::wstring GetQuickStopPath()
@@ -184,6 +185,8 @@ namespace {
     AxisControl ad_axis;
     std::atomic<bool> is_holding_gun{ true };
     std::atomic<bool> pause_jiting{ false };
+    std::atomic<bool> space_key_down{ false };
+    std::atomic<std::int64_t> jump_disable_until_ms{ 0 };
 
     int MoveKeyIndex(char key)
     {
@@ -212,6 +215,27 @@ namespace {
             if (GetAsyncKeyState(vk) & 0x8000) return true;
         }
         return false;
+    }
+
+    std::int64_t NowMs()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            Clock::now().time_since_epoch()).count();
+    }
+
+    bool IsJumpQuickStopDisabled()
+    {
+        return NowMs() < jump_disable_until_ms.load();
+    }
+
+    void StopAllPulses();
+
+    void RefreshJumpQuickStopDisable(const char* source)
+    {
+        jump_disable_until_ms.store(NowMs() + 3000);
+        StopAllPulses();
+        std::cout << "[急停] 检测到跳跃输入(" << source
+                  << ")，未来 3 秒临时禁用自动急停。" << std::endl;
     }
 
     void SendHardwareKey(WORD vKey, bool down)
@@ -399,6 +423,7 @@ namespace {
     {
         std::lock_guard movement_lock(movement_mutex);
         physical_key_down.fill(false);
+        space_key_down.store(false);
         lenient_manual_stop_candidate.fill(false);
         lenient_manual_stop_max_ms.fill(0);
         lenient_manual_stop_times.fill(Clock::time_point{});
@@ -463,6 +488,20 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
             }
 
             WORD vk = (WORD)kb->vkCode;
+            if (vk == VK_SPACE)
+            {
+                if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)
+                {
+                    if (!space_key_down.exchange(true))
+                        RefreshJumpQuickStopDisable("空格");
+                }
+                else if (wParam == WM_KEYUP || wParam == WM_SYSKEYUP)
+                {
+                    space_key_down.store(false);
+                }
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
+            }
+
             char keyChar = 0;
             if (vk == 'W') keyChar = 'W';
             else if (vk == 'A') keyChar = 'A';
@@ -485,6 +524,23 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
+static LRESULT CALLBACK QuickStopLowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION)
+    {
+        auto* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
+        if (ms && !(ms->flags & LLMHF_INJECTED))
+        {
+            if (!IsCS2WindowActive())
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
+
+            if (wParam == WM_MOUSEWHEEL || wParam == WM_MOUSEHWHEEL)
+                RefreshJumpQuickStopDisable("滚轮");
+        }
+    }
+    return CallNextHookEx(nullptr, nCode, wParam, lParam);
+}
+
 void StartQuickStopHook()
 {
     if (g_hookRunning) return;
@@ -492,9 +548,15 @@ void StartQuickStopHook()
         GetModuleHandleW(nullptr), 0);
     if (g_quickStopHook)
     {
+        g_quickStopMouseHook = SetWindowsHookExW(WH_MOUSE_LL, QuickStopLowLevelMouseProc,
+            GetModuleHandleW(nullptr), 0);
         StartAxisWorker(ws_axis);
         StartAxisWorker(ad_axis);
         g_hookRunning = true;
+        if (g_quickStopMouseHook)
+            std::cout << "[急停] 鼠标滚轮钩子已安装。" << std::endl;
+        else
+            std::cout << "[急停] 鼠标滚轮钩子安装失败，错误码: " << GetLastError() << std::endl;
         std::cout << "[急停] 键盘钩子已安装" << std::endl;
     }
     else
@@ -503,6 +565,11 @@ void StartQuickStopHook()
 
 void StopQuickStopHook()
 {
+    if (g_quickStopMouseHook)
+    {
+        UnhookWindowsHookEx(g_quickStopMouseHook);
+        g_quickStopMouseHook = nullptr;
+    }
     if (g_quickStopHook)
     {
         UnhookWindowsHookEx(g_quickStopHook);
@@ -602,6 +669,7 @@ void ProcessQuickStopCommand(const std::string& cmd)
         if (pause_jiting) return;           // pause键控制的全局急停开关
         if (!s_qsConfig.enabled) return;    // 总开关
         if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
+        if (IsJumpQuickStopDisabled()) return; // 跳跃后 3 秒内临时禁用急停
         if (!is_holding_gun.load()) return; // 刀/雷 拦截
 
         WORD counterKey = 0;

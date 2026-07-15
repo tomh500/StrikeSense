@@ -544,8 +544,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     using namespace evolutionui;
 
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::EVO_TITLE));
-    Font smallFont(L"Microsoft YaHei", 9);
-    Font boldFont(L"Microsoft YaHei", 9, FontStyleBold);
+    Font rF(L"Microsoft YaHei", 11);
+    Font sF(L"Microsoft YaHei", 9);
     SolidBrush text(Color(255, 30, 60, 100));
     SolidBrush dim(Color(255, 100, 130, 160));
     SolidBrush selectedBackground(Color(255, 175, 220, 248));
@@ -558,16 +558,14 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     const int sectionX = cx + 10;
     const int sectionWidth = cw - 20;
     const int volumeY = 54;
-    g.DrawString(_(i18n::Keys::EVO_VOL_ADJ), -1, &boldFont,
+    g.DrawString(_(i18n::Keys::EVO_VOL_ADJ), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(volumeY)), &text);
     g_deathMuteToggleRect = RectF(static_cast<REAL>(sectionX + 220),
         static_cast<REAL>(volumeY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(g_deathMuteToggleRect.X),
         static_cast<int>(g_deathMuteToggleRect.Y), g_deathMute);
 
-    int nextSectionY = volumeY + 42;
-    if (g_deathMute) {
-        g.DrawString(L"CS2 音量", -1, &smallFont,
+    g.DrawString(L"CS2 音量", -1, &sF,
             PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 39)), &text);
         volumeSliderRect = RectF(static_cast<REAL>(sectionX + 105), static_cast<REAL>(volumeY + 31),
             static_cast<REAL>((std::max)(140, sectionWidth - 250)), 24.f);
@@ -578,7 +576,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             static_cast<REAL>(volumeY + 33), 16.f, 16.f);
         wchar_t volumeText[32]{};
         swprintf_s(volumeText, L"%.0f%%", g_death_vol * 100.f);
-        g.DrawString(volumeText, -1, &smallFont,
+        g.DrawString(volumeText, -1, &sF,
             PointF(volumeSliderRect.X + volumeSliderRect.Width + 10.f,
                 static_cast<REAL>(volumeY + 31)), &dim);
 
@@ -592,31 +590,24 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
                 keyName += static_cast<wchar_t>(g_hotkeyVk);
             else keyName += L"Vk=" + std::to_wstring(g_hotkeyVk);
         }
-        g.DrawString(_(i18n::Keys::EVO_HOTKEY), -1, &smallFont,
+        g.DrawString(_(i18n::Keys::EVO_HOTKEY), -1, &sF,
             PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 76)), &text);
         hotkeyRect = RectF(static_cast<REAL>(sectionX + 175), static_cast<REAL>(volumeY + 69), 190.f, 26.f);
         g.FillRectangle(&buttonBackground, hotkeyRect);
         g.DrawRectangle(&buttonBorder, hotkeyRect);
         const std::wstring hotkeyText = g_isBindingHotkey ? _(i18n::Keys::EVO_WAITING_KEY) : keyName;
-        g.DrawString(hotkeyText.c_str(), -1, &smallFont,
+        g.DrawString(hotkeyText.c_str(), -1, &sF,
             PointF(hotkeyRect.X + 8.f, hotkeyRect.Y + 4.f), &text);
-        nextSectionY = volumeY + 118;
-    } else {
-        volumeSliderRect = RectF{};
-        hotkeyRect = RectF{};
-    }
+    const int nextSectionY = volumeY + 118;
 
-    g.DrawString(L"宽容检测游戏窗口", -1, &boldFont,
+    g.DrawString(L"宽容检测游戏窗口", -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(nextSectionY)), &text);
     g_lenientWindowToggleRect = RectF(static_cast<REAL>(sectionX + 220),
         static_cast<REAL>(nextSectionY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
         static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
-    g.DrawString(L"放宽 CS2 前台窗口识别，独立于其他功能", -1, &smallFont,
-        PointF(static_cast<REAL>(sectionX + 285), static_cast<REAL>(nextSectionY + 1)), &dim);
-
     const int crosshairY = nextSectionY + 42;
-    g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &boldFont,
+    g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY)), &text);
     crosshairEnableRect = RectF(static_cast<REAL>(sectionX + 220),
         static_cast<REAL>(crosshairY - 4), 50.f, 24.f);
@@ -637,7 +628,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         i18n::T("EVO_STYLE_HOLLOW"), i18n::T("EVO_STYLE_SOLID"), i18n::T("EVO_STYLE_CLASSIC"),
         i18n::T("EVO_STYLE_CROSS"), i18n::T("EVO_STYLE_CORNERS"), i18n::T("EVO_STYLE_T")
     };
-    g.DrawString(_(i18n::Keys::EVO_STYLE), -1, &boldFont,
+    g.DrawString(_(i18n::Keys::EVO_STYLE), -1, &sF,
         PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(bodyY + 12)), &text);
     for (int i = 0; i < kCrosshairStyleCount; ++i) {
         const int column = i % 3;
@@ -646,7 +637,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             static_cast<REAL>(bodyY + 8 + row * 31), 88.f, 25.f);
         g.FillRectangle(i == g_crosshairStyle ? &selectedBackground : &buttonBackground, styleRects[i]);
         g.DrawRectangle(i == g_crosshairStyle ? &selectedBorder : &buttonBorder, styleRects[i]);
-        g.DrawString(styleNames[i], -1, &smallFont,
+        g.DrawString(styleNames[i], -1, &sF,
             PointF(styleRects[i].X + 8.f, styleRects[i].Y + 3.f), &text);
     }
 
@@ -666,14 +657,14 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     const int rgbWidth = (std::max)(72, (sectionWidth - 126) / 3);
     for (int i = 0; i < 3; ++i) {
         const int x = sectionX + 14 + i * (rgbWidth + 36);
-        g.DrawString(rgbLabels[i], -1, &smallFont, PointF(static_cast<REAL>(x), static_cast<REAL>(rgbY)), &text);
+        g.DrawString(rgbLabels[i], -1, &sF, PointF(static_cast<REAL>(x), static_cast<REAL>(rgbY)), &text);
         rgbSliderRects[i] = RectF(static_cast<REAL>(x + 18), static_cast<REAL>(rgbY - 6),
             static_cast<REAL>(rgbWidth), 24.f);
         ui::DrawSlider(g, static_cast<int>(rgbSliderRects[i].X), rgbY + 2,
             static_cast<int>(rgbSliderRects[i].Width), rgbValues[i] / 255.f);
         wchar_t value[8]{};
         swprintf_s(value, L"%d", rgbValues[i]);
-        g.DrawString(value, -1, &smallFont,
+        g.DrawString(value, -1, &sF,
             PointF(rgbSliderRects[i].X + rgbSliderRects[i].Width + 4.f, static_cast<REAL>(rgbY)), &dim);
     }
 
@@ -695,23 +686,23 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         const int row = i / 2;
         const int x = sectionX + 14 + column * (sectionWidth / 2);
         const int y = bodyY + 126 + row * 38;
-        g.DrawString(parameterLabels[i], -1, &smallFont,
+        g.DrawString(parameterLabels[i], -1, &sF,
             PointF(static_cast<REAL>(x), static_cast<REAL>(y)), &text);
         parameterSliderRects[i] = RectF(static_cast<REAL>(x + 72), static_cast<REAL>(y - 6),
             static_cast<REAL>(parameterBarWidth), 24.f);
         ui::DrawSlider(g, static_cast<int>(parameterSliderRects[i].X), y + 2,
             static_cast<int>(parameterSliderRects[i].Width), parameterValues[i]);
-        g.DrawString(displayValues[i].c_str(), -1, &smallFont,
+        g.DrawString(displayValues[i].c_str(), -1, &sF,
             PointF(parameterSliderRects[i].X + parameterSliderRects[i].Width + 5.f,
                 static_cast<REAL>(y)), &dim);
     }
 
-    g.DrawString(L"显示中心点", -1, &smallFont,
+    g.DrawString(L"显示中心点", -1, &sF,
         PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(bodyY + 207)), &text);
     centerDotRect = RectF(static_cast<REAL>(sectionX + 100), static_cast<REAL>(bodyY + 200), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(centerDotRect.X), static_cast<int>(centerDotRect.Y),
         g_crosshairCenterDot);
-    g.DrawString(L"仅对十字、四角标和 T 型样式生效", -1, &smallFont,
+    g.DrawString(L"仅对十字、四角标和 T 型样式生效", -1, &sF,
         PointF(static_cast<REAL>(sectionX + 165), static_cast<REAL>(bodyY + 207)), &dim);
 }
 
@@ -748,7 +739,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         return;
     }
 
-    if (g_deathMute && Hit(hotkeyRect, mx, my)) {
+    if (Hit(hotkeyRect, mx, my)) {
         g_isBindingHotkey = !g_isBindingHotkey;
         SetFocus(hw);
         InvalidateRect(hw, nullptr, FALSE);
@@ -756,7 +747,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
     if (g_isBindingHotkey && !Hit(hotkeyRect, mx, my)) g_isBindingHotkey = false;
 
-    if (g_deathMute && ui::CheckSliderClick(mx, my,
+    if (ui::CheckSliderClick(mx, my,
         static_cast<int>(volumeSliderRect.X), static_cast<int>(volumeSliderRect.Y + 8.f),
         static_cast<int>(volumeSliderRect.Width), value)) {
         g_death_vol = value;
