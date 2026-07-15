@@ -170,6 +170,9 @@ void i18n::Init() {
     cn["VSCRIPT_REMOVE"] = L"卸载"; en["VSCRIPT_REMOVE"] = L"Remove";
     cn["VSCRIPT_POLLING"] = L"轮询中"; en["VSCRIPT_POLLING"] = L"Polling";
     cn["VSCRIPT_EMPTY"] = L"暂无挂载脚本。示范脚本已生成在脚本目录。"; en["VSCRIPT_EMPTY"] = L"No mounted scripts. Samples are in the script folder.";
+    cn["VSCRIPT_PREVIOUS"] = L"上一页"; en["VSCRIPT_PREVIOUS"] = L"Previous";
+    cn["VSCRIPT_NEXT"] = L"下一页"; en["VSCRIPT_NEXT"] = L"Next";
+    cn["VSCRIPT_PAGE"] = L"第 %d / %d 页，共 %d 个脚本"; en["VSCRIPT_PAGE"] = L"Page %d / %d, %d scripts";
 
     //刀
 // 刀型翻译定义

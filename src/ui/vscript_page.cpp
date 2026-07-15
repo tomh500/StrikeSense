@@ -13,10 +13,15 @@ namespace {
 
 Gdiplus::RectF g_mountRect;
 Gdiplus::RectF g_openDirRect;
+Gdiplus::RectF g_previousPageRect;
+Gdiplus::RectF g_nextPageRect;
 std::vector<Gdiplus::RectF> g_contRects;
 std::vector<Gdiplus::RectF> g_runRects;
 std::vector<Gdiplus::RectF> g_removeRects;
 std::vector<Gdiplus::RectF> g_noticeRects;
+std::vector<size_t> g_visibleScriptIndices;
+size_t g_currentScriptPage = 0;
+size_t g_scriptRowsPerPage = 1;
 
 bool Hit(const Gdiplus::RectF& r, int x, int y)
 {
@@ -146,6 +151,7 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     g_runRects.clear();
     g_removeRects.clear();
     g_noticeRects.clear();
+    g_visibleScriptIndices.clear();
 
     Font textFont(L"Microsoft YaHei", 10);
     Font smallFont(L"Microsoft YaHei", 9);
@@ -181,25 +187,38 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
 
     const auto& scripts = vscript::MountedScripts();
     if (scripts.empty()) {
+        g_currentScriptPage = 0;
+        g_previousPageRect = RectF{};
+        g_nextPageRect = RectF{};
         g.DrawString(i18n::T("VSCRIPT_EMPTY"), -1, &textFont, PointF((REAL)cx + 10, 140), &dim);
         return;
     }
 
-    int y = 132;
-    for (size_t i = 0; i < scripts.size(); ++i) {
+    constexpr int kListTop = 132;
+    constexpr int kRowStep = 56;
+    constexpr int kFooterHeight = 54;
+    g_scriptRowsPerPage = static_cast<size_t>((std::max)(1, (H - kListTop - kFooterHeight) / kRowStep));
+    const size_t pageCount = (scripts.size() + g_scriptRowsPerPage - 1) / g_scriptRowsPerPage;
+    if (g_currentScriptPage >= pageCount) g_currentScriptPage = pageCount - 1;
+    const size_t firstScript = g_currentScriptPage * g_scriptRowsPerPage;
+    const size_t lastScript = (std::min)(scripts.size(), firstScript + g_scriptRowsPerPage);
+
+    int y = kListTop;
+    for (size_t scriptIndex = firstScript; scriptIndex < lastScript; ++scriptIndex) {
         RectF row((REAL)cx + 8, (REAL)y, (REAL)cw - 16, 48);
-        const bool danger = scripts[i].dangerStyle;
+        const bool danger = scripts[scriptIndex].dangerStyle;
         g.FillRectangle(danger ? &rowDangerBg : &rowBg, row);
         g.DrawRectangle(danger ? &rowDangerPen : &rowPen, row);
 
-        std::wstring name = DisplayName(scripts[i]);
-        g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), danger ? &dangerText : (scripts[i].hasMetadataName ? &meta : &text));
-        std::wstring sub = scripts[i].hasMetadataName ? SummaryText(scripts[i]) : scripts[i].path;
+        std::wstring name = DisplayName(scripts[scriptIndex]);
+        g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), danger ? &dangerText : (scripts[scriptIndex].hasMetadataName ? &meta : &text));
+        std::wstring sub = scripts[scriptIndex].hasMetadataName ? SummaryText(scripts[scriptIndex]) : scripts[scriptIndex].path;
         g.DrawString(sub.c_str(), -1, &smallFont, PointF((REAL)cx + 18, (REAL)y + 25), &dim);
 
         RectF notice((REAL)cx + 260, (REAL)y + 7, 18, 18);
-        if (!scripts[i].notice.empty()) DrawNoticeIcon(g, notice, danger);
+        if (!scripts[scriptIndex].notice.empty()) DrawNoticeIcon(g, notice, danger);
         g_noticeRects.push_back(notice);
+        g_visibleScriptIndices.push_back(scriptIndex);
 
         RectF cont((REAL)cx + cw - 230, (REAL)y + 12, 50, 24);
         RectF run((REAL)cx + cw - 160, (REAL)y + 10, 56, 28);
@@ -208,22 +227,38 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
         g_runRects.push_back(run);
         g_removeRects.push_back(remove);
 
-        ui::DrawToggle(g, (int)cont.X, (int)cont.Y, scripts[i].continuous);
-        if (!scripts[i].continuous) DrawButton(g, run, i18n::T("VSCRIPT_RUN"));
+        ui::DrawToggle(g, (int)cont.X, (int)cont.Y, scripts[scriptIndex].continuous);
+        if (!scripts[scriptIndex].continuous) DrawButton(g, run, i18n::T("VSCRIPT_RUN"));
         else g.DrawString(i18n::T("VSCRIPT_POLLING"), -1, &smallFont, PointF(run.X + 8, run.Y + 7), &warn);
         DrawButton(g, remove, i18n::T("VSCRIPT_REMOVE"));
 
-        y += 56;
-        if (y > H - 60) break;
+        y += kRowStep;
+    }
+
+    const int footerY = H - 42;
+    wchar_t pageText[96]{};
+    swprintf_s(pageText, i18n::T("VSCRIPT_PAGE"),
+        static_cast<int>(g_currentScriptPage + 1), static_cast<int>(pageCount), static_cast<int>(scripts.size()));
+    g.DrawString(pageText, -1, &smallFont, PointF((REAL)cx + 12, (REAL)footerY + 7), &dim);
+
+    if (pageCount > 1) {
+        g_previousPageRect = RectF((REAL)cx + cw - 222, (REAL)footerY, 96, 28);
+        g_nextPageRect = RectF((REAL)cx + cw - 116, (REAL)footerY, 96, 28);
+        DrawButton(g, g_previousPageRect, i18n::T("VSCRIPT_PREVIOUS"));
+        DrawButton(g, g_nextPageRect, i18n::T("VSCRIPT_NEXT"));
+    } else {
+        g_previousPageRect = RectF{};
+        g_nextPageRect = RectF{};
     }
 
     if (hw) {
         POINT pt{};
         GetCursorPos(&pt);
         ScreenToClient(hw, &pt);
-        for (size_t i = 0; i < g_noticeRects.size() && i < scripts.size(); ++i) {
+        for (size_t i = 0; i < g_noticeRects.size() && i < g_visibleScriptIndices.size(); ++i) {
             if (Hit(g_noticeRects[i], pt.x, pt.y)) {
-                DrawTooltip(g, scripts[i].notice, pt.x, pt.y);
+                const size_t scriptIndex = g_visibleScriptIndices[i];
+                if (scriptIndex < scripts.size()) DrawTooltip(g, scripts[scriptIndex].notice, pt.x, pt.y);
                 break;
             }
         }
@@ -236,7 +271,10 @@ void CheckVscriptClick(HWND hw, int mx, int my)
         std::wstring path = PickScript(hw);
         if (!path.empty()) {
             vscript::AddMountedScript(path);
+            const auto& scripts = vscript::MountedScripts();
+            if (!scripts.empty()) g_currentScriptPage = (scripts.size() - 1) / g_scriptRowsPerPage;
             std::wcout << L"[脚本页面] 已挂载脚本: " << path << std::endl;
+            std::cout << "[脚本页面] 已切换到新挂载脚本所在页: " << (g_currentScriptPage + 1) << std::endl;
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -245,20 +283,38 @@ void CheckVscriptClick(HWND hw, int mx, int my)
         ShellExecuteW(hw, L"open", vscript::GetDefaultScriptDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return;
     }
+    if (Hit(g_previousPageRect, mx, my)) {
+        if (g_currentScriptPage > 0) --g_currentScriptPage;
+        std::cout << "[脚本页面] 已切换到上一页: " << (g_currentScriptPage + 1) << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    if (Hit(g_nextPageRect, mx, my)) {
+        const auto& scripts = vscript::MountedScripts();
+        const size_t pageCount = scripts.empty() ? 1 : (scripts.size() + g_scriptRowsPerPage - 1) / g_scriptRowsPerPage;
+        if (g_currentScriptPage + 1 < pageCount) ++g_currentScriptPage;
+        std::cout << "[脚本页面] 已切换到下一页: " << (g_currentScriptPage + 1) << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
     for (size_t i = 0; i < g_contRects.size(); ++i) {
+        if (i >= g_visibleScriptIndices.size()) break;
+        const size_t scriptIndex = g_visibleScriptIndices[i];
         if (Hit(g_contRects[i], mx, my)) {
-            vscript::ToggleContinuous(i);
+            vscript::ToggleContinuous(scriptIndex);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
         if (Hit(g_runRects[i], mx, my)) {
             auto& scripts = vscript::MountedScripts();
-            if (i < scripts.size() && !scripts[i].continuous) vscript::ExecuteScriptFile(scripts[i].path);
+            if (scriptIndex < scripts.size() && !scripts[scriptIndex].continuous)
+                vscript::ExecuteScriptFile(scripts[scriptIndex].path);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
         if (Hit(g_removeRects[i], mx, my)) {
-            vscript::RemoveMountedScript(i);
+            vscript::RemoveMountedScript(scriptIndex);
+            std::cout << "[脚本页面] 已卸载第 " << (scriptIndex + 1) << " 个脚本" << std::endl;
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
