@@ -93,6 +93,7 @@ int   g_textguiR = 80;
 int   g_textguiG = 180;
 int   g_textguiB = 240;
 bool  g_textguiShowWatermark = true;
+bool  g_textguiRainbow = false;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
 int  g_itemHelperHotkeyMod = 0;

@@ -11,6 +11,7 @@ extern int g_textguiR;
 extern int g_textguiG;
 extern int g_textguiB;
 extern bool g_textguiShowWatermark;
+extern bool g_textguiRainbow;
 
 namespace textgui_overlay {
 void Initialize(HINSTANCE hInst);

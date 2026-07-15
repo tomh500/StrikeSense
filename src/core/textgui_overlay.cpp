@@ -73,12 +73,47 @@ int text_width(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& te
     return static_cast<int>(std::ceil(bounds.Width));
 }
 
+Gdiplus::Color color_from_hue(float hue, BYTE alpha)
+{
+    hue = std::fmod(hue, 360.f);
+    if (hue < 0.f) hue += 360.f;
+    const float c = 1.f;
+    const float x = c * (1.f - std::fabs(std::fmod(hue / 60.f, 2.f) - 1.f));
+    float r = 0.f, g = 0.f, b = 0.f;
+    if (hue < 60.f) { r = c; g = x; }
+    else if (hue < 120.f) { r = x; g = c; }
+    else if (hue < 180.f) { g = c; b = x; }
+    else if (hue < 240.f) { g = x; b = c; }
+    else if (hue < 300.f) { r = x; b = c; }
+    else { r = c; b = x; }
+    return Gdiplus::Color(alpha,
+        static_cast<BYTE>(r * 255.f),
+        static_cast<BYTE>(g * 255.f),
+        static_cast<BYTE>(b * 255.f));
+}
+
 void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
-    float x, float y, Gdiplus::Brush& brush, BYTE alpha)
+    float x, float y, const Gdiplus::Color& color, BYTE alpha)
 {
     Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
+    Gdiplus::SolidBrush brush(color);
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x + 1.f, y + 1.f), &shadow);
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x, y), &brush);
+}
+
+void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
+    float x, float y, BYTE alpha, float baseHue)
+{
+    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
+    float cursor = x;
+    for (size_t i = 0; i < text.size(); ++i) {
+        const std::wstring ch(1, text[i]);
+        const float hue = baseHue + static_cast<float>(i) * 18.f;
+        Gdiplus::SolidBrush brush(color_from_hue(hue, alpha));
+        g.DrawString(ch.c_str(), -1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &shadow);
+        g.DrawString(ch.c_str(), -1, &font, Gdiplus::PointF(cursor, y), &brush);
+        cursor += static_cast<float>(text_width(g, font, ch));
+    }
 }
 
 void redraw()
@@ -112,14 +147,14 @@ void redraw()
         const float scale = std::clamp(g_textguiScale, 0.75f, 1.8f);
         const float opacity = std::clamp(g_textguiOpacity, 0.2f, 1.0f);
         const BYTE alpha = static_cast<BYTE>(255.f * opacity);
-        const Color color(alpha,
+        const Color fixedColor(alpha,
             static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
             static_cast<BYTE>(std::clamp(g_textguiG, 0, 255)),
             static_cast<BYTE>(std::clamp(g_textguiB, 0, 255)));
 
         Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
         Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
-        SolidBrush textBrush(color);
+        const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f, 360.f);
 
         auto features = collect_enabled_features();
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
@@ -139,12 +174,17 @@ void redraw()
         float cy = y;
         if (g_textguiShowWatermark) {
             const std::wstring title = L"StrikeSense";
-            draw_text(g, title, titleFont, x + areaW - text_width(g, titleFont, title), cy, textBrush, alpha);
+            const float tx = x + areaW - text_width(g, titleFont, title);
+            if (g_textguiRainbow) draw_rainbow_text(g, title, titleFont, tx, cy, alpha, baseHue);
+            else draw_text(g, title, titleFont, tx, cy, fixedColor, alpha);
             cy += 35.f * scale;
         }
 
-        for (const auto& feature : features) {
-            draw_text(g, feature, itemFont, x + areaW - text_width(g, itemFont, feature), cy, textBrush, alpha);
+        for (size_t i = 0; i < features.size(); ++i) {
+            const auto& feature = features[i];
+            const float tx = x + areaW - text_width(g, itemFont, feature);
+            if (g_textguiRainbow) draw_rainbow_text(g, feature, itemFont, tx, cy, alpha, baseHue + static_cast<float>(i) * 26.f);
+            else draw_text(g, feature, itemFont, tx, cy, fixedColor, alpha);
             cy += rowH;
         }
     }
@@ -223,7 +263,7 @@ void Initialize(HINSTANCE hInst)
         return;
     }
 
-    SetTimer(s_hwnd, kRefreshTimer, 350, nullptr);
+    SetTimer(s_hwnd, kRefreshTimer, 16, nullptr);
     ShowWindow(s_hwnd, SW_HIDE);
     std::cout << "[Textgui] 覆盖层窗口已创建。" << std::endl;
 }

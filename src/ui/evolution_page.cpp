@@ -38,6 +38,7 @@ std::array<Gdiplus::RectF, 3> rgbSliderRects;
 std::array<Gdiplus::RectF, 4> parameterSliderRects;
 Gdiplus::RectF textguiEnableRect;
 Gdiplus::RectF textguiWatermarkRect;
+Gdiplus::RectF textguiRainbowRect;
 std::array<Gdiplus::RectF, 4> textguiSliderRects;
 std::array<Gdiplus::RectF, 3> textguiColorRects;
 
@@ -130,6 +131,7 @@ void SaveEvolutionParams() {
     j["textgui_scale"] = g_textguiScale; j["textgui_opacity"] = g_textguiOpacity;
     j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
     j["textgui_show_watermark"] = g_textguiShowWatermark;
+    j["textgui_rainbow"] = g_textguiRainbow;
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -185,6 +187,7 @@ void LoadEvolutionParams() {
         gv("textgui_scale", g_textguiScale); gv("textgui_opacity", g_textguiOpacity);
         gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
         gb("textgui_show_watermark", g_textguiShowWatermark);
+        gb("textgui_rainbow", g_textguiRainbow);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -685,6 +688,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         for (auto& rect : textguiSliderRects) rect = RectF{};
         for (auto& rect : textguiColorRects) rect = RectF{};
         textguiWatermarkRect = RectF{};
+        textguiRainbowRect = RectF{};
     }
     else {
         auto drawSliderWithKnob = [&](const Gdiplus::RectF& rect, float value) {
@@ -744,6 +748,13 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             static_cast<REAL>(colorY + 31), 50.f, 24.f);
         ui::DrawToggle(g, static_cast<int>(textguiWatermarkRect.X),
             static_cast<int>(textguiWatermarkRect.Y), g_textguiShowWatermark);
+
+        g.DrawString(L"ARGB Rainbow", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 230), static_cast<REAL>(colorY + 38)), &text);
+        textguiRainbowRect = RectF(static_cast<REAL>(sectionX + 350),
+            static_cast<REAL>(colorY + 31), 50.f, 24.f);
+        ui::DrawToggle(g, static_cast<int>(textguiRainbowRect.X),
+            static_cast<int>(textguiRainbowRect.Y), g_textguiRainbow);
         crosshairY = colorY + 82;
     }
 
@@ -953,6 +964,16 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
+    }
+
+    if (g_textguiEnabled && Hit(textguiRainbowRect, mx, my)) {
+        g_textguiRainbow = !g_textguiRainbow;
+        SaveEvolutionParams();
+        RefreshTextguiOverlay();
+        std::cout << "[Textgui] ARGB彩虹流动已切换为: "
+                  << (g_textguiRainbow ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
     }
 
     if (Hit(crosshairEnableRect, mx, my)) {
