@@ -18,6 +18,7 @@ bool g_rageEnabled = false;
 static Gdiplus::RectF g_RageToggleRect;
 
 static Gdiplus::RectF g_QSToggleRect;
+static Gdiplus::RectF g_LenientManualStopToggleRect;
 static Gdiplus::RectF g_MouseJitterToggleRect;
 static Gdiplus::RectF g_ConsoleLogToggleRect;
 
@@ -116,10 +117,18 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g_ConsoleLogToggleRect = RectF((REAL)(cx + 220), (REAL)(consoleLogY - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, consoleLogY - 4, consolelog::IsEnabled());
 
-    if (!quickStopEnabled) return;
+    if (!quickStopEnabled) {
+        g_LenientManualStopToggleRect = RectF{};
+        return;
+    }
 
     // 读取最新值
     auto& cfg = GetQSConfig();
+    const int lenientManualStopY = yBase + 102;
+    g.DrawString(_(i18n::Keys::Rage_LENIENT_MANUAL_STOP), -1, &sF,
+        PointF((REAL)(cx + 28), (REAL)lenientManualStopY), &tdCol);
+    g_LenientManualStopToggleRect = RectF((REAL)(cx + 220), (REAL)(lenientManualStopY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, cx + 220, lenientManualStopY - 4, cfg.lenient_manual_stop);
 
     // 修复：类型完全统一为项目的底层核心 const char*
     struct SliderDef {
@@ -143,7 +152,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int slW = cw - 280;
     if (slW < 100) slW = 100;
     for (int i = 0; i < kQSSliderCount; ++i) {
-        int sy = yBase + 108 + i * 34;
+        int sy = yBase + 142 + i * 34;
         const wchar_t* wlabel = _(defs[i].nameKey); 
         g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
@@ -168,12 +177,13 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     // 触发条件说明
-    const int hintY = yBase + 108 + kQSSliderCount * 34 + 8;
+    const int hintY = yBase + 142 + kQSSliderCount * 34 + 8;
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE4), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 48)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE5), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 64)), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE6), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 80)), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
@@ -281,6 +291,18 @@ void CheckRageClick(HWND hw, int mx, int my) {
     }
 
     if (!IsQuickStopEnabled()) return;
+
+    RectF* lmsr = &g_LenientManualStopToggleRect;
+    if (mx >= lmsr->X && mx <= lmsr->X + lmsr->Width &&
+        my >= lmsr->Y && my <= lmsr->Y + lmsr->Height) {
+        auto& cfg = GetQSConfig();
+        cfg.lenient_manual_stop = !cfg.lenient_manual_stop;
+        ApplyQuickStopConfigChanges();
+        std::cout << "[急停] 宽容手动急停 BETA 已切换为: "
+                  << (cfg.lenient_manual_stop ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
 
     // 滑块检测
     auto& cfg = GetQSConfig();

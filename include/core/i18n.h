@@ -23,6 +23,7 @@ namespace Keys {
         extern const char* Rage_MICRO_MOVE, *Rage_MOVE_START, *Rage_MOVE_CAP, *Rage_CURVE, *Rage_HORIZONTAL_SCALE, *Rage_VERTICAL_SCALE;
         extern const char* Rage_MOUSE_JITTER;
         extern const char* Rage_CONSOLE_LOG;
+        extern const char* Rage_LENIENT_MANUAL_STOP;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
 
         // ===== 修复：改成符合项目结构的 const char* 外部声明 =====
@@ -33,6 +34,7 @@ namespace Keys {
         extern const char* Rage_HINT_LINE3;
         extern const char* Rage_HINT_LINE4;
         extern const char* Rage_HINT_LINE5;
+        extern const char* Rage_HINT_LINE6;
         extern const char* Rage_REQ_ADMIN_TITLE;
         extern const char* Rage_REQ_ADMIN_MSG;
         extern const char* Rage_RISK_WARNING_TITLE;

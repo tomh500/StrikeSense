@@ -76,6 +76,7 @@ void i18n::Init() {
     cn[Keys::Rage_TITLE] = L"超频配置"; en[Keys::Rage_TITLE] = L"Semi Rage";
     cn[Keys::Rage_PLACEHOLDER] = L"功能开发中..."; en[Keys::Rage_PLACEHOLDER] = L"Coming soon...";
     cn[Keys::Rage_QUICKSTOP] = L"自动急停 (OpenDear)"; en[Keys::Rage_QUICKSTOP] = L"Auto QuickStop (OpenDear)";
+    cn[Keys::Rage_LENIENT_MANUAL_STOP] = L"宽容手动急停 (BETA)"; en[Keys::Rage_LENIENT_MANUAL_STOP] = L"Lenient Manual Stop (BETA)";
     cn[Keys::Rage_MICRO_PULSE] = L"微步脉冲 (ms)"; en[Keys::Rage_MICRO_PULSE] = L"Micro Pulse (ms)";
     cn[Keys::Rage_MIN_PULSE] = L"最小脉冲 (ms)"; en[Keys::Rage_MIN_PULSE] = L"Min Pulse (ms)";
     cn[Keys::Rage_MAX_PULSE] = L"最大脉冲 (ms)"; en[Keys::Rage_MAX_PULSE] = L"Max Pulse (ms)";
@@ -108,6 +109,8 @@ void i18n::Init() {
     en[Keys::Rage_HINT_LINE4] = L"Horizontal Peek / Forward-Back: scale left-right and forward-back quickstop strength; 100% keeps the raw result.";
     cn[Keys::Rage_HINT_LINE5] = L"多绑定脚本支持用于鼠标抖动类脚本；控制台支持用于读取新增 console.log；右侧数字可直接输入。";
     en[Keys::Rage_HINT_LINE5] = L"Multi-bind support is for mouse-jitter scripts; console support reads new console.log entries; click values to type directly.";
+    cn[Keys::Rage_HINT_LINE6] = L"宽容手动急停：短促人工反向补停不会再次触发回拉；反方向键按住较久仍按正常换向处理。";
+    en[Keys::Rage_HINT_LINE6] = L"Lenient manual stop: short manual counter-taps avoid rebound; longer holds remain normal direction changes.";
     
     cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
     en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";
@@ -196,6 +199,7 @@ namespace i18n { namespace Keys {
     const char *Rage_MICRO_MOVE="Rage_MICRO_MOVE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP",*Rage_CURVE="Rage_CURVE",*Rage_HORIZONTAL_SCALE="Rage_HORIZONTAL_SCALE",*Rage_VERTICAL_SCALE="Rage_VERTICAL_SCALE";
     const char* Rage_MOUSE_JITTER = "Rage_MOUSE_JITTER";
     const char* Rage_CONSOLE_LOG = "Rage_CONSOLE_LOG";
+    const char* Rage_LENIENT_MANUAL_STOP = "Rage_LENIENT_MANUAL_STOP";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
     const char* EVO_HINT_MUTE = "evo_hint_mute";
     const char* EVO_STATUS_DISABLED = "evo_status_disabled";
@@ -208,6 +212,7 @@ namespace i18n { namespace Keys {
     const char* Rage_HINT_LINE3 = "Rage_HINT_LINE3";
     const char* Rage_HINT_LINE4 = "Rage_HINT_LINE4";
     const char* Rage_HINT_LINE5 = "Rage_HINT_LINE5";
+    const char* Rage_HINT_LINE6 = "Rage_HINT_LINE6";
     const char* Rage_REQ_ADMIN_TITLE = "Rage_REQ_ADMIN_TITLE";
     const char* Rage_REQ_ADMIN_MSG = "Rage_REQ_ADMIN_MSG";
     const char* Rage_RISK_WARNING_TITLE = "Rage_RISK_WARNING_TITLE";

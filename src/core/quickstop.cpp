@@ -102,6 +102,7 @@ void LoadQuickStopConfig()
         auto gi = [&](const char* k, int& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<int>(); };
 
         gb("enabled", s_qsConfig.enabled);
+        gb("lenient_manual_stop", s_qsConfig.lenient_manual_stop);
         gi("micro_pulse", s_qsConfig.micro_pulse);
         gi("min_pulse", s_qsConfig.min_pulse);
         gi("max_pulse", s_qsConfig.max_pulse);
@@ -128,6 +129,7 @@ void SaveQuickStopConfig()
     try {
         nlohmann::json j;
         j["enabled"] = s.enabled;
+        j["lenient_manual_stop"] = s.lenient_manual_stop;
         j["micro_pulse"] = s.micro_pulse;
         j["min_pulse"] = s.min_pulse;
         j["max_pulse"] = s.max_pulse;
@@ -165,11 +167,17 @@ namespace {
         WORD request_key = 0;
         int request_pulse = 0;
         std::uint64_t request_generation = 0;
+        WORD lenient_counter_key = 0;
+        Clock::time_point lenient_press_deadline{};
+        int lenient_tap_max_ms = 0;
         std::thread worker;
     };
 
     constexpr std::array<char, 4> kMoveKeys{ 'W', 'A', 'S', 'D' };
     std::array<bool, kMoveKeys.size()> physical_key_down{};
+    std::array<bool, kMoveKeys.size()> lenient_manual_stop_candidate{};
+    std::array<int, kMoveKeys.size()> lenient_manual_stop_max_ms{};
+    std::array<Clock::time_point, kMoveKeys.size()> lenient_manual_stop_times{};
     std::array<Clock::time_point, kMoveKeys.size()> start_times{};
     std::mutex movement_mutex;
     AxisControl ws_axis;
@@ -252,6 +260,11 @@ namespace {
         return std::clamp(static_cast<int>(std::lround(pulse)), 1, cap_pulse);
     }
 
+    int CalculateLenientTapMaxMs(int stop_pulse)
+    {
+        return std::clamp(stop_pulse + 120, 150, 350);
+    }
+
     void PerformDynamicStop(WORD vKey, int stop_pulse, AxisControl* axis, std::uint64_t generation)
     {
         {
@@ -332,6 +345,16 @@ namespace {
         const auto generation = axis->generation.fetch_add(1) + 1;
 
         {
+            std::lock_guard movement_lock(movement_mutex);
+            // 人工反向键通常会紧跟自动急停脉冲出现。记录一个短窗口，供键盘钩子
+            // 判断这次输入是否是玩家手动补急停，而不是一次新的换向移动。
+            const int press_window_ms = std::clamp(stop_pulse + 80, 120, 350);
+            axis->lenient_counter_key = vKey;
+            axis->lenient_press_deadline = Clock::now() + std::chrono::milliseconds(press_window_ms);
+            axis->lenient_tap_max_ms = CalculateLenientTapMaxMs(stop_pulse);
+        }
+
+        {
             std::lock_guard request_lock(axis->request_mutex);
             axis->request_key = vKey;
             axis->request_pulse = stop_pulse;
@@ -351,6 +374,19 @@ namespace {
 
     void StopAllPulses()
     {
+        {
+            std::lock_guard movement_lock(movement_mutex);
+            lenient_manual_stop_candidate.fill(false);
+            lenient_manual_stop_max_ms.fill(0);
+            lenient_manual_stop_times.fill(Clock::time_point{});
+            for (AxisControl* axis : { &ws_axis, &ad_axis })
+            {
+                axis->lenient_counter_key = 0;
+                axis->lenient_press_deadline = {};
+                axis->lenient_tap_max_ms = 0;
+            }
+        }
+
         for (AxisControl* axis : { &ws_axis, &ad_axis })
         {
             CancelAxis(*axis);
@@ -363,6 +399,15 @@ namespace {
     {
         std::lock_guard movement_lock(movement_mutex);
         physical_key_down.fill(false);
+        lenient_manual_stop_candidate.fill(false);
+        lenient_manual_stop_max_ms.fill(0);
+        lenient_manual_stop_times.fill(Clock::time_point{});
+        ws_axis.lenient_counter_key = 0;
+        ws_axis.lenient_press_deadline = {};
+        ws_axis.lenient_tap_max_ms = 0;
+        ad_axis.lenient_counter_key = 0;
+        ad_axis.lenient_press_deadline = {};
+        ad_axis.lenient_tap_max_ms = 0;
         CancelAxis(ws_axis);
         CancelAxis(ad_axis);
     }
@@ -491,9 +536,25 @@ void ProcessQuickStopCommand(const std::string& cmd)
 
         std::lock_guard movement_lock(movement_mutex);
         if (physical_key_down[key_index]) return; // 忽略系统长按产生的重复 KEYDOWN
+        const auto now = Clock::now();
+        const bool is_lenient_manual_stop = s_qsConfig.lenient_manual_stop
+            && axis->lenient_counter_key == static_cast<WORD>(key)
+            && now <= axis->lenient_press_deadline;
+        lenient_manual_stop_candidate[key_index] = is_lenient_manual_stop;
+        lenient_manual_stop_max_ms[key_index] = is_lenient_manual_stop
+            ? axis->lenient_tap_max_ms
+            : 0;
+        lenient_manual_stop_times[key_index] = is_lenient_manual_stop
+            ? now
+            : Clock::time_point{};
+        axis->lenient_counter_key = 0;
+        axis->lenient_press_deadline = {};
+        axis->lenient_tap_max_ms = 0;
         physical_key_down[key_index] = true;
-        start_times[key_index] = Clock::now();
+        start_times[key_index] = now;
         CancelAxis(*axis); // 新的真实移动输入立即结束同轴反向脉冲
+        if (is_lenient_manual_stop)
+            std::cout << "[急停] 检测到人工反向补停，已进入宽容判定: " << key << std::endl;
         return;
     }
 
@@ -506,13 +567,37 @@ void ProcessQuickStopCommand(const std::string& cmd)
         if (key_index < 0 || !axis) return;
 
         int duration = 0;
+        bool lenient_candidate = false;
+        int lenient_tap_max_ms = 0;
+        int lenient_duration = 0;
         {
             std::lock_guard movement_lock(movement_mutex);
             if (!physical_key_down[key_index]) return; // 忽略重复或非真实 KEYUP
             physical_key_down[key_index] = false;
+            const auto now = Clock::now();
             duration = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                Clock::now() - start_times[key_index]).count());
+                now - start_times[key_index]).count());
+            lenient_candidate = lenient_manual_stop_candidate[key_index];
+            lenient_tap_max_ms = lenient_manual_stop_max_ms[key_index];
+            if (lenient_candidate)
+            {
+                lenient_duration = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                    now - lenient_manual_stop_times[key_index]).count());
+            }
+            lenient_manual_stop_candidate[key_index] = false;
+            lenient_manual_stop_max_ms[key_index] = 0;
+            lenient_manual_stop_times[key_index] = {};
         }
+
+        if (lenient_candidate && lenient_duration <= lenient_tap_max_ms)
+        {
+            std::cout << "[急停] 宽容手动急停已接管 " << key
+                      << "，补停 " << lenient_duration << "ms，跳过二次反向脉冲。" << std::endl;
+            return;
+        }
+        if (lenient_candidate)
+            std::cout << "[急停] 人工反向键补停后继续按住 " << lenient_duration
+                      << "ms，超过宽容上限，按正常换向处理。" << std::endl;
 
         if (pause_jiting) return;           // pause键控制的全局急停开关
         if (!s_qsConfig.enabled) return;    // 总开关
@@ -525,7 +610,25 @@ void ProcessQuickStopCommand(const std::string& cmd)
         else if (key == 'A') counterKey = 'D';
         else if (key == 'D') counterKey = 'A';
 
-        if (counterKey)
-            StartAxisPulse(counterKey, duration, axis);
+        if (!counterKey) return;
+
+        if (s_qsConfig.lenient_manual_stop)
+        {
+            const int counter_index = MoveKeyIndex(static_cast<char>(counterKey));
+            std::lock_guard movement_lock(movement_mutex);
+            if (counter_index >= 0 && physical_key_down[counter_index])
+            {
+                const int stop_pulse = CalculateStopPulse(duration, counterKey);
+                lenient_manual_stop_candidate[counter_index] = true;
+                lenient_manual_stop_max_ms[counter_index] = CalculateLenientTapMaxMs(stop_pulse);
+                lenient_manual_stop_times[counter_index] = Clock::now();
+                CancelAxis(*axis);
+                std::cout << "[急停] 检测到提前按住的人工反向补停: "
+                          << static_cast<char>(counterKey) << std::endl;
+                return;
+            }
+        }
+
+        StartAxisPulse(counterKey, duration, axis);
     }
 }
