@@ -4,6 +4,7 @@
 #include "mouse_jitter.h"
 #include "quickstop.h"
 #include "resource.h"
+#include "textgui_overlay.h"
 #include <array>
 #include <cmath>
 #include <cstdlib>
@@ -243,6 +244,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
             mousejitter::StopForRageDisabled();
             consolelog::StopForRageDisabled();
         }
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
@@ -352,5 +354,6 @@ void EnableRageModeFromLaunch(HWND hw)
     if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
     if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
     if (consolelog::IsEnabled()) consolelog::SetEnabled(true);
+    RefreshTextguiOverlay();
     if (hw) InvalidateRect(hw, nullptr, FALSE);
 }

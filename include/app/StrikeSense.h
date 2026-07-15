@@ -30,6 +30,10 @@ extern int   g_crosshairStyle, g_crosshairThickness;
 extern int   g_crosshairGap, g_crosshairLength;
 extern bool  g_crosshairCenterDot;
 extern float g_crosshairScale;
+extern bool  g_textguiEnabled;
+extern float g_textguiX, g_textguiY, g_textguiScale, g_textguiOpacity;
+extern int   g_textguiR, g_textguiG, g_textguiB;
+extern bool  g_textguiShowWatermark;
 
 void DestroyCrosshairInternal();
 void InitLegalCfgPage();

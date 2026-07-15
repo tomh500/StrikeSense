@@ -12,6 +12,7 @@
 #include "StrikeSense.h"
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
+#include "textgui_overlay.h"
 
 namespace fs = std::filesystem;
 
@@ -35,6 +36,10 @@ Gdiplus::RectF volumeSliderRect;
 std::array<Gdiplus::RectF, kCrosshairStyleCount> styleRects;
 std::array<Gdiplus::RectF, 3> rgbSliderRects;
 std::array<Gdiplus::RectF, 4> parameterSliderRects;
+Gdiplus::RectF textguiEnableRect;
+Gdiplus::RectF textguiWatermarkRect;
+std::array<Gdiplus::RectF, 4> textguiSliderRects;
+std::array<Gdiplus::RectF, 3> textguiColorRects;
 
 bool Hit(const Gdiplus::RectF& rect, int x, int y)
 {
@@ -120,6 +125,11 @@ void SaveEvolutionParams() {
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
     j["crosshair_gap"] = g_crosshairGap; j["crosshair_length"] = g_crosshairLength;
     j["crosshair_center_dot"] = g_crosshairCenterDot;
+    j["textgui_enabled"] = g_textguiEnabled;
+    j["textgui_x"] = g_textguiX; j["textgui_y"] = g_textguiY;
+    j["textgui_scale"] = g_textguiScale; j["textgui_opacity"] = g_textguiOpacity;
+    j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
+    j["textgui_show_watermark"] = g_textguiShowWatermark;
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -170,6 +180,11 @@ void LoadEvolutionParams() {
         gv("crosshair_scale", g_crosshairScale);
         gv("crosshair_gap", g_crosshairGap); gv("crosshair_length", g_crosshairLength);
         gb("crosshair_center_dot", g_crosshairCenterDot);
+        gb("textgui_enabled", g_textguiEnabled);
+        gv("textgui_x", g_textguiX); gv("textgui_y", g_textguiY);
+        gv("textgui_scale", g_textguiScale); gv("textgui_opacity", g_textguiOpacity);
+        gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
+        gb("textgui_show_watermark", g_textguiShowWatermark);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -196,6 +211,7 @@ void LoadEvolutionParams() {
         ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
             g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         ApplyCrosshairEnabled(g_crosshairEnabled);
+        ApplyTextguiEnabled(g_textguiEnabled);
         
     } catch (...) {
         // 异常捕获时也保险起见重置
@@ -324,6 +340,24 @@ void ApplyCrosshairEnabled(bool enabled)
         return;
     }
     StopCrosshair();
+}
+
+void ApplyTextguiEnabled(bool enabled)
+{
+    g_textguiEnabled = enabled;
+    g_textguiX = std::clamp(g_textguiX, 0.f, 1.f);
+    g_textguiY = std::clamp(g_textguiY, 0.f, 1.f);
+    g_textguiScale = std::clamp(g_textguiScale, 0.75f, 1.8f);
+    g_textguiOpacity = std::clamp(g_textguiOpacity, 0.2f, 1.f);
+    g_textguiR = std::clamp(g_textguiR, 0, 255);
+    g_textguiG = std::clamp(g_textguiG, 0, 255);
+    g_textguiB = std::clamp(g_textguiB, 0, 255);
+    textgui_overlay::ApplyEnabled(g_textguiEnabled);
+}
+
+void RefreshTextguiOverlay()
+{
+    textgui_overlay::Refresh();
 }
 
 // ===== UI 绘制层 =====
@@ -565,6 +599,7 @@ static void CheckEvolutionClickLegacy(HWND hw, int mx, int my) {
     if (ui::CheckToggleClick(mx, my, tx, tye)) {
         ApplyCrosshairEnabled(!g_crosshairEnabled);
         SaveEvolutionParams();
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE);
     }
 }
@@ -637,7 +672,81 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         static_cast<REAL>(nextSectionY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
         static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
-    const int crosshairY = nextSectionY + 42;
+    const int textguiSectionY = nextSectionY + 42;
+    g.DrawString(L"Textgui", -1, &rF,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(textguiSectionY)), &text);
+    textguiEnableRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(textguiSectionY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(textguiEnableRect.X),
+        static_cast<int>(textguiEnableRect.Y), g_textguiEnabled);
+
+    int crosshairY = textguiSectionY + 42;
+    if (!g_textguiEnabled) {
+        for (auto& rect : textguiSliderRects) rect = RectF{};
+        for (auto& rect : textguiColorRects) rect = RectF{};
+        textguiWatermarkRect = RectF{};
+    }
+    else {
+        auto drawSliderWithKnob = [&](const Gdiplus::RectF& rect, float value) {
+            ui::DrawSlider(g, static_cast<int>(rect.X), static_cast<int>(rect.Y + 8.f),
+                static_cast<int>(rect.Width), value);
+            g.FillEllipse(&knobBrush, rect.X + rect.Width * value - 7.f,
+                rect.Y + 3.f, 14.f, 14.f);
+        };
+
+        const wchar_t* labels[] = { L"X", L"Y", L"Scale", L"Opacity" };
+        const float values[] = {
+            g_textguiX, g_textguiY, (g_textguiScale - 0.75f) / 1.05f,
+            (g_textguiOpacity - 0.2f) / 0.8f
+        };
+        const std::wstring shown[] = {
+            std::to_wstring(static_cast<int>(std::lround(g_textguiX * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiY * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiScale * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiOpacity * 100.f))) + L"%"
+        };
+        const int textguiBodyY = textguiSectionY + 32;
+        const int textguiBarWidth = (std::max)(90, sectionWidth / 2 - 150);
+        for (int i = 0; i < 4; ++i) {
+            const int column = i % 2;
+            const int row = i / 2;
+            const int x = sectionX + 14 + column * (sectionWidth / 2);
+            const int y = textguiBodyY + row * 34;
+            g.DrawString(labels[i], -1, &sF, PointF(static_cast<REAL>(x), static_cast<REAL>(y)), &text);
+            textguiSliderRects[i] = RectF(static_cast<REAL>(x + 70), static_cast<REAL>(y - 6),
+                static_cast<REAL>(textguiBarWidth), 24.f);
+            drawSliderWithKnob(textguiSliderRects[i], std::clamp(values[i], 0.f, 1.f));
+            g.DrawString(shown[i].c_str(), -1, &sF,
+                PointF(textguiSliderRects[i].X + textguiSliderRects[i].Width + 5.f,
+                    static_cast<REAL>(y)), &dim);
+        }
+
+        const wchar_t* colorLabels[] = { L"R", L"G", L"B" };
+        const int colorValues[] = { g_textguiR, g_textguiG, g_textguiB };
+        const int colorY = textguiBodyY + 74;
+        const int colorWidth = (std::max)(72, (sectionWidth - 210) / 3);
+        for (int i = 0; i < 3; ++i) {
+            const int x = sectionX + 14 + i * (colorWidth + 70);
+            g.DrawString(colorLabels[i], -1, &sF, PointF(static_cast<REAL>(x), static_cast<REAL>(colorY)), &text);
+            textguiColorRects[i] = RectF(static_cast<REAL>(x + 18), static_cast<REAL>(colorY - 6),
+                static_cast<REAL>(colorWidth), 24.f);
+            drawSliderWithKnob(textguiColorRects[i], colorValues[i] / 255.f);
+            wchar_t colorText[8]{};
+            swprintf_s(colorText, L"%d", colorValues[i]);
+            g.DrawString(colorText, -1, &sF,
+                PointF(textguiColorRects[i].X + textguiColorRects[i].Width + 4.f,
+                    static_cast<REAL>(colorY)), &dim);
+        }
+
+        g.DrawString(L"StrikeSense Mark", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 38)), &text);
+        textguiWatermarkRect = RectF(static_cast<REAL>(sectionX + 150),
+            static_cast<REAL>(colorY + 31), 50.f, 24.f);
+        ui::DrawToggle(g, static_cast<int>(textguiWatermarkRect.X),
+            static_cast<int>(textguiWatermarkRect.Y), g_textguiShowWatermark);
+        crosshairY = colorY + 82;
+    }
+
     g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY)), &text);
     crosshairEnableRect = RectF(static_cast<REAL>(sectionX + 220),
@@ -765,6 +874,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         if (g_deathMute) StartCS2VolumeControl(g_death_vol);
         else StopCS2VolumeControl();
         SaveEvolutionParams();
+        RefreshTextguiOverlay();
         std::cout << "[进化分支] 即时音量调整已切换为: " << (g_deathMute ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -795,6 +905,54 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         std::cout << "[进化分支] 宽容检测游戏窗口已切换" << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
+    }
+
+    if (Hit(textguiEnableRect, mx, my)) {
+        ApplyTextguiEnabled(!g_textguiEnabled);
+        SaveEvolutionParams();
+        std::cout << "[Textgui] UI开关已切换为: " << (g_textguiEnabled ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (g_textguiEnabled) {
+        for (int i = 0; i < 4; ++i) {
+            if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
+                static_cast<int>(textguiSliderRects[i].Y + 8.f),
+                static_cast<int>(textguiSliderRects[i].Width), value)) continue;
+            if (i == 0) g_textguiX = value;
+            else if (i == 1) g_textguiY = value;
+            else if (i == 2) g_textguiScale = 0.75f + value * 1.05f;
+            else g_textguiOpacity = 0.2f + value * 0.8f;
+            ApplyTextguiEnabled(g_textguiEnabled);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        int* colorValues[] = { &g_textguiR, &g_textguiG, &g_textguiB };
+        for (int i = 0; i < 3; ++i) {
+            if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiColorRects[i].X),
+                static_cast<int>(textguiColorRects[i].Y + 8.f),
+                static_cast<int>(textguiColorRects[i].Width), value)) continue;
+            *colorValues[i] = static_cast<int>(std::lround(value * 255.f));
+            ApplyTextguiEnabled(g_textguiEnabled);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        if (Hit(textguiWatermarkRect, mx, my)) {
+            g_textguiShowWatermark = !g_textguiShowWatermark;
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            std::cout << "[Textgui] StrikeSense标识显示已切换为: "
+                      << (g_textguiShowWatermark ? "开启" : "关闭") << std::endl;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
     }
 
     if (Hit(crosshairEnableRect, mx, my)) {

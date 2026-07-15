@@ -25,6 +25,7 @@
 #include "mouse_jitter.h"
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
+#include "textgui_overlay.h"
 #include "itemhelper_page.h"   
 #include "vscript.h"
 #include <regex>
@@ -82,6 +83,16 @@ int   g_crosshairGap = 4;
 int   g_crosshairLength = 12;
 bool  g_crosshairCenterDot = true;
 float g_crosshairScale = 0.2f;
+
+bool  g_textguiEnabled = false;
+float g_textguiX = 1.0f;
+float g_textguiY = 0.04f;
+float g_textguiScale = 1.0f;
+float g_textguiOpacity = 0.9f;
+int   g_textguiR = 80;
+int   g_textguiG = 180;
+int   g_textguiB = 240;
+bool  g_textguiShowWatermark = true;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
 int  g_itemHelperHotkeyMod = 0;
@@ -175,6 +186,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
     flashoverlay::Initialize(hInst);
+    textgui_overlay::Initialize(hInst);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
     std::cout << "  StrikeSense 测试发布版 202607151952" << std::endl;
@@ -467,6 +479,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
             } else {
                 StopCS2VolumeControl();
             }
+            RefreshTextguiOverlay();
             
             // 通知主窗口重绘
             InvalidateRect(hw, nullptr, FALSE); 
@@ -547,6 +560,7 @@ case WM_KEYDOWN: {
             } else {
                 StopCS2VolumeControl();
             }
+            RefreshTextguiOverlay();
             
             // 关键：通知主窗口重绘
             InvalidateRect(hw, nullptr, FALSE); 
@@ -637,6 +651,7 @@ case WM_KEYDOWN: {
 {
     RemoveTrayIcon(hw);
     flashoverlay::Shutdown();
+    textgui_overlay::Shutdown();
     itemhelper_overlay::Shutdown();
     KillTimer(hw, 2001);
     UnregisterHotKey(hw, 1001);

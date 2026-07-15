@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <string>
 #include "itemhelper_overlay.h"
+#include "textgui_overlay.h"
 
 namespace fs = std::filesystem;
 
@@ -161,6 +162,7 @@ void CheckItemHelperClick(HWND hw, int mx, int my) {
         g_itemHelperEnabled = !g_itemHelperEnabled;
         if (!g_itemHelperEnabled && g_itemUI.showOverlay) itemhelper_overlay::Toggle(hInst);
         SaveEvolutionParams(); Hotkey::UpdateItemHelperHotkey(hw);
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE); return;
     }
 

@@ -51,6 +51,12 @@ extern int   g_crosshairGap, g_crosshairLength;
 extern bool  g_crosshairCenterDot;
 extern float g_crosshairScale;
 
+// Textgui 变量
+extern bool  g_textguiEnabled;
+extern float g_textguiX, g_textguiY, g_textguiScale, g_textguiOpacity;
+extern int   g_textguiR, g_textguiG, g_textguiB;
+extern bool  g_textguiShowWatermark;
+
 // ===== 进化参数持久化 =====
 void SaveEvolutionParams();
 void LoadEvolutionParams();
@@ -58,6 +64,8 @@ void ApplyCrosshairEnabled(bool enabled);
 void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale,
     int gap, int length, bool centerDot);
 void RefreshCrosshairOverlay();
+void ApplyTextguiEnabled(bool enabled);
+void RefreshTextguiOverlay();
 
 // ===== 通用 UI 工具 =====
 namespace ui {

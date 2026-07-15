@@ -64,6 +64,7 @@ set(SOURCES
     src/core/sound_player.cpp
     src/core/steam_accounts.cpp
     src/core/steam_helper.cpp
+    src/core/textgui_overlay.cpp
     src/core/volume_mixer.cpp
     src/ui/Rage_page.cpp
     src/ui/evolution_page.cpp
@@ -97,6 +98,7 @@ set(HEADERS
     include/core/sound_player.h
     include/core/steam_accounts.h
     include/core/steam_helper.h
+    include/core/textgui_overlay.h
     include/core/volume_mixer.h
     include/ui/itemhelper_page.h
     include/ui/sound_ui.h
