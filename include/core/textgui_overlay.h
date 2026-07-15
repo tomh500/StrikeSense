@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <string>
 
 extern bool g_textguiEnabled;
 extern float g_textguiX;
@@ -24,4 +25,7 @@ void Initialize(HINSTANCE hInst);
 void ApplyEnabled(bool enabled);
 void Refresh();
 void Shutdown();
+void RegisterCustomLine(const std::wstring& id, const std::wstring& text);
+void RemoveCustomLine(const std::wstring& id);
+void UpdateCrosshairRecoilSignal(const std::wstring& text);
 }

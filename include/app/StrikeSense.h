@@ -38,6 +38,9 @@ extern float g_textguiRainbowSpread, g_textguiRainbowSaturation, g_textguiRainbo
 extern int   g_textguiR, g_textguiG, g_textguiB;
 extern bool  g_textguiShowWatermark;
 extern bool  g_textguiRainbow;
+extern bool  g_notificationsEnabled;
+extern float g_notificationsDuration;
+extern int   g_notificationsStyle;
 
 void DestroyCrosshairInternal();
 void InitLegalCfgPage();

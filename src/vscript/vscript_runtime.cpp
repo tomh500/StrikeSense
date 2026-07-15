@@ -720,6 +720,14 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"GetConsoleLogQueueSize") {
         return NumberValue((double)s_consoleLogQueue.size());
     }
+    if ((name == L"RegisterTextguiText" || name == L"SetTextguiText") && args.size() >= 2) {
+        textgui_overlay::RegisterCustomLine(ToText(args[1]), ToText(args[0]));
+        return BoolValue(true);
+    }
+    if ((name == L"RemoveTextguiText" || name == L"DestroyTextguiText") && args.size() >= 1) {
+        textgui_overlay::RemoveCustomLine(ToText(args[0]));
+        return BoolValue(true);
+    }
     if (name == L"Delta" && args.size() >= 1) {
         const std::wstring varName = ToText(args[0]);
         return NumberValue(ToNumber(GetVar(varName)) - ToNumber(GetVarFromMap(s_prevVars, varName)));

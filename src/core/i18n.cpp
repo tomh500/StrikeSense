@@ -68,6 +68,8 @@ void i18n::Init() {
     cn["EVO_TEXTGUI_RAINBOW_BRIGHTNESS"] = L"\u5f69\u8679\u4eae\u5ea6"; en["EVO_TEXTGUI_RAINBOW_BRIGHTNESS"] = L"Rainbow Brightness";
     cn["EVO_TEXTGUI_MARK"] = L"StrikeSense \u6807\u8bc6"; en["EVO_TEXTGUI_MARK"] = L"StrikeSense Mark";
     cn["EVO_TEXTGUI_RAINBOW"] = L"ARGB \u5f69\u8679"; en["EVO_TEXTGUI_RAINBOW"] = L"ARGB Rainbow";
+    cn["EVO_NOTIFICATIONS"] = L"\u901a\u77e5\u63d0\u793a"; en["EVO_NOTIFICATIONS"] = L"Notifications";
+    cn["EVO_NOTIFICATIONS_DURATION"] = L"\u6301\u7eed\u65f6\u95f4"; en["EVO_NOTIFICATIONS_DURATION"] = L"Duration";
 
     cn[Keys::LEGAL_TITLE] = L"合法配置"; en[Keys::LEGAL_TITLE] = L"Legit Config";
     cn[Keys::LEGAL_SAVE] = L"保存"; en[Keys::LEGAL_SAVE] = L"Save";

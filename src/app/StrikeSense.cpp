@@ -26,6 +26,7 @@
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "textgui_overlay.h"
+#include "notifications_overlay.h"
 #include "itemhelper_page.h"   
 #include "vscript.h"
 #include <regex>
@@ -100,6 +101,9 @@ int   g_textguiG = 180;
 int   g_textguiB = 240;
 bool  g_textguiShowWatermark = true;
 bool  g_textguiRainbow = false;
+bool  g_notificationsEnabled = true;
+float g_notificationsDuration = 3.0f;
+int   g_notificationsStyle = 1;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
 int  g_itemHelperHotkeyMod = 0;
@@ -194,6 +198,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     flashoverlay::Initialize(hInst);
     textgui_overlay::Initialize(hInst);
+    notifications_overlay::Initialize(hI);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
     std::cout << "  StrikeSense 测试发布版 202607151952" << std::endl;
@@ -659,6 +664,7 @@ case WM_KEYDOWN: {
     RemoveTrayIcon(hw);
     flashoverlay::Shutdown();
     textgui_overlay::Shutdown();
+    notifications_overlay::Shutdown();
     itemhelper_overlay::Shutdown();
     KillTimer(hw, 2001);
     UnregisterHotKey(hw, 1001);

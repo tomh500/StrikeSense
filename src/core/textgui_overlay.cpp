@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <gdiplus.h>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,8 @@ namespace {
 HWND s_hwnd = nullptr;
 HINSTANCE s_hInst = nullptr;
 bool s_visible = false;
+bool s_crosshairRecoilFollow = false;
+std::map<std::wstring, std::wstring> s_customLines;
 constexpr UINT_PTR kRefreshTimer = 3011;
 
 bool has_window()
@@ -64,7 +67,7 @@ std::vector<std::wstring> collect_enabled_features()
     if (HasLegalCfgSOCD()) features.push_back(L"SOCD");
     if (HasLegalCfgMwheelJump()) features.push_back(L"滚轮跳");
     if (HasLegalCfgMixedSensitivity()) features.push_back(L"混合灵敏度");
-    if (HasLegalCfgCrosshairSwitch()) features.push_back(L"准星跟随切换");
+    if (HasLegalCfgCrosshairSwitch() && s_crosshairRecoilFollow) features.push_back(L"准星跟随后坐力");
     if (HasLegalCfgSoundReplace()) features.push_back(L"切刀音效替换");
     if (g_deathMute) features.push_back(L"死亡音量控制");
     if (g_crosshairEnabled) features.push_back(L"狙击准星");
@@ -78,6 +81,10 @@ std::vector<std::wstring> collect_enabled_features()
         if (!script.continuous) continue;
         std::wstring name = script_display_name(script);
         if (!name.empty()) features.push_back(name);
+    }
+
+    for (const auto& [id, text] : s_customLines) {
+        if (!text.empty()) features.push_back(text);
     }
 
     return features;
@@ -340,6 +347,35 @@ void Shutdown()
     s_hwnd = nullptr;
     s_visible = false;
     std::cout << "[Textgui] 已释放覆盖层。" << std::endl;
+}
+
+void RegisterCustomLine(const std::wstring& id, const std::wstring& text)
+{
+    if (id.empty()) return;
+    s_customLines[id] = text;
+    std::wcout << L"[Textgui] 脚本注册文字: " << id << L" => " << text << std::endl;
+    Refresh();
+}
+
+void RemoveCustomLine(const std::wstring& id)
+{
+    if (id.empty()) return;
+    s_customLines.erase(id);
+    std::wcout << L"[Textgui] 脚本移除文字: " << id << std::endl;
+    Refresh();
+}
+
+void UpdateCrosshairRecoilSignal(const std::wstring& text)
+{
+    if (text.find(L"/cr1") != std::wstring::npos) {
+        s_crosshairRecoilFollow = true;
+        std::cout << "[Textgui] 已读取准星跟随后坐力状态: 开启" << std::endl;
+        Refresh();
+    } else if (text.find(L"/cr0") != std::wstring::npos) {
+        s_crosshairRecoilFollow = false;
+        std::cout << "[Textgui] 已读取准星跟随后坐力状态: 关闭" << std::endl;
+        Refresh();
+    }
 }
 
 } // namespace textgui_overlay

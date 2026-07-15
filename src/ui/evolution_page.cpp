@@ -13,6 +13,7 @@
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "textgui_overlay.h"
+#include "notifications_overlay.h"
 
 namespace fs = std::filesystem;
 
@@ -41,10 +42,19 @@ std::array<Gdiplus::RectF, kCrosshairStyleCount> styleRects;
 std::array<Gdiplus::RectF, 3> rgbSliderRects;
 std::array<Gdiplus::RectF, 4> parameterSliderRects;
 Gdiplus::RectF textguiEnableRect;
+Gdiplus::RectF textguiFoldRect;
 Gdiplus::RectF textguiWatermarkRect;
 Gdiplus::RectF textguiRainbowRect;
 std::array<Gdiplus::RectF, 10> textguiSliderRects;
 std::array<Gdiplus::RectF, 3> textguiColorRects;
+Gdiplus::RectF notificationsEnableRect;
+Gdiplus::RectF notificationsFoldRect;
+Gdiplus::RectF notificationsDurationRect;
+std::array<Gdiplus::RectF, 3> notificationsStyleRects;
+Gdiplus::RectF crosshairFoldRect;
+bool textguiCollapsed = true;
+bool notificationsCollapsed = true;
+bool crosshairCollapsed = true;
 
 bool Hit(const Gdiplus::RectF& rect, int x, int y)
 {
@@ -142,6 +152,9 @@ void SaveEvolutionParams() {
     j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
     j["textgui_show_watermark"] = g_textguiShowWatermark;
     j["textgui_rainbow"] = g_textguiRainbow;
+    j["notifications_enabled"] = g_notificationsEnabled;
+    j["notifications_duration"] = g_notificationsDuration;
+    j["notifications_style"] = g_notificationsStyle;
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -204,6 +217,11 @@ void LoadEvolutionParams() {
         gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
         gb("textgui_show_watermark", g_textguiShowWatermark);
         gb("textgui_rainbow", g_textguiRainbow);
+        gb("notifications_enabled", g_notificationsEnabled);
+        gv("notifications_duration", g_notificationsDuration);
+        gv("notifications_style", g_notificationsStyle);
+        g_notificationsDuration = std::clamp(g_notificationsDuration, 1.f, 5.f);
+        g_notificationsStyle = std::clamp(g_notificationsStyle, 0, 2);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -706,9 +724,19 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         static_cast<REAL>(textguiSectionY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(textguiEnableRect.X),
         static_cast<int>(textguiEnableRect.Y), g_textguiEnabled);
+    textguiFoldRect = RectF(static_cast<REAL>(sectionX + 286),
+        static_cast<REAL>(textguiSectionY - 4), 24.f, 24.f);
+    if (g_textguiEnabled) {
+        g.FillRectangle(&buttonBackground, textguiFoldRect);
+        g.DrawRectangle(&buttonBorder, textguiFoldRect);
+        g.DrawString(textguiCollapsed ? L">" : L"v", -1, &sF,
+            PointF(textguiFoldRect.X + 8.f, textguiFoldRect.Y + 4.f), &text);
+    } else {
+        textguiFoldRect = RectF{};
+    }
 
     int crosshairY = textguiSectionY + 42;
-    if (!g_textguiEnabled) {
+    if (!g_textguiEnabled || textguiCollapsed) {
         for (auto& rect : textguiSliderRects) rect = RectF{};
         for (auto& rect : textguiColorRects) rect = RectF{};
         textguiWatermarkRect = RectF{};
@@ -802,14 +830,78 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         crosshairY = colorY + 82;
     }
 
+    const int notificationsSectionY = crosshairY;
+    g.DrawString(i18n::T("EVO_NOTIFICATIONS"), -1, &rF,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(notificationsSectionY)), &text);
+    notificationsEnableRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(notificationsSectionY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(notificationsEnableRect.X),
+        static_cast<int>(notificationsEnableRect.Y), g_notificationsEnabled);
+    notificationsFoldRect = RectF(static_cast<REAL>(sectionX + 286),
+        static_cast<REAL>(notificationsSectionY - 4), 24.f, 24.f);
+    if (g_notificationsEnabled) {
+        g.FillRectangle(&buttonBackground, notificationsFoldRect);
+        g.DrawRectangle(&buttonBorder, notificationsFoldRect);
+        g.DrawString(notificationsCollapsed ? L">" : L"v", -1, &sF,
+            PointF(notificationsFoldRect.X + 8.f, notificationsFoldRect.Y + 4.f), &text);
+    } else {
+        notificationsFoldRect = RectF{};
+    }
+
+    crosshairY = notificationsSectionY + 42;
+    if (!g_notificationsEnabled || notificationsCollapsed) {
+        notificationsDurationRect = RectF{};
+        for (auto& rect : notificationsStyleRects) rect = RectF{};
+    } else {
+        const int notifyBodyY = notificationsSectionY + 34;
+        g.DrawString(i18n::T("EVO_NOTIFICATIONS_DURATION"), -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(notifyBodyY)), &text);
+        notificationsDurationRect = RectF(static_cast<REAL>(sectionX + 118),
+            static_cast<REAL>(notifyBodyY - 6), static_cast<REAL>((std::max)(120, sectionWidth - 230)), 24.f);
+        const float durationValue = std::clamp((g_notificationsDuration - 1.f) / 4.f, 0.f, 1.f);
+        ui::DrawSlider(g, static_cast<int>(notificationsDurationRect.X),
+            static_cast<int>(notificationsDurationRect.Y + 8.f),
+            static_cast<int>(notificationsDurationRect.Width), durationValue);
+        g.FillEllipse(&knobBrush,
+            notificationsDurationRect.X + notificationsDurationRect.Width * durationValue - 7.f,
+            notificationsDurationRect.Y + 3.f, 14.f, 14.f);
+        wchar_t durationText[16]{};
+        swprintf_s(durationText, L"%.1fs", g_notificationsDuration);
+        const std::wstring durationShown = durationText;
+        g.DrawString(durationShown.c_str(), -1, &sF,
+            PointF(notificationsDurationRect.X + notificationsDurationRect.Width + 6.f,
+                static_cast<REAL>(notifyBodyY)), &dim);
+
+        const wchar_t* styleNames[] = { L"LiquidBounce", L"VAPE", L"GPT" };
+        for (int i = 0; i < 3; ++i) {
+            notificationsStyleRects[i] = RectF(static_cast<REAL>(sectionX + 14 + i * 126),
+                static_cast<REAL>(notifyBodyY + 32), 112.f, 25.f);
+            g.FillRectangle(i == g_notificationsStyle ? &selectedBackground : &buttonBackground, notificationsStyleRects[i]);
+            g.DrawRectangle(i == g_notificationsStyle ? &selectedBorder : &buttonBorder, notificationsStyleRects[i]);
+            g.DrawString(styleNames[i], -1, &sF,
+                PointF(notificationsStyleRects[i].X + 8.f, notificationsStyleRects[i].Y + 3.f), &text);
+        }
+        crosshairY = notifyBodyY + 76;
+    }
+
     g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY)), &text);
     crosshairEnableRect = RectF(static_cast<REAL>(sectionX + 220),
         static_cast<REAL>(crosshairY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(crosshairEnableRect.X),
         static_cast<int>(crosshairEnableRect.Y), g_crosshairEnabled);
+    crosshairFoldRect = RectF(static_cast<REAL>(sectionX + 286),
+        static_cast<REAL>(crosshairY - 4), 24.f, 24.f);
+    if (g_crosshairEnabled) {
+        g.FillRectangle(&buttonBackground, crosshairFoldRect);
+        g.DrawRectangle(&buttonBorder, crosshairFoldRect);
+        g.DrawString(crosshairCollapsed ? L">" : L"v", -1, &sF,
+            PointF(crosshairFoldRect.X + 8.f, crosshairFoldRect.Y + 4.f), &text);
+    } else {
+        crosshairFoldRect = RectF{};
+    }
 
-    if (!g_crosshairEnabled) {
+    if (!g_crosshairEnabled || crosshairCollapsed) {
         for (auto& rect : styleRects) rect = RectF{};
         for (auto& rect : rgbSliderRects) rect = RectF{};
         for (auto& rect : parameterSliderRects) rect = RectF{};
@@ -965,12 +1057,19 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     if (Hit(textguiEnableRect, mx, my)) {
         ApplyTextguiEnabled(!g_textguiEnabled);
         SaveEvolutionParams();
+        notifications_overlay::Push(L"Textgui", g_textguiEnabled);
         std::cout << "[Textgui] UI开关已切换为: " << (g_textguiEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
 
-    if (g_textguiEnabled) {
+    if (g_textguiEnabled && Hit(textguiFoldRect, mx, my)) {
+        textguiCollapsed = !textguiCollapsed;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (g_textguiEnabled && !textguiCollapsed) {
         for (int i = 0; i < 10; ++i) {
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
                 static_cast<int>(textguiSliderRects[i].Y + 8.f),
@@ -1018,25 +1117,65 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         }
     }
 
-    if (g_textguiEnabled && Hit(textguiRainbowRect, mx, my)) {
+    if (g_textguiEnabled && !textguiCollapsed && Hit(textguiRainbowRect, mx, my)) {
         g_textguiRainbow = !g_textguiRainbow;
         SaveEvolutionParams();
         RefreshTextguiOverlay();
+        notifications_overlay::Push(L"ARGB Rainbow", g_textguiRainbow);
         std::cout << "[Textgui] ARGB彩虹流动已切换为: "
                   << (g_textguiRainbow ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
 
+    if (Hit(notificationsEnableRect, mx, my)) {
+        g_notificationsEnabled = !g_notificationsEnabled;
+        SaveEvolutionParams();
+        notifications_overlay::Push(L"Notifications", g_notificationsEnabled);
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    if (g_notificationsEnabled && Hit(notificationsFoldRect, mx, my)) {
+        notificationsCollapsed = !notificationsCollapsed;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    if (g_notificationsEnabled && !notificationsCollapsed) {
+        if (ui::CheckSliderClick(mx, my, static_cast<int>(notificationsDurationRect.X),
+            static_cast<int>(notificationsDurationRect.Y + 8.f),
+            static_cast<int>(notificationsDurationRect.Width), value)) {
+            g_notificationsDuration = 1.f + value * 4.f;
+            SaveEvolutionParams();
+            notifications_overlay::Push(L"Duration", true);
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+        for (int i = 0; i < 3; ++i) {
+            if (!Hit(notificationsStyleRects[i], mx, my)) continue;
+            g_notificationsStyle = i;
+            SaveEvolutionParams();
+            notifications_overlay::Push(L"Notification Style", true);
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+    }
+
     if (Hit(crosshairEnableRect, mx, my)) {
         ApplyCrosshairEnabled(!g_crosshairEnabled);
         SaveEvolutionParams();
+        notifications_overlay::Push(L"Sniper Crosshair", g_crosshairEnabled);
         std::cout << "[狙击准星] 已切换为: " << (g_crosshairEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
 
-    if (!g_crosshairEnabled) return;
+    if (g_crosshairEnabled && Hit(crosshairFoldRect, mx, my)) {
+        crosshairCollapsed = !crosshairCollapsed;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (!g_crosshairEnabled || crosshairCollapsed) return;
 
     for (int i = 0; i < kCrosshairStyleCount; ++i) {
         if (!Hit(styleRects[i], mx, my)) continue;

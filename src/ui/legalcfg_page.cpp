@@ -126,7 +126,12 @@ static const wchar_t* CHSW_MODES[2] = { L"capslock", L"custom" };
 
 static std::wstring BuildCHSW() {
     std::wstring r = L"\n//--StrikeSense CrosshairSW--\n";
-    r += g_chSWMode == 0 ? L"bind capslock \"toggle cl_crosshair_recoil 0 1\"\n" : L"// custom\nbind F2 \"toggle cl_crosshair_recoil 0 1\"\n";
+    const wchar_t* key = g_chSWMode == 0 ? L"capslock" : L"F2";
+    if (g_chSWMode == 1) r += L"// custom\n";
+    r += L"alias crosshairsw \"crosshairsw1\"\n";
+    r += L"alias crosshairsw1 \"echoln /cr1;cl_crosshair_recoil 1;alias crosshairsw crosshairsw2\"\n";
+    r += L"alias crosshairsw2 \"echoln /cr0;cl_crosshair_recoil 0;alias crosshairsw crosshairsw1\"\n";
+    r += std::wstring(L"bind ") + key + L" \"crosshairsw\"\n";
     return r + L"//--StrikeSense CrosshairSW END--\n";
 }
 

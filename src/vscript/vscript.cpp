@@ -1,5 +1,7 @@
 ﻿#include "vscript_internal.h"
 
+#include "textgui_overlay.h"
+
 #include <algorithm>
 #include <chrono>
 #include <codecvt>
@@ -824,6 +826,7 @@ void UpdateFromConsoleLog(const std::wstring& raw, const std::wstring& text)
     SetPersistentScriptVar(L"console_log_location", TextValue(location));
     SetPersistentScriptVar(L"console_log_message", TextValue(message));
     SetPersistentScriptVar(L"console_log_queue_size", NumberValue((double)s_consoleLogQueue.size()));
+    textgui_overlay::UpdateCrosshairRecoilSignal(clean);
 
     std::wcout << L"[脚本] 已更新控制台日志变量，第 " << consoleLogCount
                << L" 行，内容=" << clean << std::endl;
