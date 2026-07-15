@@ -28,10 +28,6 @@ static Gdiplus::RectF g_lenientWindowToggleRect;
 namespace evolutionui {
 
 constexpr int kCrosshairStyleCount = 6;
-bool volumeExpanded = true;
-bool crosshairExpanded = false;
-Gdiplus::RectF volumeHeaderRect;
-Gdiplus::RectF crosshairHeaderRect;
 Gdiplus::RectF crosshairEnableRect;
 Gdiplus::RectF hotkeyRect;
 Gdiplus::RectF centerDotRect;
@@ -44,31 +40,6 @@ bool Hit(const Gdiplus::RectF& rect, int x, int y)
 {
     return x >= rect.X && x <= rect.X + rect.Width
         && y >= rect.Y && y <= rect.Y + rect.Height;
-}
-
-void DrawSectionHeader(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
-    const wchar_t* title, bool expanded, bool canExpand)
-{
-    using namespace Gdiplus;
-    SolidBrush background(Color(255, 222, 239, 251));
-    SolidBrush titleBrush(Color(255, 30, 60, 100));
-    SolidBrush arrowBrush(canExpand ? Color(255, 45, 125, 180) : Color(150, 120, 145, 165));
-    Pen border(Color(255, 155, 205, 235), 1.0f);
-    Font titleFont(L"Microsoft YaHei", 10, FontStyleBold);
-    g.FillRectangle(&background, rect);
-    g.DrawRectangle(&border, rect);
-    g.DrawString(title, -1, &titleFont, PointF(rect.X + 34.f, rect.Y + 8.f), &titleBrush);
-    PointF arrow[3];
-    if (expanded && canExpand) {
-        arrow[0] = PointF(rect.X + 12.f, rect.Y + 14.f);
-        arrow[1] = PointF(rect.X + 24.f, rect.Y + 14.f);
-        arrow[2] = PointF(rect.X + 18.f, rect.Y + 21.f);
-    } else {
-        arrow[0] = PointF(rect.X + 14.f, rect.Y + 10.f);
-        arrow[1] = PointF(rect.X + 14.f, rect.Y + 23.f);
-        arrow[2] = PointF(rect.X + 22.f, rect.Y + 16.5f);
-    }
-    g.FillPolygon(&arrowBrush, arrow, 3);
 }
 
 void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
@@ -88,10 +59,6 @@ void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
     switch (style) {
     case 0:
         g.DrawEllipse(&pen, centerX - radius, centerY - radius, radius * 2.f, radius * 2.f);
-        g.DrawLine(&pen, centerX - radius - 4.f, centerY, centerX - radius + 1.f, centerY);
-        g.DrawLine(&pen, centerX + radius - 1.f, centerY, centerX + radius + 4.f, centerY);
-        g.DrawLine(&pen, centerX, centerY - radius - 4.f, centerX, centerY - radius + 1.f);
-        g.DrawLine(&pen, centerX, centerY + radius - 1.f, centerX, centerY + radius + 4.f);
         break;
     case 1:
         g.FillEllipse(&brush, centerX - radius, centerY - radius, radius * 2.f, radius * 2.f);
@@ -125,7 +92,7 @@ void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
         break;
     }
 
-    if (centerDot && style != 1) {
+    if (centerDot && style != 0 && style != 1) {
         const float dotRadius = (std::max)(1.5f, thickness * 0.8f);
         g.FillEllipse(&brush, centerX - dotRadius, centerY - dotRadius, dotRadius * 2.f, dotRadius * 2.f);
     }
@@ -577,50 +544,43 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     using namespace evolutionui;
 
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::EVO_TITLE));
-    Font normalFont(L"Microsoft YaHei", 10);
     Font smallFont(L"Microsoft YaHei", 9);
     Font boldFont(L"Microsoft YaHei", 9, FontStyleBold);
     SolidBrush text(Color(255, 30, 60, 100));
     SolidBrush dim(Color(255, 100, 130, 160));
-    SolidBrush cardBackground(Color(255, 246, 251, 255));
     SolidBrush selectedBackground(Color(255, 175, 220, 248));
     SolidBrush buttonBackground(Color(255, 231, 244, 252));
     SolidBrush previewBackground(Color(255, 28, 36, 48));
-    SolidBrush colorSwatch(Color(255, static_cast<BYTE>(g_crosshairR),
-        static_cast<BYTE>(g_crosshairG), static_cast<BYTE>(g_crosshairB)));
-    Pen cardBorder(Color(255, 170, 210, 235));
+    SolidBrush knobBrush(Color(255, 60, 160, 230));
     Pen selectedBorder(Color(255, 75, 165, 220), 1.5f);
     Pen buttonBorder(Color(255, 150, 200, 230));
 
-    const int sectionX = cx + 8;
-    const int sectionWidth = cw - 16;
-    volumeHeaderRect = RectF(static_cast<REAL>(sectionX), 48.f, static_cast<REAL>(sectionWidth), 36.f);
-    DrawSectionHeader(g, volumeHeaderRect, _(i18n::Keys::EVO_VOL_ADJ), volumeExpanded, true);
-
-    wchar_t volumeSummary[32]{};
-    swprintf_s(volumeSummary, L"%.0f%%", g_death_vol * 100.f);
-    g.DrawString(volumeSummary, -1, &smallFont,
-        PointF(volumeHeaderRect.X + volumeHeaderRect.Width - 150.f, volumeHeaderRect.Y + 9.f), &dim);
-    g.DrawString(_(i18n::Keys::EVO_ENABLE), -1, &smallFont,
-        PointF(volumeHeaderRect.X + volumeHeaderRect.Width - 100.f, volumeHeaderRect.Y + 9.f), &text);
-    g_deathMuteToggleRect = RectF(volumeHeaderRect.X + volumeHeaderRect.Width - 58.f,
-        volumeHeaderRect.Y + 6.f, 50.f, 24.f);
+    const int sectionX = cx + 10;
+    const int sectionWidth = cw - 20;
+    const int volumeY = 54;
+    g.DrawString(_(i18n::Keys::EVO_VOL_ADJ), -1, &boldFont,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(volumeY)), &text);
+    g_deathMuteToggleRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(volumeY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(g_deathMuteToggleRect.X),
         static_cast<int>(g_deathMuteToggleRect.Y), g_deathMute);
 
-    int crosshairY = 96;
-    if (volumeExpanded) {
-        RectF volumeBody(static_cast<REAL>(sectionX), 84.f, static_cast<REAL>(sectionWidth), 126.f);
-        g.FillRectangle(&cardBackground, volumeBody);
-        g.DrawRectangle(&cardBorder, volumeBody);
-
-        g.DrawString(L"CS2 音量", -1, &smallFont, PointF(static_cast<REAL>(sectionX + 14), 101.f), &text);
-        volumeSliderRect = RectF(static_cast<REAL>(sectionX + 88), 101.f,
-            static_cast<REAL>((std::max)(140, sectionWidth - 225)), 24.f);
-        ui::DrawSlider(g, static_cast<int>(volumeSliderRect.X), 109,
+    int nextSectionY = volumeY + 42;
+    if (g_deathMute) {
+        g.DrawString(L"CS2 音量", -1, &smallFont,
+            PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 39)), &text);
+        volumeSliderRect = RectF(static_cast<REAL>(sectionX + 105), static_cast<REAL>(volumeY + 31),
+            static_cast<REAL>((std::max)(140, sectionWidth - 250)), 24.f);
+        ui::DrawSlider(g, static_cast<int>(volumeSliderRect.X), volumeY + 39,
             static_cast<int>(volumeSliderRect.Width), g_death_vol);
-        g.FillEllipse(&colorSwatch,
-            volumeSliderRect.X + volumeSliderRect.Width * g_death_vol - 7.f, 102.f, 14.f, 14.f);
+        g.FillEllipse(&knobBrush,
+            volumeSliderRect.X + volumeSliderRect.Width * g_death_vol - 8.f,
+            static_cast<REAL>(volumeY + 33), 16.f, 16.f);
+        wchar_t volumeText[32]{};
+        swprintf_s(volumeText, L"%.0f%%", g_death_vol * 100.f);
+        g.DrawString(volumeText, -1, &smallFont,
+            PointF(volumeSliderRect.X + volumeSliderRect.Width + 10.f,
+                static_cast<REAL>(volumeY + 31)), &dim);
 
         std::wstring keyName;
         if (g_hotkeyVk == 0) keyName = L"None";
@@ -633,43 +593,37 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             else keyName += L"Vk=" + std::to_wstring(g_hotkeyVk);
         }
         g.DrawString(_(i18n::Keys::EVO_HOTKEY), -1, &smallFont,
-            PointF(static_cast<REAL>(sectionX + 14), 139.f), &text);
-        hotkeyRect = RectF(static_cast<REAL>(sectionX + 170), 134.f, 190.f, 26.f);
+            PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 76)), &text);
+        hotkeyRect = RectF(static_cast<REAL>(sectionX + 175), static_cast<REAL>(volumeY + 69), 190.f, 26.f);
         g.FillRectangle(&buttonBackground, hotkeyRect);
         g.DrawRectangle(&buttonBorder, hotkeyRect);
         const std::wstring hotkeyText = g_isBindingHotkey ? _(i18n::Keys::EVO_WAITING_KEY) : keyName;
         g.DrawString(hotkeyText.c_str(), -1, &smallFont,
             PointF(hotkeyRect.X + 8.f, hotkeyRect.Y + 4.f), &text);
-
-        g.DrawString(L"宽容检测游戏窗口", -1, &smallFont,
-            PointF(static_cast<REAL>(sectionX + 14), 176.f), &text);
-        g_lenientWindowToggleRect = RectF(static_cast<REAL>(sectionX + 170), 169.f, 50.f, 24.f);
-        ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
-            static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
-        g.DrawString(_(i18n::Keys::EVO_HINT_MUTE), -1, &smallFont,
-            PointF(static_cast<REAL>(sectionX + 235), 175.f), &dim);
-        crosshairY = 222;
+        nextSectionY = volumeY + 118;
     } else {
         volumeSliderRect = RectF{};
         hotkeyRect = RectF{};
-        g_lenientWindowToggleRect = RectF{};
     }
 
-    crosshairHeaderRect = RectF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY),
-        static_cast<REAL>(sectionWidth), 40.f);
-    DrawSectionHeader(g, crosshairHeaderRect, _(i18n::Keys::EVO_CROSSHAIR),
-        crosshairExpanded, g_crosshairEnabled);
-    g.FillRectangle(&colorSwatch, crosshairHeaderRect.X + crosshairHeaderRect.Width - 180.f,
-        crosshairHeaderRect.Y + 11.f, 18.f, 18.f);
-    g.DrawString(i18n::T(g_crosshairEnabled ? "EVO_CROSSHAIR_ON" : "EVO_CROSSHAIR_OFF"),
-        -1, &smallFont, PointF(crosshairHeaderRect.X + crosshairHeaderRect.Width - 154.f,
-        crosshairHeaderRect.Y + 10.f), g_crosshairEnabled ? &text : &dim);
-    crosshairEnableRect = RectF(crosshairHeaderRect.X + crosshairHeaderRect.Width - 58.f,
-        crosshairHeaderRect.Y + 8.f, 50.f, 24.f);
+    g.DrawString(L"宽容检测游戏窗口", -1, &boldFont,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(nextSectionY)), &text);
+    g_lenientWindowToggleRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(nextSectionY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
+        static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
+    g.DrawString(L"放宽 CS2 前台窗口识别，独立于其他功能", -1, &smallFont,
+        PointF(static_cast<REAL>(sectionX + 285), static_cast<REAL>(nextSectionY + 1)), &dim);
+
+    const int crosshairY = nextSectionY + 42;
+    g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &boldFont,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY)), &text);
+    crosshairEnableRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(crosshairY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(crosshairEnableRect.X),
         static_cast<int>(crosshairEnableRect.Y), g_crosshairEnabled);
 
-    if (!g_crosshairEnabled || !crosshairExpanded) {
+    if (!g_crosshairEnabled) {
         for (auto& rect : styleRects) rect = RectF{};
         for (auto& rect : rgbSliderRects) rect = RectF{};
         for (auto& rect : parameterSliderRects) rect = RectF{};
@@ -677,11 +631,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         return;
     }
 
-    const int bodyY = crosshairY + 40;
-    RectF crosshairBody(static_cast<REAL>(sectionX), static_cast<REAL>(bodyY),
-        static_cast<REAL>(sectionWidth), 238.f);
-    g.FillRectangle(&cardBackground, crosshairBody);
-    g.DrawRectangle(&cardBorder, crosshairBody);
+    const int bodyY = crosshairY + 34;
 
     const wchar_t* styleNames[kCrosshairStyleCount] = {
         i18n::T("EVO_STYLE_HOLLOW"), i18n::T("EVO_STYLE_SOLID"), i18n::T("EVO_STYLE_CLASSIC"),
@@ -761,7 +711,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     centerDotRect = RectF(static_cast<REAL>(sectionX + 100), static_cast<REAL>(bodyY + 200), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(centerDotRect.X), static_cast<int>(centerDotRect.Y),
         g_crosshairCenterDot);
-    g.DrawString(L"关闭后可获得更干净的空心与分离式准星", -1, &smallFont,
+    g.DrawString(L"仅对十字、四角标和 T 型样式生效", -1, &smallFont,
         PointF(static_cast<REAL>(sectionX + 165), static_cast<REAL>(bodyY + 207)), &dim);
 }
 
@@ -798,14 +748,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         return;
     }
 
-    if (Hit(volumeHeaderRect, mx, my)) {
-        volumeExpanded = !volumeExpanded;
-        std::cout << "[进化分支] 即时音量面板已" << (volumeExpanded ? "展开" : "折叠") << std::endl;
-        InvalidateRect(hw, nullptr, FALSE);
-        return;
-    }
-
-    if (volumeExpanded && Hit(hotkeyRect, mx, my)) {
+    if (g_deathMute && Hit(hotkeyRect, mx, my)) {
         g_isBindingHotkey = !g_isBindingHotkey;
         SetFocus(hw);
         InvalidateRect(hw, nullptr, FALSE);
@@ -813,7 +756,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
     if (g_isBindingHotkey && !Hit(hotkeyRect, mx, my)) g_isBindingHotkey = false;
 
-    if (volumeExpanded && ui::CheckSliderClick(mx, my,
+    if (g_deathMute && ui::CheckSliderClick(mx, my,
         static_cast<int>(volumeSliderRect.X), static_cast<int>(volumeSliderRect.Y + 8.f),
         static_cast<int>(volumeSliderRect.Width), value)) {
         g_death_vol = value;
@@ -824,7 +767,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         return;
     }
 
-    if (volumeExpanded && Hit(g_lenientWindowToggleRect, mx, my)) {
+    if (Hit(g_lenientWindowToggleRect, mx, my)) {
         SetLenientCS2WindowDetection(!IsLenientCS2WindowDetection());
         SaveEvolutionParams();
         std::cout << "[进化分支] 宽容检测游戏窗口已切换" << std::endl;
@@ -834,23 +777,13 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
 
     if (Hit(crosshairEnableRect, mx, my)) {
         ApplyCrosshairEnabled(!g_crosshairEnabled);
-        crosshairExpanded = g_crosshairEnabled;
         SaveEvolutionParams();
         std::cout << "[狙击准星] 已切换为: " << (g_crosshairEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
 
-    if (Hit(crosshairHeaderRect, mx, my)) {
-        if (g_crosshairEnabled) {
-            crosshairExpanded = !crosshairExpanded;
-            std::cout << "[狙击准星] 参数面板已" << (crosshairExpanded ? "展开" : "折叠") << std::endl;
-        }
-        InvalidateRect(hw, nullptr, FALSE);
-        return;
-    }
-
-    if (!g_crosshairEnabled || !crosshairExpanded) return;
+    if (!g_crosshairEnabled) return;
 
     for (int i = 0; i < kCrosshairStyleCount; ++i) {
         if (!Hit(styleRects[i], mx, my)) continue;
