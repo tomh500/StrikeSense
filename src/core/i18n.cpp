@@ -86,7 +86,6 @@ void i18n::Init() {
     cn[Keys::Rage_CURVE] = L"增长曲线 (%)"; en[Keys::Rage_CURVE] = L"Growth Curve (%)";
     cn[Keys::Rage_HORIZONTAL_SCALE] = L"横向 Peek 倍率 (%)"; en[Keys::Rage_HORIZONTAL_SCALE] = L"Horizontal Peek (%)";
     cn[Keys::Rage_VERTICAL_SCALE] = L"前后移动倍率 (%)"; en[Keys::Rage_VERTICAL_SCALE] = L"Forward/Back (%)";
-    cn[Keys::Rage_RECOMMENDED] = L"应用推荐参数"; en[Keys::Rage_RECOMMENDED] = L"Recommended";
     cn[Keys::ITEM_TITLE] = L"道具助手"; en[Keys::ITEM_TITLE] = L"Item Helper";
     cn[Keys::ITEM_PLACEHOLDER] = L"功能开发中..."; en[Keys::ITEM_PLACEHOLDER] = L"Coming soon...";
 
@@ -101,8 +100,8 @@ void i18n::Init() {
     
     cn[Keys::Rage_HINT_LINE2] = L"微步/常规/长移动分段曲线计算，横纵方向独立缩放；Shift/Ctrl 时静默跳过";
     en[Keys::Rage_HINT_LINE2] = L"Segmented pulse curve with axis scaling. Shift/Ctrl silently skips QuickStop.";
-    cn[Keys::Rage_HINT_LINE3] = L"推荐：曲线高于100%可减轻小碎步粘脚；横向适合 Peek，纵向略低更顺滑";
-    en[Keys::Rage_HINT_LINE3] = L"Tip: Curve >100% softens micro-steps; lower vertical scaling reduces sticking.";
+    cn[Keys::Rage_HINT_LINE3] = L"滑块使用对数刻度：低值区域可精调，同时保留极大的高值定义域";
+    en[Keys::Rage_HINT_LINE3] = L"Logarithmic sliders preserve low-value precision while covering a very large range.";
     
     cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
     en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";
@@ -188,7 +187,7 @@ namespace i18n { namespace Keys {
     const char *LEGAL_ADD_MS="LEGAL_ADD_MS",*LEGAL_REMOVE_MS="LEGAL_REMOVE_MS",*LEGAL_ADD_CHSW="LEGAL_ADD_CHSW",*LEGAL_REMOVE_CHSW="LEGAL_REMOVE_CHSW",*LEGAL_NORMAL="LEGAL_NORMAL",*LEGAL_ATTACK="LEGAL_ATTACK",*LEGAL_CUSTOM_HINT="LEGAL_CUSTOM_HINT";
     const char *LEGAL_STATUS_PREFIX="LEGAL_STATUS_PREFIX",*LEGAL_SAVED="LEGAL_SAVED",*LEGAL_NOT_FOUND="LEGAL_NOT_FOUND";
     const char *Rage_TITLE="Rage_TITLE",*Rage_PLACEHOLDER="Rage_PLACEHOLDER",*Rage_QUICKSTOP="Rage_QUICKSTOP",*Rage_MICRO_PULSE="Rage_MICRO_PULSE",*Rage_MIN_PULSE="Rage_MIN_PULSE",*Rage_MAX_PULSE="Rage_MAX_PULSE",*Rage_CAP_PULSE="Rage_CAP_PULSE";
-    const char *Rage_MICRO_MOVE="Rage_MICRO_MOVE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP",*Rage_CURVE="Rage_CURVE",*Rage_HORIZONTAL_SCALE="Rage_HORIZONTAL_SCALE",*Rage_VERTICAL_SCALE="Rage_VERTICAL_SCALE",*Rage_RECOMMENDED="Rage_RECOMMENDED";
+    const char *Rage_MICRO_MOVE="Rage_MICRO_MOVE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP",*Rage_CURVE="Rage_CURVE",*Rage_HORIZONTAL_SCALE="Rage_HORIZONTAL_SCALE",*Rage_VERTICAL_SCALE="Rage_VERTICAL_SCALE";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
     const char* EVO_HINT_MUTE = "evo_hint_mute";
     const char* EVO_STATUS_DISABLED = "evo_status_disabled";

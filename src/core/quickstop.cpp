@@ -142,15 +142,6 @@ void SaveQuickStopConfig()
     }
 }
 
-void ApplyRecommendedQuickStopConfig()
-{
-    const bool enabled = s_qsConfig.enabled;
-    s_qsConfig = QuickStopConfig{};
-    s_qsConfig.enabled = enabled;
-    SaveQuickStopConfig();
-    std::cout << "[急停] 已应用推荐参数：脉冲10/15/40/42ms，阈值55/120/500ms，曲线130%，横向100%，纵向95%。" << std::endl;
-}
-
 // ===== 急停核心状态 =====
 namespace {
     using Clock = std::chrono::steady_clock;
@@ -239,14 +230,14 @@ namespace {
             const double progress = static_cast<double>(std::clamp(
                 move_duration_ms, move_start_at, move_cap_at) - move_start_at) /
                 static_cast<double>((std::max)(1, move_cap_at - move_start_at));
-            const double curve = std::clamp(cfg.curve_percent, 50, 250) / 100.0;
+            const double curve = std::clamp(cfg.curve_percent, 10, 1000) / 100.0;
             pulse = min_pulse + std::pow(progress, curve) * (max_pulse - min_pulse);
         }
 
         const bool horizontal = counter_key == 'A' || counter_key == 'D';
         const int direction_scale = horizontal
-            ? std::clamp(cfg.horizontal_scale_percent, 50, 150)
-            : std::clamp(cfg.vertical_scale_percent, 50, 150);
+            ? std::clamp(cfg.horizontal_scale_percent, 1, 500)
+            : std::clamp(cfg.vertical_scale_percent, 1, 500);
         pulse *= direction_scale / 100.0;
         return std::clamp(static_cast<int>(std::lround(pulse)), 1, cap_pulse);
     }
@@ -391,6 +382,15 @@ void SetQuickStopPause(bool paused)
     if (paused) StopAllPulses();
 }
 bool IsQuickStopPaused() { return pause_jiting; }
+
+void ApplyQuickStopConfigChanges()
+{
+    SaveQuickStopConfig();
+    StopAllPulses();
+    if (s_qsConfig.enabled && !g_hookRunning.load())
+        StartQuickStopHook();
+    std::cout << "[急停] 参数已热应用，旧脉冲已取消，后续移动立即使用新配置。" << std::endl;
+}
 
 // ===== 全局键盘钩子 =====
 static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
