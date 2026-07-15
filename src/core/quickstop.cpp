@@ -95,6 +95,7 @@ void LoadQuickStopConfig()
 
         gb("enabled", s_qsConfig.enabled);
         gb("lenient_manual_stop", s_qsConfig.lenient_manual_stop);
+        gi("jump_disable_ms", s_qsConfig.jump_disable_ms);
         gi("micro_pulse", s_qsConfig.micro_pulse);
         gi("min_pulse", s_qsConfig.min_pulse);
         gi("max_pulse", s_qsConfig.max_pulse);
@@ -122,6 +123,7 @@ void SaveQuickStopConfig()
         nlohmann::json j;
         j["enabled"] = s.enabled;
         j["lenient_manual_stop"] = s.lenient_manual_stop;
+        j["jump_disable_ms"] = s.jump_disable_ms;
         j["micro_pulse"] = s.micro_pulse;
         j["min_pulse"] = s.min_pulse;
         j["max_pulse"] = s.max_pulse;
@@ -223,7 +225,16 @@ namespace {
 
     void RefreshJumpQuickStopDisable(const char* source)
     {
-        jump_disable_until_ms.store(NowMs() + 3000);
+        const int disable_ms = std::clamp(s_qsConfig.jump_disable_ms, 0, 3000);
+        if (disable_ms <= 0)
+        {
+            jump_disable_until_ms.store(0);
+            std::cout << "[急停] 检测到跳跃输入(" << source
+                      << ")，但跳跃临时禁用时长为 0ms，已跳过。" << std::endl;
+            return;
+        }
+
+        jump_disable_until_ms.store(NowMs() + disable_ms);
         StopAllPulses();
         std::cout << "[急停] 检测到跳跃输入(" << source
                   << ")，未来 3 秒临时禁用自动急停。" << std::endl;

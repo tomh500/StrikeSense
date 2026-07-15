@@ -24,6 +24,7 @@ namespace Keys {
         extern const char* Rage_MOUSE_JITTER;
         extern const char* Rage_CONSOLE_LOG;
         extern const char* Rage_LENIENT_MANUAL_STOP;
+        extern const char* Rage_JUMP_DISABLE_MS;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
 
         // ===== 修复：改成符合项目结构的 const char* 外部声明 =====

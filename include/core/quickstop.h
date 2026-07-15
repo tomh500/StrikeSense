@@ -10,6 +10,7 @@
 struct QuickStopConfig {
     bool enabled = false;
     bool lenient_manual_stop = false;
+    int jump_disable_ms = 3000;
     int micro_pulse = 80;
     int min_pulse = 90;
     int max_pulse = 150;

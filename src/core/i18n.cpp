@@ -116,6 +116,7 @@ void i18n::Init() {
     en[Keys::Rage_HINT_LINE5] = L"Multi-bind support is for mouse-jitter scripts; console support reads new console.log entries; click values to type directly.";
     cn[Keys::Rage_HINT_LINE6] = L"宽容手动急停：短促人工反向补停不会再次触发回拉；反方向键按住较久仍按正常换向处理。";
     en[Keys::Rage_HINT_LINE6] = L"Lenient manual stop: short manual counter-taps avoid rebound; longer holds remain normal direction changes.";
+    cn[Keys::Rage_JUMP_DISABLE_MS] = L"跳跃禁用时长 (ms)"; en[Keys::Rage_JUMP_DISABLE_MS] = L"Jump Disable Time (ms)";
     
     cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
     en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";
@@ -208,6 +209,7 @@ namespace i18n { namespace Keys {
     const char* Rage_MOUSE_JITTER = "Rage_MOUSE_JITTER";
     const char* Rage_CONSOLE_LOG = "Rage_CONSOLE_LOG";
     const char* Rage_LENIENT_MANUAL_STOP = "Rage_LENIENT_MANUAL_STOP";
+    const char* Rage_JUMP_DISABLE_MS = "Rage_JUMP_DISABLE_MS";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
     const char* EVO_HINT_MUTE = "evo_hint_mute";
     const char* EVO_STATUS_DISABLED = "evo_status_disabled";

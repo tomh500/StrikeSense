@@ -23,11 +23,11 @@ static Gdiplus::RectF g_MouseJitterToggleRect;
 static Gdiplus::RectF g_ConsoleLogToggleRect;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
-static constexpr int kQSSliderCount = 10;
+static constexpr int kQSSliderCount = 11;
 static std::array<Gdiplus::RectF, kQSSliderCount> g_sliderRects;
 static std::array<Gdiplus::RectF, kQSSliderCount> g_valueRects;
-static constexpr int kQSSliderMin[kQSSliderCount] = { 1, 1, 1, 1, 1, 1, 50, 10, 1, 1 };
-static constexpr int kQSSliderMax[kQSSliderCount] = { 1000, 1000, 1000, 1000, 200, 1000, 1000, 1000, 500, 500 };
+static constexpr int kQSSliderMin[kQSSliderCount] = { 0, 1, 1, 1, 1, 1, 1, 50, 10, 1, 1 };
+static constexpr int kQSSliderMax[kQSSliderCount] = { 3000, 1000, 1000, 1000, 1000, 200, 1000, 1000, 1000, 500, 500 };
 
 struct QuickStopInputContext {
     const wchar_t* label = nullptr;
@@ -136,16 +136,17 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         int minV, maxV;
     };
     SliderDef defs[] = {
-        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[0], kQSSliderMax[0] },
-        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, kQSSliderMin[1], kQSSliderMax[1] },
-        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, kQSSliderMin[2], kQSSliderMax[2] },
-        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, kQSSliderMin[3], kQSSliderMax[3] },
-        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[4], kQSSliderMax[4] },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[5], kQSSliderMax[5] },
-        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, kQSSliderMin[6], kQSSliderMax[6] },
-        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[7], kQSSliderMax[7] },
-        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[8], kQSSliderMax[8] },
-        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
+        { i18n::Keys::Rage_JUMP_DISABLE_MS, &cfg.jump_disable_ms, kQSSliderMin[0], kQSSliderMax[0] },
+        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[1], kQSSliderMax[1] },
+        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, kQSSliderMin[2], kQSSliderMax[2] },
+        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, kQSSliderMin[3], kQSSliderMax[3] },
+        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, kQSSliderMin[4], kQSSliderMax[4] },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[5], kQSSliderMax[5] },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[6], kQSSliderMax[6] },
+        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, kQSSliderMin[7], kQSSliderMax[7] },
+        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[8], kQSSliderMax[8] },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[10], kQSSliderMax[10] },
     };
 
     int slW = cw - 280;
@@ -298,16 +299,17 @@ void CheckRageClick(HWND hw, int mx, int my) {
     // 滑块检测
     auto& cfg = GetQSConfig();
     struct { const char* nameKey; int* v; int min, max; } targets[] = {
-        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[0], kQSSliderMax[0] },
-        { i18n::Keys::Rage_MIN_PULSE, &cfg.min_pulse, kQSSliderMin[1], kQSSliderMax[1] },
-        { i18n::Keys::Rage_MAX_PULSE, &cfg.max_pulse, kQSSliderMin[2], kQSSliderMax[2] },
-        { i18n::Keys::Rage_CAP_PULSE, &cfg.cap_pulse, kQSSliderMin[3], kQSSliderMax[3] },
-        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[4], kQSSliderMax[4] },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[5], kQSSliderMax[5] },
-        { i18n::Keys::Rage_MOVE_CAP, &cfg.move_cap_at, kQSSliderMin[6], kQSSliderMax[6] },
-        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[7], kQSSliderMax[7] },
-        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[8], kQSSliderMax[8] },
-        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
+        { i18n::Keys::Rage_JUMP_DISABLE_MS, &cfg.jump_disable_ms, kQSSliderMin[0], kQSSliderMax[0] },
+        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[1], kQSSliderMax[1] },
+        { i18n::Keys::Rage_MIN_PULSE, &cfg.min_pulse, kQSSliderMin[2], kQSSliderMax[2] },
+        { i18n::Keys::Rage_MAX_PULSE, &cfg.max_pulse, kQSSliderMin[3], kQSSliderMax[3] },
+        { i18n::Keys::Rage_CAP_PULSE, &cfg.cap_pulse, kQSSliderMin[4], kQSSliderMax[4] },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[5], kQSSliderMax[5] },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[6], kQSSliderMax[6] },
+        { i18n::Keys::Rage_MOVE_CAP, &cfg.move_cap_at, kQSSliderMin[7], kQSSliderMax[7] },
+        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[8], kQSSliderMax[8] },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[10], kQSSliderMax[10] },
     };
 
     for (int i = 0; i < kQSSliderCount; ++i) {
