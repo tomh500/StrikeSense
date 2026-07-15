@@ -97,6 +97,7 @@ void CheckItemHelperClick(HWND hw, int mx, int my);
 void CheckVscriptClick(HWND hw, int mx, int my);
 bool IsRageModeEnabled();
 void EnableRageModeFromLaunch(HWND hw);
+bool IsLegalCfgManaged();
 
 // ===== 合法配置键盘输入 =====
 void InitLegalCfgPage();

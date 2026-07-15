@@ -3,6 +3,7 @@
 #include "console_log.h"
 #include "mouse_jitter.h"
 #include "quickstop.h"
+#include "textgui_overlay.h"
 #include <TlHelp32.h>
 #include <Shellapi.h>
 #include <Shlwapi.h>
@@ -846,6 +847,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         }
         g_deathMute = next;
         SaveEvolutionParams();
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
     }
@@ -853,6 +855,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         const bool enabled = Truthy(args[0]);
         std::wcout << L"[脚本] 请求设置自动急停开关: " << (enabled ? L"开启" : L"关闭") << std::endl;
         SetQuickStopEnabled(enabled);
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(IsQuickStopEnabled() == enabled);
     }
@@ -876,6 +879,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         const bool enabled = Truthy(args[0]);
         std::wcout << L"[脚本] 请求设置多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
         mousejitter::SetEnabled(enabled);
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(mousejitter::IsEnabled() == enabled);
     }
@@ -888,6 +892,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         const bool enabled = Truthy(args[0]);
         std::wcout << L"[脚本] 请求设置读控制台支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
         consolelog::SetEnabled(enabled);
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(consolelog::IsEnabled() == enabled);
     }
@@ -917,6 +922,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"SetCrosshairEnabled" && args.size() >= 1) {
         ApplyCrosshairEnabled(Truthy(args[0]));
         SaveEvolutionParams();
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
     }
@@ -947,6 +953,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
             (float)std::clamp(ToNumber(args[6]), 0.02, 0.6),
             g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         SaveEvolutionParams();
+        RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
     }

@@ -2,6 +2,7 @@
 #include "gsi_server.h"
 #include "config.h"
 #include "i18n.h"
+#include "textgui_overlay.h"
 
 static bool s_toggleStates[7] = {false, true, false, false, false, false, false};
 
@@ -82,6 +83,7 @@ void CheckSettingsClick(HWND hw, int mx, int my) {
 
             config::Save(c);
             gsi::RefreshConfig();
+            RefreshTextguiOverlay();
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }

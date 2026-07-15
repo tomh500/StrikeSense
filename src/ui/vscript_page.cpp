@@ -1,6 +1,7 @@
 #include "pages.h"
 #include "vscript.h"
 #include "i18n.h"
+#include "textgui_overlay.h"
 
 #include <algorithm>
 #include <commdlg.h>
@@ -302,6 +303,7 @@ void CheckVscriptClick(HWND hw, int mx, int my)
         const size_t scriptIndex = g_visibleScriptIndices[i];
         if (Hit(g_contRects[i], mx, my)) {
             vscript::ToggleContinuous(scriptIndex);
+            RefreshTextguiOverlay();
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }

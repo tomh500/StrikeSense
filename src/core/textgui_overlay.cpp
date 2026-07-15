@@ -1,14 +1,18 @@
 #include "textgui_overlay.h"
 
-#include "pages.h"
 #include "StrikeSense.h"
-#include "quickstop.h"
-#include "mouse_jitter.h"
+#include "config.h"
 #include "console_log.h"
+#include "gsi_server.h"
+#include "mouse_jitter.h"
+#include "pages.h"
+#include "quickstop.h"
 #include "volume_mixer.h"
+#include "vscript.h"
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <gdiplus.h>
 #include <iostream>
 #include <string>
@@ -27,16 +31,38 @@ bool has_window()
     return s_hwnd && IsWindow(s_hwnd);
 }
 
+std::wstring script_display_name(const vscript::mounted_script& script)
+{
+    if (script.hasMetadataName) return vscript::GetScriptDisplayName(script);
+    return std::filesystem::path(script.path).filename().wstring();
+}
+
 std::vector<std::wstring> collect_enabled_features()
 {
     std::vector<std::wstring> features;
-    if (g_deathMute) features.push_back(L"CS2 Volume");
-    if (g_crosshairEnabled) features.push_back(L"Crosshair");
-    if (g_itemHelperEnabled) features.push_back(L"ItemHelper");
-    if (IsRageModeEnabled()) features.push_back(L"Rage");
-    if (IsQuickStopEnabled()) features.push_back(L"QuickStop");
-    if (mousejitter::IsEnabled()) features.push_back(L"MouseJitter");
-    if (consolelog::IsEnabled()) features.push_back(L"ConsoleLog");
+    const config::Settings& settings = gsi::GetConfig();
+
+    if (settings.custom_musickit) features.push_back(L"自定义音乐包");
+    if (settings.enable_kill_sound) features.push_back(L"击杀音效替换");
+    if (settings.force_interrupt) features.push_back(L"强制打断音效");
+    if (settings.custom_flashbang) features.push_back(L"闪光覆盖图");
+    if (settings.low_memory) features.push_back(L"低内存模式");
+    if (settings.show_mvp) features.push_back(L"MVP信息");
+    if (IsLegalCfgManaged()) features.push_back(L"合法CFG接管");
+    if (g_deathMute) features.push_back(L"死亡音量控制");
+    if (g_crosshairEnabled) features.push_back(L"狙击准星");
+    if (g_itemHelperEnabled) features.push_back(L"道具助手");
+    if (IsRageModeEnabled()) features.push_back(L"超频配置");
+    if (IsQuickStopEnabled()) features.push_back(L"自动急停");
+    if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
+    if (consolelog::IsEnabled()) features.push_back(L"控制台日志");
+
+    for (const auto& script : vscript::MountedScripts()) {
+        if (!script.continuous) continue;
+        std::wstring name = script_display_name(script);
+        if (!name.empty()) features.push_back(name);
+    }
+
     return features;
 }
 
@@ -47,22 +73,10 @@ int text_width(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& te
     return static_cast<int>(std::ceil(bounds.Width));
 }
 
-void fill_round_rect(Gdiplus::Graphics& g, Gdiplus::Brush& brush,
-    float x, float y, float w, float h, float r)
-{
-    Gdiplus::GraphicsPath path;
-    path.AddArc(x, y, r, r, 180.f, 90.f);
-    path.AddArc(x + w - r, y, r, r, 270.f, 90.f);
-    path.AddArc(x + w - r, y + h - r, r, r, 0.f, 90.f);
-    path.AddArc(x, y + h - r, r, r, 90.f, 90.f);
-    path.CloseFigure();
-    g.FillPath(&brush, &path);
-}
-
-void draw_text_shadow(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
+void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
     float x, float y, Gdiplus::Brush& brush, BYTE alpha)
 {
-    Gdiplus::SolidBrush shadow(Gdiplus::Color((std::max)(40, static_cast<int>(alpha * 0.55f)), 0, 0, 0));
+    Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x + 1.f, y + 1.f), &shadow);
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x, y), &brush);
 }
@@ -98,12 +112,15 @@ void redraw()
         const float scale = std::clamp(g_textguiScale, 0.75f, 1.8f);
         const float opacity = std::clamp(g_textguiOpacity, 0.2f, 1.0f);
         const BYTE alpha = static_cast<BYTE>(255.f * opacity);
-        const Color accent(alpha, static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
+        const Color color(alpha,
+            static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
             static_cast<BYTE>(std::clamp(g_textguiG, 0, 255)),
             static_cast<BYTE>(std::clamp(g_textguiB, 0, 255)));
 
-        Font titleFont(L"Segoe UI", 18.f * scale, FontStyleBold);
-        Font itemFont(L"Segoe UI", 13.f * scale, FontStyleBold);
+        Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
+        Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
+        SolidBrush textBrush(color);
+
         auto features = collect_enabled_features();
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
             return text_width(g, itemFont, a) > text_width(g, itemFont, b);
@@ -111,41 +128,24 @@ void redraw()
 
         const float margin = 18.f * scale;
         const float rowH = 25.f * scale;
-        const int maxTextW = (std::max)(text_width(g, titleFont, L"StrikeSense"),
-            features.empty() ? text_width(g, itemFont, L"No modules enabled") : text_width(g, itemFont, features.front()));
-        const float panelW = (std::max)(190.f * scale, maxTextW + 44.f * scale);
-        const float panelH = (g_textguiShowWatermark ? 42.f * scale : 0.f)
-            + (std::max)(1, static_cast<int>(features.size())) * rowH + 18.f * scale;
-        const float x = std::clamp((sw - panelW - margin) * std::clamp(g_textguiX, 0.f, 1.f), margin, sw - panelW - margin);
-        const float y = std::clamp((sh - panelH - margin) * std::clamp(g_textguiY, 0.f, 1.f), margin, sh - panelH - margin);
+        const int maxFeatureW = features.empty() ? 0 : text_width(g, itemFont, features.front());
+        const int maxTextW = (std::max)(text_width(g, titleFont, L"StrikeSense"), maxFeatureW);
+        const float areaW = (std::max)(185.f * scale, maxTextW + 4.f * scale);
+        const float areaH = (g_textguiShowWatermark ? 35.f * scale : 0.f)
+            + static_cast<float>(features.size()) * rowH + 6.f * scale;
+        const float x = std::clamp((sw - areaW - margin) * std::clamp(g_textguiX, 0.f, 1.f), margin, sw - areaW - margin);
+        const float y = std::clamp((sh - areaH - margin) * std::clamp(g_textguiY, 0.f, 1.f), margin, sh - areaH - margin);
 
-        SolidBrush bg(Color(static_cast<BYTE>(150.f * opacity), 8, 10, 14));
-        SolidBrush accentBrush(accent);
-        SolidBrush white(Color(alpha, 245, 248, 255));
-        SolidBrush dim(Color(static_cast<BYTE>(190.f * opacity), 170, 182, 198));
-        Pen border(accent, 1.4f * scale);
-
-        fill_round_rect(g, bg, x, y, panelW, panelH, 8.f * scale);
-        g.DrawRectangle(&border, x, y, panelW, panelH);
-        g.FillRectangle(&accentBrush, x, y, panelW, 3.5f * scale);
-
-        float cy = y + 12.f * scale;
+        float cy = y;
         if (g_textguiShowWatermark) {
-            draw_text_shadow(g, L"StrikeSense", titleFont, x + 15.f * scale, cy, white, alpha);
+            const std::wstring title = L"StrikeSense";
+            draw_text(g, title, titleFont, x + areaW - text_width(g, titleFont, title), cy, textBrush, alpha);
             cy += 35.f * scale;
         }
 
-        if (features.empty()) {
-            draw_text_shadow(g, L"No modules enabled", itemFont, x + 15.f * scale, cy, dim, alpha);
-        }
-        else {
-            for (const auto& feature : features) {
-                const int w = text_width(g, itemFont, feature);
-                const float tx = x + panelW - w - 16.f * scale;
-                g.FillRectangle(&accentBrush, x + panelW - 5.f * scale, cy + 3.f * scale, 3.f * scale, 16.f * scale);
-                draw_text_shadow(g, feature, itemFont, tx, cy, white, alpha);
-                cy += rowH;
-            }
+        for (const auto& feature : features) {
+            draw_text(g, feature, itemFont, x + areaW - text_width(g, itemFont, feature), cy, textBrush, alpha);
+            cy += rowH;
         }
     }
 
@@ -167,16 +167,12 @@ void redraw()
 void update_visibility()
 {
     if (!has_window() || !g_textguiEnabled) return;
-    const bool shouldShow = IsCS2WindowActive();
-    if (shouldShow == s_visible) {
-        if (shouldShow) redraw();
-        return;
+    if (!s_visible) {
+        ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
+        s_visible = true;
+        std::cout << "[Textgui] 覆盖层已显示。" << std::endl;
     }
-
-    s_visible = shouldShow;
-    ShowWindow(s_hwnd, shouldShow ? SW_SHOWNOACTIVATE : SW_HIDE);
-    if (shouldShow) redraw();
-    std::cout << "[Textgui] CS2窗口状态变化，覆盖层已" << (shouldShow ? "显示" : "隐藏") << std::endl;
+    redraw();
 }
 
 LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -252,11 +248,9 @@ void Refresh()
 {
     if (!g_textguiEnabled) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
-    if (s_visible || IsCS2WindowActive()) {
-        s_visible = true;
-        ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
-        redraw();
-    }
+    s_visible = true;
+    ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
+    redraw();
 }
 
 void Shutdown()

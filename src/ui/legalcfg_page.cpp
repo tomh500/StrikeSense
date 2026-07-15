@@ -1,6 +1,7 @@
 #include "pages.h"
 #include "steam_helper.h"
 #include "i18n.h" 
+#include "textgui_overlay.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -194,6 +195,11 @@ static void SaveCfg(const std::wstring& c) {
 static void Append(const std::wstring& t) { g_autoexecContent += t; g_editBuffer = g_autoexecContent; SaveCfg(g_autoexecContent); }
 static bool RemoveSave(const std::wstring& s, const std::wstring& e) { std::wstring c = g_autoexecContent; bool f = RemoveBlock(c, s, e); if (f) { g_autoexecContent = c; g_editBuffer = c; SaveCfg(c); } return f; }
 
+bool IsLegalCfgManaged()
+{
+    return g_autoexecContent.find(L"//--StrikeSense ") != std::wstring::npos;
+}
+
 static void EnsureVis(const std::vector<std::wstring>& l) {
     int cl, cc; LCFromPos(l, g_cursorPos, cl, cc);
     if (cl < g_scrollOffset) g_scrollOffset = cl;
@@ -377,49 +383,49 @@ void CheckLegalCfgClick(HWND hw, int mx, int my) {
         InvalidateRect(hw, 0, 0);
         return;
     }
-    if R(g_sv) { if (g_editing) { g_autoexecContent = g_editBuffer; cf(); } SaveCfg(g_autoexecContent); InvalidateRect(hw,0,0); return; }
+    if R(g_sv) { if (g_editing) { g_autoexecContent = g_editBuffer; cf(); } SaveCfg(g_autoexecContent); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rl) { g_lastWriteTime = 0; LoadCfg(); cf(); InvalidateRect(hw,0,0); return; }
-    if R(g_sd) { Append(SOCD_BLOCK); cf(); InvalidateRect(hw,0,0); return; }
+    if R(g_sd) { Append(SOCD_BLOCK); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rsd) { 
         if (RemoveSave(L"//--StrikeSense SOCD--", L"//--StrikeSense SOCD END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
     }
-    if R(g_mw) { Append(MWHEELJUMP_BLOCK); cf(); InvalidateRect(hw,0,0); return; }
+    if R(g_mw) { Append(MWHEELJUMP_BLOCK); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rmw) { 
         if (RemoveSave(L"//--StrikeSense MwheelJump--", L"//--StrikeSense MwheelJump END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
     }
-    if R(g_msw) { Append(BuildMS()); cf(); InvalidateRect(hw,0,0); return; }
+    if R(g_msw) { Append(BuildMS()); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rmsw) { 
         if (RemoveSave(L"//--StrikeSense MS--", L"//--StrikeSense MS END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
     }
-    if R(g_csw) { Append(BuildCHSW()); cf(); InvalidateRect(hw,0,0); return; }
+    if R(g_csw) { Append(BuildCHSW()); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rcsw) { 
         if (RemoveSave(L"//--StrikeSense CrosshairSW--", L"//--StrikeSense CrosshairSW END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
 
 
     }
 
     // ==================== 新增：SRP 写入和移除 ====================
-    if R(g_btnSrpAddRect) { Append(BuildSRP()); cf(); InvalidateRect(hw, 0, 0); return; }
+    if R(g_btnSrpAddRect) { Append(BuildSRP()); cf(); RefreshTextguiOverlay(); InvalidateRect(hw, 0, 0); return; }
     if R(g_btnSrpRemRect) {
         if (RemoveSave(L"//--StrikeSense SRP--", L"//--StrikeSense SRP END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
@@ -427,7 +433,7 @@ void CheckLegalCfgClick(HWND hw, int mx, int my) {
         else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); InvalidateRect(hw, 0, 0); return;
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw, 0, 0); return;
     }
     // ==============================================================
 
