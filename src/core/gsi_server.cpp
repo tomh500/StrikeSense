@@ -131,6 +131,11 @@ namespace gsi {
             return weapon.type == "C4" || weapon.name == "weapon_c4";
         }
 
+        bool IsDeathmatchMode(const std::string& mapMode)
+        {
+            return mapMode == "deathmatch";
+        }
+
         std::string GetRoundBombState(const nlohmann::json& root)
         {
             if (root.contains("round") && root["round"].is_object()) {
@@ -222,6 +227,7 @@ namespace gsi {
     // 状态剥离：GSI只负责判定是否在大厅，Watchdog负责实时跟进焦点
     static std::atomic<bool> s_isInLobby{ false };
     static std::atomic<bool> s_isWindowActive{ true };
+    static std::atomic<bool> s_deathmatchMode{ false };
     // 0 = 不在大厅/游戏关闭
     // 1 = 在大厅且游戏有焦点 (播放/恢复音量)
     // 2 = 在大厅但游戏无焦点 (静音继续播放)
@@ -301,6 +307,12 @@ namespace gsi {
 
     void QueueEvent(int id)
     {
+        if (s_deathmatchMode && id != -1)
+        {
+            std::cout << "[GSI] 死斗模式仅推送击杀音效，已忽略事件: " << id << std::endl;
+            return;
+        }
+
         std::lock_guard<std::mutex> lock(s_queueMutex);
         s_eventQueue.push(id);
     }
@@ -328,6 +340,12 @@ namespace gsi {
         while (!q.empty())
         {
             int id = q.front(); q.pop();
+
+            if (s_deathmatchMode && id != -1)
+            {
+                std::cout << "[音效] 死斗模式跳过非击杀音效: " << id << std::endl;
+                continue;
+            }
 
             if (id >= 1 && id <= 5)
             {
@@ -485,6 +503,12 @@ namespace gsi {
         // 1. 先关闭并汇合可能残存的旧计时线程
         StopRoundCountdown();
 
+        if (IsDeathmatchMode(mapMode))
+        {
+            std::cout << "[倒计时系统] 当前模式: 死斗模式 (Deathmatch)，不创建比赛十秒倒计时计时器。" << std::endl;
+            return;
+        }
+
         // 2. 加锁进行新一轮线程实例指派
         std::lock_guard<std::mutex> lock(s_timerMutex);
         s_timerCancel = false;
@@ -588,6 +612,8 @@ namespace gsi {
                 if (m.contains("name") && m["name"].is_string())
                     gamemap = m["name"].get<std::string>();
             }
+
+            s_deathmatchMode = IsDeathmatchMode(mapMode);
 
             if (j.contains("round") && j["round"].is_object())
             {
