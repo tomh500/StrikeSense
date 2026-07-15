@@ -31,6 +31,15 @@ float ease_out(float t)
     return 1.f - std::pow(1.f - t, 3.f);
 }
 
+void add_rounded_rect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, float radius)
+{
+    path.AddArc(rect.X, rect.Y, radius * 2.f, radius * 2.f, 180.f, 90.f);
+    path.AddArc(rect.X + rect.Width - radius * 2.f, rect.Y, radius * 2.f, radius * 2.f, 270.f, 90.f);
+    path.AddArc(rect.X + rect.Width - radius * 2.f, rect.Y + rect.Height - radius * 2.f, radius * 2.f, radius * 2.f, 0.f, 90.f);
+    path.AddArc(rect.X, rect.Y + rect.Height - radius * 2.f, radius * 2.f, radius * 2.f, 90.f, 90.f);
+    path.CloseFigure();
+}
+
 void hide()
 {
     if (!has_window() || !s_visible) return;
@@ -87,29 +96,52 @@ void draw()
     g.Clear(Color(0, 0, 0, 0));
 
     const int style = std::clamp(g_notificationsStyle, 0, 2);
-    Color bg = style == 1 ? Color(235, 32, 34, 38) : (style == 0 ? Color(225, 18, 20, 26) : Color(235, 24, 28, 36));
-    Color border = style == 0 ? Color(210, 80, 180, 255) : (style == 1 ? Color(140, 0, 0, 0) : Color(180, 130, 170, 255));
-    Color bar = s_enabledState ? Color(255, 82, 180, 95) : Color(255, 230, 80, 80);
+    Color bg = Color(200, 30, 30, 30);
+    Color border = Color(100, 80, 80, 80);
+    Color bar = s_enabledState ? Color(255, 0, 122, 255) : Color(255, 150, 150, 150);
     Color title = Color(255, 255, 255, 255);
-    Color sub = Color(220, 210, 220, 235);
-    if (style == 2) {
+    Color sub = Color(255, 190, 190, 190);
+    float radius = 10.f;
+    bool drawBorder = true;
+    if (style == 1) {
+        bg = Color(245, 0, 105, 92);
+        border = Color(0, 0, 0, 0);
+        bar = s_enabledState ? Color(255, 0, 188, 212) : Color(255, 176, 176, 176);
+        sub = Color(255, 224, 235, 235);
+        radius = 15.f;
+        drawBorder = false;
+    } else if (style == 2) {
         bg = Color(235, 15, 18, 25);
         border = Color(180, 90, 170, 255);
         bar = s_enabledState ? Color(255, 74, 222, 150) : Color(255, 255, 95, 95);
+        sub = Color(230, 210, 220, 235);
+        radius = 12.f;
     }
 
     RectF box(static_cast<REAL>(x), static_cast<REAL>(y), static_cast<REAL>(width), static_cast<REAL>(height));
+    if (style == 1) {
+        for (int i = 4; i >= 1; --i) {
+            const float grow = static_cast<float>(i * 5);
+            RectF glow(box.X - grow, box.Y - grow, box.Width + grow * 2.f, box.Height + grow * 2.f);
+            SolidBrush glowBrush(Color(static_cast<BYTE>(12 * i), 0, 188, 212));
+            GraphicsPath glowPath;
+            add_rounded_rect(glowPath, glow, radius + grow);
+            g.FillPath(&glowBrush, &glowPath);
+        }
+    } else {
+        RectF shadow(box.X + 4.f, box.Y + 5.f, box.Width, box.Height);
+        SolidBrush shadowBrush(Color(style == 0 ? 120 : 100, 0, 0, 0));
+        GraphicsPath shadowPath;
+        add_rounded_rect(shadowPath, shadow, radius);
+        g.FillPath(&shadowBrush, &shadowPath);
+    }
+
     SolidBrush bgBrush(bg);
     Pen borderPen(border, style == 2 ? 1.5f : 1.f);
     GraphicsPath path;
-    const float r = style == 1 ? 4.f : 8.f;
-    path.AddArc(box.X, box.Y, r * 2.f, r * 2.f, 180.f, 90.f);
-    path.AddArc(box.X + box.Width - r * 2.f, box.Y, r * 2.f, r * 2.f, 270.f, 90.f);
-    path.AddArc(box.X + box.Width - r * 2.f, box.Y + box.Height - r * 2.f, r * 2.f, r * 2.f, 0.f, 90.f);
-    path.AddArc(box.X, box.Y + box.Height - r * 2.f, r * 2.f, r * 2.f, 90.f, 90.f);
-    path.CloseFigure();
+    add_rounded_rect(path, box, radius);
     g.FillPath(&bgBrush, &path);
-    g.DrawPath(&borderPen, &path);
+    if (drawBorder) g.DrawPath(&borderPen, &path);
 
     Font titleFont(L"Microsoft YaHei UI", 13.f, FontStyleBold);
     Font subFont(L"Microsoft YaHei UI", 10.f, FontStyleRegular);
@@ -121,6 +153,12 @@ void draw()
     const float barHeight = style == 0 ? 3.f : 4.f;
     RectF barBack(box.X, box.Y + box.Height - barHeight, box.Width, barHeight);
     SolidBrush backBrush(Color(120, 0, 0, 0));
+    if (style == 1) {
+        for (int i = 3; i >= 1; --i) {
+            SolidBrush barGlow(Color(static_cast<BYTE>(22 * i), 0, 188, 212));
+            g.FillRectangle(&barGlow, RectF(barBack.X, barBack.Y - i, barBack.Width * progress, barBack.Height + i * 2.f));
+        }
+    }
     SolidBrush barBrush(bar);
     g.FillRectangle(&backBrush, barBack);
     g.FillRectangle(&barBrush, RectF(barBack.X, barBack.Y, barBack.Width * progress, barBack.Height));

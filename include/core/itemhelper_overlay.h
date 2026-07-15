@@ -36,6 +36,7 @@ namespace itemhelper_overlay
 
     // 切换道具助手遮罩的显示状态（扫描文件、挂载/卸载钩子、显示/隐藏窗口）
     void Toggle(HINSTANCE hInst);
+    bool IsOverlayVisible();
 
     // 执行底层的重新绘制逻辑（使用 UpdateLayeredWindow 实现完美的每像素 Alpha 半透明）
     void Redraw();

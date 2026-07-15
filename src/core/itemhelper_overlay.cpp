@@ -1,5 +1,6 @@
 #include "itemhelper_overlay.h"
 #include "itemhelper_page.h"
+#include "textgui_overlay.h"
 #include <gdiplus.h>
 #include <filesystem>
 #include <iostream>
@@ -44,6 +45,11 @@ namespace itemhelper_overlay
     static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wp, LPARAM lp);
     // 扫描地图文件夹下的图片与子文件夹
     static void ScanMapFiles();
+
+    bool IsOverlayVisible()
+    {
+        return g_itemUI.showOverlay && s_hwnd && IsWindow(s_hwnd) && IsWindowVisible(s_hwnd);
+    }
 
     void Initialize(HINSTANCE hInst)
     {
@@ -220,6 +226,8 @@ namespace itemhelper_overlay
             }
             ReleasePreviewImage();
         }
+
+        textgui_overlay::Refresh();
     }
 
     void LoadPreviewImage()
@@ -523,6 +531,10 @@ namespace itemhelper_overlay
             s_hKeyHook = nullptr;
         }
         ReleasePreviewImage();
+        if (g_itemUI.showOverlay) {
+            g_itemUI.showOverlay = false;
+            textgui_overlay::Refresh();
+        }
         if (s_hwnd) {
             DestroyWindow(s_hwnd);
             s_hwnd = nullptr;

@@ -4,7 +4,9 @@
 #include "config.h"
 #include "console_log.h"
 #include "gsi_server.h"
+#include "itemhelper_overlay.h"
 #include "mouse_jitter.h"
+#include "notifications_overlay.h"
 #include "pages.h"
 #include "quickstop.h"
 #include "volume_mixer.h"
@@ -16,6 +18,7 @@
 #include <gdiplus.h>
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -27,6 +30,8 @@ HINSTANCE s_hInst = nullptr;
 bool s_visible = false;
 bool s_crosshairRecoilFollow = false;
 std::map<std::wstring, std::wstring> s_customLines;
+std::set<std::wstring> s_lastFeatureSet;
+bool s_hasFeatureSnapshot = false;
 constexpr UINT_PTR kRefreshTimer = 3011;
 
 bool has_window()
@@ -71,7 +76,7 @@ std::vector<std::wstring> collect_enabled_features()
     if (HasLegalCfgSoundReplace()) features.push_back(L"切刀音效替换");
     if (g_deathMute) features.push_back(L"死亡音量控制");
     if (g_crosshairEnabled) features.push_back(L"狙击准星");
-    if (g_itemHelperEnabled) features.push_back(L"道具助手");
+    if (itemhelper_overlay::IsOverlayVisible()) features.push_back(L"道具助手");
     if (IsRageModeEnabled()) features.push_back(L"超频配置");
     if (IsRageModeEnabled() && IsQuickStopEnabled()) features.push_back(L"自动急停");
     if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
@@ -88,6 +93,27 @@ std::vector<std::wstring> collect_enabled_features()
     }
 
     return features;
+}
+
+void sync_notifications_for_features()
+{
+    const auto features = collect_enabled_features();
+    const std::set<std::wstring> current(features.begin(), features.end());
+    if (!s_hasFeatureSnapshot) {
+        s_lastFeatureSet = current;
+        s_hasFeatureSnapshot = true;
+        return;
+    }
+
+    for (const auto& feature : current) {
+        if (s_lastFeatureSet.find(feature) == s_lastFeatureSet.end())
+            notifications_overlay::Push(feature, true);
+    }
+    for (const auto& feature : s_lastFeatureSet) {
+        if (current.find(feature) == current.end())
+            notifications_overlay::Push(feature, false);
+    }
+    s_lastFeatureSet = current;
 }
 
 float text_width_f(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& text)
@@ -323,6 +349,11 @@ void ApplyEnabled(bool enabled)
     g_textguiEnabled = enabled;
     if (enabled) {
         if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
+        if (!s_hasFeatureSnapshot) {
+            const auto features = collect_enabled_features();
+            s_lastFeatureSet = std::set<std::wstring>(features.begin(), features.end());
+            s_hasFeatureSnapshot = true;
+        }
         SetWindowPos(s_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         update_visibility();
         std::cout << "[Textgui] 已开启。" << std::endl;
@@ -338,6 +369,7 @@ void Refresh()
 {
     if (!g_textguiEnabled) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
+    sync_notifications_for_features();
     update_visibility();
 }
 
