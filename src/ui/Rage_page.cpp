@@ -1,6 +1,7 @@
 #include "pages.h"
 #include "i18n.h"
 #include "quickstop.h"
+#include <array>
 #include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -12,10 +13,24 @@ bool g_rageEnabled = false;
 static Gdiplus::RectF g_RageToggleRect;
 
 static Gdiplus::RectF g_QSToggleRect;
+static Gdiplus::RectF g_QSRecommendedRect;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
-static Gdiplus::RectF g_sliderRects[5];
-static int g_sliderCount = 0;
+static constexpr int kQSSliderCount = 10;
+static std::array<Gdiplus::RectF, kQSSliderCount> g_sliderRects;
+
+static void DrawRecommendedButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect)
+{
+    using namespace Gdiplus;
+    SolidBrush background(Color(255, 220, 242, 255));
+    SolidBrush text(Color(255, 25, 100, 155));
+    Pen border(Color(255, 100, 180, 225), 1.0f);
+    Font font(L"Microsoft YaHei", 8, FontStyleBold);
+    g.FillRectangle(&background, rect);
+    g.DrawRectangle(&border, rect);
+    g.DrawString(_(i18n::Keys::Rage_RECOMMENDED), -1, &font,
+        PointF(rect.X + 8.0f, rect.Y + 4.0f), &text);
+}
 
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
@@ -47,6 +62,8 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
     const bool quickStopEnabled = IsQuickStopEnabled();
     ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
+    g_QSRecommendedRect = RectF((REAL)(cx + 290), (REAL)(yBase - 5), 116.f, 26.f);
+    DrawRecommendedButton(g, g_QSRecommendedRect);
 
     if (!quickStopEnabled) return;
 
@@ -60,19 +77,22 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         int minV, maxV;
     };
     SliderDef defs[] = {
-        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, 1, 300 },
-        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, 1, 300 },
-        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, 1, 300 },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 3000 },
-        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 1, 3000 },
+        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, 1, 80 },
+        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, 1, 100 },
+        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, 1, 100 },
+        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, 1, 100 },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 300 },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 1000 },
+        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 50, 2000 },
+        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, 50, 250 },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 50, 150 },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 50, 150 },
     };
 
     int slW = cw - 280;
     if (slW < 100) slW = 100;
-    g_sliderCount = 5;
-
-    for (int i = 0; i < 5; ++i) {
-        int sy = yBase + 40 + i * 40;
+    for (int i = 0; i < kQSSliderCount; ++i) {
+        int sy = yBase + 40 + i * 34;
         const wchar_t* wlabel = _(defs[i].nameKey); 
         g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
@@ -94,8 +114,10 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     // 触发条件说明
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(yBase + 240)), &hintCol);
-    g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(yBase + 256)), &hintCol);
+    const int hintY = yBase + 40 + kQSSliderCount * 34 + 8;
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
@@ -161,6 +183,13 @@ void CheckRageClick(HWND hw, int mx, int my) {
 
     if (!g_rageEnabled) return;
 
+    if (mx >= g_QSRecommendedRect.X && mx <= g_QSRecommendedRect.X + g_QSRecommendedRect.Width &&
+        my >= g_QSRecommendedRect.Y && my <= g_QSRecommendedRect.Y + g_QSRecommendedRect.Height) {
+        ApplyRecommendedQuickStopConfig();
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
     // 急停开关
     RectF* qsr = &g_QSToggleRect;
     if (mx >= qsr->X && mx <= qsr->X + qsr->Width &&
@@ -179,14 +208,19 @@ void CheckRageClick(HWND hw, int mx, int my) {
     // 滑块检测
     auto& cfg = GetQSConfig();
     struct { int* v; int min, max; } targets[] = {
-        { &cfg.min_pulse, 1, 300 },
-        { &cfg.max_pulse, 1, 300 },
-        { &cfg.cap_pulse, 1, 300 },
-        { &cfg.move_start_at, 1, 3000 },
-        { &cfg.move_cap_at, 1, 3000 },
+        { &cfg.micro_pulse, 1, 80 },
+        { &cfg.min_pulse, 1, 100 },
+        { &cfg.max_pulse, 1, 100 },
+        { &cfg.cap_pulse, 1, 100 },
+        { &cfg.micro_move_at, 1, 300 },
+        { &cfg.move_start_at, 1, 1000 },
+        { &cfg.move_cap_at, 50, 2000 },
+        { &cfg.curve_percent, 50, 250 },
+        { &cfg.horizontal_scale_percent, 50, 150 },
+        { &cfg.vertical_scale_percent, 50, 150 },
     };
 
-    for (int i = 0; i < g_sliderCount; ++i) {
+    for (int i = 0; i < kQSSliderCount; ++i) {
         auto& r = g_sliderRects[i];
         if (mx >= r.X && mx <= r.X + r.Width &&
             my >= r.Y && my <= r.Y + r.Height) {

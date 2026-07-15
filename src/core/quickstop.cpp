@@ -5,6 +5,7 @@
 #include <array>
 #include <condition_variable>
 #include <cstdint>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -91,11 +92,16 @@ void LoadQuickStopConfig()
         auto gb = [&](const char* k, bool& v) { if (j.contains(k) && j[k].is_boolean()) v = j[k]; };
         auto gi = [&](const char* k, int& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<int>(); };
 
+        gi("micro_pulse", s_qsConfig.micro_pulse);
         gi("min_pulse", s_qsConfig.min_pulse);
         gi("max_pulse", s_qsConfig.max_pulse);
         gi("cap_pulse", s_qsConfig.cap_pulse);
+        gi("micro_move_at", s_qsConfig.micro_move_at);
         gi("move_start_at", s_qsConfig.move_start_at);
         gi("move_cap_at", s_qsConfig.move_cap_at);
+        gi("curve_percent", s_qsConfig.curve_percent);
+        gi("horizontal_scale_percent", s_qsConfig.horizontal_scale_percent);
+        gi("vertical_scale_percent", s_qsConfig.vertical_scale_percent);
         s_qsConfig.enabled = false;
 
         std::cout << "[急停] quickstop.json 加载成功。" << std::endl;
@@ -112,11 +118,16 @@ void SaveQuickStopConfig()
 
     try {
         nlohmann::json j;
+        j["micro_pulse"] = s.micro_pulse;
         j["min_pulse"] = s.min_pulse;
         j["max_pulse"] = s.max_pulse;
         j["cap_pulse"] = s.cap_pulse;
+        j["micro_move_at"] = s.micro_move_at;
         j["move_start_at"] = s.move_start_at;
         j["move_cap_at"] = s.move_cap_at;
+        j["curve_percent"] = s.curve_percent;
+        j["horizontal_scale_percent"] = s.horizontal_scale_percent;
+        j["vertical_scale_percent"] = s.vertical_scale_percent;
 
         std::ofstream out(GetQuickStopPath());
         if (out.is_open())
@@ -129,6 +140,15 @@ void SaveQuickStopConfig()
     catch (const std::exception& e) {
         std::cerr << "[急停] 保存失败: " << e.what() << std::endl;
     }
+}
+
+void ApplyRecommendedQuickStopConfig()
+{
+    const bool enabled = s_qsConfig.enabled;
+    s_qsConfig = QuickStopConfig{};
+    s_qsConfig.enabled = enabled;
+    SaveQuickStopConfig();
+    std::cout << "[急停] 已应用推荐参数：脉冲10/15/40/42ms，阈值55/120/500ms，曲线130%，横向100%，纵向95%。" << std::endl;
 }
 
 // ===== 急停核心状态 =====
@@ -195,23 +215,40 @@ namespace {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    int CalculateStopPulse(int move_duration_ms)
+    int CalculateStopPulse(int move_duration_ms, WORD counter_key)
     {
         const auto& cfg = s_qsConfig;
-        const int min_pulse = (std::max)(1, cfg.min_pulse);
+        const int micro_pulse = (std::max)(1, cfg.micro_pulse);
+        const int min_pulse = (std::max)(micro_pulse, cfg.min_pulse);
         const int max_pulse = (std::max)(min_pulse, cfg.max_pulse);
         const int cap_pulse = (std::max)(1, cfg.cap_pulse);
+        const int micro_move_at = (std::max)(1, cfg.micro_move_at);
+        const int move_start_at = (std::max)(micro_move_at, cfg.move_start_at);
+        const int move_cap_at = (std::max)(move_start_at + 1, cfg.move_cap_at);
 
-        if (move_duration_ms <= cfg.move_start_at)
-            return (std::min)(min_pulse, cap_pulse);
-        if (cfg.move_cap_at <= cfg.move_start_at)
-            return (std::min)(max_pulse, cap_pulse);
+        double pulse = static_cast<double>(micro_pulse);
+        if (move_duration_ms > micro_move_at && move_start_at > micro_move_at)
+        {
+            const double progress = static_cast<double>(std::clamp(
+                move_duration_ms, micro_move_at, move_start_at) - micro_move_at) /
+                static_cast<double>(move_start_at - micro_move_at);
+            pulse = micro_pulse + progress * (min_pulse - micro_pulse);
+        }
+        if (move_duration_ms > move_start_at)
+        {
+            const double progress = static_cast<double>(std::clamp(
+                move_duration_ms, move_start_at, move_cap_at) - move_start_at) /
+                static_cast<double>((std::max)(1, move_cap_at - move_start_at));
+            const double curve = std::clamp(cfg.curve_percent, 50, 250) / 100.0;
+            pulse = min_pulse + std::pow(progress, curve) * (max_pulse - min_pulse);
+        }
 
-        const auto duration = std::clamp(move_duration_ms, cfg.move_start_at, cfg.move_cap_at);
-        const auto range = static_cast<long long>(max_pulse - min_pulse);
-        const auto elapsed = static_cast<long long>(duration - cfg.move_start_at);
-        const auto window = static_cast<long long>(cfg.move_cap_at - cfg.move_start_at);
-        return (std::min)(min_pulse + static_cast<int>(elapsed * range / window), cap_pulse);
+        const bool horizontal = counter_key == 'A' || counter_key == 'D';
+        const int direction_scale = horizontal
+            ? std::clamp(cfg.horizontal_scale_percent, 50, 150)
+            : std::clamp(cfg.vertical_scale_percent, 50, 150);
+        pulse *= direction_scale / 100.0;
+        return std::clamp(static_cast<int>(std::lround(pulse)), 1, cap_pulse);
     }
 
     void PerformDynamicStop(WORD vKey, int stop_pulse, AxisControl* axis, std::uint64_t generation)
@@ -290,7 +327,7 @@ namespace {
 
     void StartAxisPulse(WORD vKey, int move_duration_ms, AxisControl* axis)
     {
-        const int stop_pulse = CalculateStopPulse(move_duration_ms);
+        const int stop_pulse = CalculateStopPulse(move_duration_ms, vKey);
         const auto generation = axis->generation.fetch_add(1) + 1;
 
         {

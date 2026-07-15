@@ -19,7 +19,8 @@ namespace Keys {
         extern const char* LEGAL_TITLE, *LEGAL_SAVE, *LEGAL_REFRESH, *LEGAL_EDIT_HINT, *LEGAL_ADD_SOCD, *LEGAL_REMOVE_SOCD, *LEGAL_ADD_MWHEEL, *LEGAL_REMOVE_MWHEEL;
         extern const char* LEGAL_ADD_MS, *LEGAL_REMOVE_MS, *LEGAL_ADD_CHSW, *LEGAL_REMOVE_CHSW, *LEGAL_NORMAL, *LEGAL_ATTACK, *LEGAL_CUSTOM_HINT;
         extern const char* LEGAL_STATUS_PREFIX, *LEGAL_SAVED, *LEGAL_NOT_FOUND;
-        extern const char* Rage_TITLE, *Rage_PLACEHOLDER, *Rage_QUICKSTOP, *Rage_MIN_PULSE, *Rage_MAX_PULSE, *Rage_CAP_PULSE, *Rage_MOVE_START, *Rage_MOVE_CAP;
+        extern const char* Rage_TITLE, *Rage_PLACEHOLDER, *Rage_QUICKSTOP, *Rage_MICRO_PULSE, *Rage_MIN_PULSE, *Rage_MAX_PULSE, *Rage_CAP_PULSE;
+        extern const char* Rage_MICRO_MOVE, *Rage_MOVE_START, *Rage_MOVE_CAP, *Rage_CURVE, *Rage_HORIZONTAL_SCALE, *Rage_VERTICAL_SCALE, *Rage_RECOMMENDED;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
 
         // ===== 修复：改成符合项目结构的 const char* 外部声明 =====
@@ -27,6 +28,7 @@ namespace Keys {
         extern const char* Rage_ENABLE_TEXT;
         extern const char* Rage_HINT_LINE1;
         extern const char* Rage_HINT_LINE2;
+        extern const char* Rage_HINT_LINE3;
         extern const char* Rage_REQ_ADMIN_TITLE;
         extern const char* Rage_REQ_ADMIN_MSG;
         extern const char* Rage_RISK_WARNING_TITLE;
