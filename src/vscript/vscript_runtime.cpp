@@ -1,5 +1,6 @@
 ﻿#include "vscript_internal.h"
 
+#include "quickstop.h"
 #include <TlHelp32.h>
 #include <Shellapi.h>
 #include <Shlwapi.h>
@@ -830,6 +831,29 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
+    }
+    if (name == L"SetQuickStopEnabled" && args.size() >= 1) {
+        const bool enabled = Truthy(args[0]);
+        std::wcout << L"[脚本] 请求设置自动急停开关: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        SetQuickStopEnabled(enabled);
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(true);
+    }
+    if (name == L"GetQuickStopEnabled") {
+        const bool enabled = IsQuickStopEnabled();
+        std::wcout << L"[脚本] 读取自动急停开关: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        return BoolValue(enabled);
+    }
+    if (name == L"SetQuickStopPaused" && args.size() >= 1) {
+        const bool paused = Truthy(args[0]);
+        std::wcout << L"[脚本] 请求设置自动急停暂停状态: " << (paused ? L"暂停" : L"恢复") << std::endl;
+        SetQuickStopPause(paused);
+        return BoolValue(true);
+    }
+    if (name == L"GetQuickStopPaused") {
+        const bool paused = IsQuickStopPaused();
+        std::wcout << L"[脚本] 读取自动急停暂停状态: " << (paused ? L"暂停中" : L"运行中") << std::endl;
+        return BoolValue(paused);
     }
     if (name == L"SetCrosshairEnabled" && args.size() >= 1) {
         ApplyCrosshairEnabled(Truthy(args[0]));

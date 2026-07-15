@@ -368,6 +368,10 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 | `SetProcessMute(process_name, muted)` | `string, bool` | `bool` | 设置进程静音 |
 | `SetDeathVolume(value)` | `float` | `bool` | 设置死亡静音音量参数 |
 | `SetDeathMute(enabled)` | `bool` | `bool` | 开关死亡静音功能 |
+| `SetQuickStopEnabled(enabled)` | `bool` | `bool` | 开关自动急停，并同步保存配置 |
+| `GetQuickStopEnabled()` | 无 | `bool` | 读取自动急停总开关状态 |
+| `SetQuickStopPaused(paused)` | `bool` | `bool` | 暂停或恢复自动急停脉冲执行 |
+| `GetQuickStopPaused()` | 无 | `bool` | 读取自动急停暂停状态 |
 
 ### 准星控制
 
@@ -687,6 +691,10 @@ string JudgeState(int hp){
 - `SetProcessMute`
 - `SetDeathVolume`
 - `SetDeathMute`
+- `SetQuickStopEnabled`
+- `GetQuickStopEnabled`
+- `SetQuickStopPaused`
+- `GetQuickStopPaused`
 - `SetCrosshairEnabled`
 - `SetCrosshairVisual`
 - `SetCrosshairConfig`

@@ -176,12 +176,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
     if (mx >= qsr->X && mx <= qsr->X + qsr->Width &&
         my >= qsr->Y && my <= qsr->Y + qsr->Height) {
         g_qsEnabled = !g_qsEnabled;
-        GetQSConfig().enabled = g_qsEnabled;
-        SaveQuickStopConfig();
-        if (g_qsEnabled)
-            StartQuickStopHook();
-        else
-            StopQuickStopHook();
+        SetQuickStopEnabled(g_qsEnabled);
         std::cout << "[急停] 开关: " << (g_qsEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;

@@ -1,0 +1,20 @@
+// @name: 狙击枪自动急停开关
+// @author: Codex
+// @provider: StrikeSense
+// @version: 2026.07.15
+// @notice: 手持 AWP、鸟狙、连狙时自动开启急停，切回其他武器时自动关闭。
+
+if(on:Changed("weapon_name")){
+    if(
+        weapon_name=="weapon_awp" ||
+        weapon_name=="weapon_ssg08" ||
+        weapon_name=="weapon_scar20" ||
+        weapon_name=="weapon_g3sg1"
+    ){
+        SetQuickStopEnabled(true);
+        Log("当前武器为狙，已自动开启急停: " + weapon_name);
+    }else{
+        SetQuickStopEnabled(false);
+        Log("当前武器非目标狙，已自动关闭急停: " + weapon_name);
+    }
+};

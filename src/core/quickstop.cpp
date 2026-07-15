@@ -24,6 +24,8 @@ static bool IsCS2Foreground()
 namespace fs = std::filesystem;
 
 static QuickStopConfig s_qsConfig;
+static HHOOK g_quickStopHook = nullptr;
+static std::atomic<bool> g_hookRunning{ false };
 
 static std::wstring GetQuickStopPath()
 {
@@ -33,6 +35,34 @@ static std::wstring GetQuickStopPath()
 QuickStopConfig& GetQSConfig()
 {
     return s_qsConfig;
+}
+
+bool IsQuickStopEnabled()
+{
+    return s_qsConfig.enabled;
+}
+
+void SetQuickStopEnabled(bool enabled, bool persist)
+{
+    if (s_qsConfig.enabled == enabled)
+    {
+        if (enabled && !g_hookRunning.load())
+        {
+            std::cout << "[急停] 当前配置为开启，但钩子未运行，准备自动补启动。" << std::endl;
+            StartQuickStopHook();
+        }
+        return;
+    }
+
+    s_qsConfig.enabled = enabled;
+    std::cout << "[急停] 自动急停开关已切换为: " << (enabled ? "开启" : "关闭") << std::endl;
+
+    if (persist) SaveQuickStopConfig();
+
+    if (enabled)
+        StartQuickStopHook();
+    else
+        StopQuickStopHook();
 }
 
 void LoadQuickStopConfig()
@@ -64,6 +94,11 @@ void LoadQuickStopConfig()
         gi("move_cap_at", s_qsConfig.move_cap_at);
 
         std::cout << "[急停] quickstop.json 加载成功。" << std::endl;
+        if (s_qsConfig.enabled)
+        {
+            std::cout << "[急停] 检测到配置中已开启自动急停，准备自动启动钩子。" << std::endl;
+            StartQuickStopHook();
+        }
     }
     catch (const std::exception& e) {
         std::cerr << "[急停] 加载失败: " << e.what() << std::endl;
@@ -322,9 +357,6 @@ void SetQuickStopPause(bool paused)
 bool IsQuickStopPaused() { return pause_jiting; }
 
 // ===== 全局键盘钩子 =====
-static HHOOK g_quickStopHook = nullptr;
-static std::atomic<bool> g_hookRunning{ false };
-
 static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode == HC_ACTION)
