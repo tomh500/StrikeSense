@@ -12,17 +12,8 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 
-// CS2 窗口标题匹配
-static bool IsCS2Foreground()
-{
-    HWND fg = GetForegroundWindow();
-    if (!fg) return false;
-    wchar_t title[256];
-    GetWindowTextW(fg, title, 256);
-    std::wstring wt(title);
-    return (wt.find(L"Counter-Strike 2") != std::string::npos ||
-            wt.find(L"反恐精英：全球攻势") != std::string::npos);
-}
+
+
 
 namespace fs = std::filesystem;
 

@@ -51,7 +51,7 @@ void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
     pen.SetStartCap(LineCapRound);
     pen.SetEndCap(LineCapRound);
     SolidBrush brush(color);
-    const float multiplier = 0.5f + scale * 2.5f;
+    const float multiplier = (std::max)(0.05f, scale * 5.f);
     const float radius = 20.f * scale;
     const float scaledGap = gap * multiplier;
     const float scaledLength = length * multiplier;
@@ -277,7 +277,7 @@ void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float s
     g_crosshairB = std::clamp(b, 0, 255);
     g_crosshairStyle = std::clamp(style, 0, evolutionui::kCrosshairStyleCount - 1);
     g_crosshairThickness = std::clamp(thickness, 1, 10);
-    g_crosshairScale = std::clamp(scale, 0.1f, 0.6f);
+    g_crosshairScale = std::clamp(scale, 0.02f, 0.6f);
     g_crosshairGap = std::clamp(gap, 0, 16);
     g_crosshairLength = std::clamp(length, 4, 30);
     g_crosshairCenterDot = centerDot;
@@ -404,7 +404,7 @@ static void PaintEvolutionPageLegacy(Gdiplus::Graphics& g, int cx, int cw, int H
     g.DrawString(scaleLabel.c_str(), -1, &sF, PointF((float)scX, (float)yRow2), &tdCol);
     
     int scBarX = scX + 40, scBarW = 100;
-    ui::DrawSlider(g, scBarX, yRow2, scBarW, (g_crosshairScale - 0.1f) / 0.5f);
+    ui::DrawSlider(g, scBarX, yRow2, scBarW, (g_crosshairScale - 0.02f) / 0.58f);
     wchar_t scT[8]; swprintf_s(scT, L"%.2f", g_crosshairScale); g.DrawString(scT, -1, &sF, PointF((float)(scBarX + scBarW + 4), (float)(yRow2 - 2)), &tdCol);
 
     // 7. 下拉样式选择（核心映射化）
@@ -519,7 +519,7 @@ static void CheckEvolutionClickLegacy(HWND hw, int mx, int my) {
     int thBarX = cx + 10 + 40, thBarW = 80;
     if (ui::CheckSliderClick(mx, my, thBarX, yRow2, thBarW, val)) { g_crosshairThickness = 1 + (int)(val * 9.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int scBarX = thBarX + thBarW + 40 + 40, scBarW = 100;
-    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.1f + val * 0.5f; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.02f + val * 0.58f; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int ddX = scBarX + scBarW + 40 + 40, ddW = 100;
     if (my >= yRow2 - 2 && my <= yRow2 + 18 && mx >= ddX && mx <= ddX + ddW) { g_styleDropdownOpen = !g_styleDropdownOpen; InvalidateRect(hw, nullptr, FALSE); return; }
     if (g_styleDropdownOpen) {
@@ -654,9 +654,9 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     const int rgbY = bodyY + 88;
     const wchar_t* rgbLabels[] = { L"R", L"G", L"B" };
     const int rgbValues[] = { g_crosshairR, g_crosshairG, g_crosshairB };
-    const int rgbWidth = (std::max)(72, (sectionWidth - 126) / 3);
+    const int rgbWidth = (std::max)(72, (sectionWidth - 210) / 3);
     for (int i = 0; i < 3; ++i) {
-        const int x = sectionX + 14 + i * (rgbWidth + 36);
+        const int x = sectionX + 14 + i * (rgbWidth + 70);
         g.DrawString(rgbLabels[i], -1, &sF, PointF(static_cast<REAL>(x), static_cast<REAL>(rgbY)), &text);
         rgbSliderRects[i] = RectF(static_cast<REAL>(x + 18), static_cast<REAL>(rgbY - 6),
             static_cast<REAL>(rgbWidth), 24.f);
@@ -672,7 +672,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         _(i18n::Keys::EVO_THICKNESS), _(i18n::Keys::EVO_SCALE), L"中心间距", L"准星臂长"
     };
     const float parameterValues[] = {
-        (g_crosshairThickness - 1) / 9.f, (g_crosshairScale - 0.1f) / 0.5f,
+        (g_crosshairThickness - 1) / 9.f, (g_crosshairScale - 0.02f) / 0.58f,
         g_crosshairGap / 16.f, (g_crosshairLength - 4) / 26.f
     };
     const std::wstring displayValues[] = {
@@ -806,7 +806,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             static_cast<int>(parameterSliderRects[i].Y + 8.f),
             static_cast<int>(parameterSliderRects[i].Width), value)) continue;
         if (i == 0) g_crosshairThickness = 1 + static_cast<int>(std::lround(value * 9.f));
-        else if (i == 1) g_crosshairScale = 0.1f + value * 0.5f;
+        else if (i == 1) g_crosshairScale = 0.02f + value * 0.58f;
         else if (i == 2) g_crosshairGap = static_cast<int>(std::lround(value * 16.f));
         else g_crosshairLength = 4 + static_cast<int>(std::lround(value * 26.f));
         ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,

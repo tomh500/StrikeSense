@@ -927,7 +927,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
             std::clamp((int)ToNumber(args[2]), 0, 255),
             std::clamp((int)ToNumber(args[3]), 0, 5),
             std::clamp((int)ToNumber(args[4]), 1, 10),
-            (float)std::clamp(ToNumber(args[5]), 0.1, 0.6),
+            (float)std::clamp(ToNumber(args[5]), 0.02, 0.6),
             g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
@@ -941,7 +941,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
             std::clamp((int)ToNumber(args[3]), 0, 255),
             std::clamp((int)ToNumber(args[4]), 0, 5),
             std::clamp((int)ToNumber(args[5]), 1, 10),
-            (float)std::clamp(ToNumber(args[6]), 0.1, 0.6),
+            (float)std::clamp(ToNumber(args[6]), 0.02, 0.6),
             g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         SaveEvolutionParams();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
