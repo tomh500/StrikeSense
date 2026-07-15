@@ -20,6 +20,11 @@ bool IsCS2WindowActive()
         if (g_lenientCs2WindowDetection.load()) return true;
         HWND fg = GetForegroundWindow();
         if (!fg) return false;
+
+        DWORD foregroundProcessId = 0;
+        GetWindowThreadProcessId(fg, &foregroundProcessId);
+        if (foregroundProcessId == GetCurrentProcessId()) return false;
+
         wchar_t title[256];
         GetWindowTextW(fg, title, 256);
         std::wstring wt(title);

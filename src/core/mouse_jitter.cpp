@@ -16,7 +16,7 @@ namespace {
 
     std::atomic<bool> g_enabled{ false };
     std::atomic<bool> g_running{ false };
-    std::thread g_worker;
+    std::atomic<bool> g_workerActive{ false };
 
     void SendJitterStep(int direction)
     {
@@ -31,6 +31,7 @@ namespace {
     void WorkerLoop()
     {
         std::cout << "[多绑定脚本] 鼠标抖动线程已启动。" << std::endl;
+
         int direction = 1;
         const auto stepTime = std::chrono::microseconds(1000000 / kHz);
 
@@ -50,20 +51,25 @@ namespace {
             if (used < stepTime) std::this_thread::sleep_for(stepTime - used);
         }
 
+        g_workerActive.store(false);
         std::cout << "[多绑定脚本] 鼠标抖动线程已退出。" << std::endl;
     }
 
     void EnsureWorker()
     {
-        if (g_running.load()) return;
+        bool expectedInactive = false;
+        if (!g_workerActive.compare_exchange_strong(expectedInactive, true)) {
+            g_running.store(true);
+            return;
+        }
+
         g_running.store(true);
-        g_worker = std::thread(WorkerLoop);
+        std::thread(WorkerLoop).detach();
     }
 
     void StopWorker()
     {
         g_running.store(false);
-        if (g_worker.joinable()) g_worker.join();
     }
 }
 
