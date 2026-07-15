@@ -1,0 +1,12 @@
+// @name: Console Log Signal Demo
+// @provider: StrikeSense
+// @version: 2026.07.15
+// @notice: Run continuously. In CS2 console, execute: echoln /log hello or echoln testcommand
+
+if (TakeConsoleLogPrefix("/log ")) {
+    Log(console_log_taken_payload);
+}
+
+if (TakeConsoleLog("testcommand")) {
+    Log("detected testcommand");
+}

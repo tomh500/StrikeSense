@@ -1,4 +1,5 @@
 #include "pages.h"
+#include "console_log.h"
 #include "i18n.h"
 #include "mouse_jitter.h"
 #include "quickstop.h"
@@ -18,6 +19,7 @@ static Gdiplus::RectF g_RageToggleRect;
 
 static Gdiplus::RectF g_QSToggleRect;
 static Gdiplus::RectF g_MouseJitterToggleRect;
+static Gdiplus::RectF g_ConsoleLogToggleRect;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
 static constexpr int kQSSliderCount = 10;
@@ -120,6 +122,11 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g_MouseJitterToggleRect = RectF((REAL)(cx + 220), (REAL)(jitterY - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, jitterY - 4, mousejitter::IsEnabled());
 
+    const int consoleLogY = yBase + 68;
+    g.DrawString(_(i18n::Keys::Rage_CONSOLE_LOG), -1, &rF, PointF((REAL)(cx + 10), (REAL)consoleLogY), &tdCol);
+    g_ConsoleLogToggleRect = RectF((REAL)(cx + 220), (REAL)(consoleLogY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, cx + 220, consoleLogY - 4, consolelog::IsEnabled());
+
     if (!quickStopEnabled) return;
 
     // 读取最新值
@@ -147,7 +154,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int slW = cw - 280;
     if (slW < 100) slW = 100;
     for (int i = 0; i < kQSSliderCount; ++i) {
-        int sy = yBase + 74 + i * 34;
+        int sy = yBase + 108 + i * 34;
         const wchar_t* wlabel = _(defs[i].nameKey); 
         g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
@@ -170,7 +177,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     // 触发条件说明
-    const int hintY = yBase + 74 + kQSSliderCount * 34 + 8;
+    const int hintY = yBase + 108 + kQSSliderCount * 34 + 8;
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
@@ -233,11 +240,13 @@ void CheckRageClick(HWND hw, int mx, int my) {
         {
             if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
             if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
+            if (consolelog::IsEnabled()) consolelog::SetEnabled(true);
         }
         else
         {
             StopQuickStopForRageDisabled();
             mousejitter::StopForRageDisabled();
+            consolelog::StopForRageDisabled();
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -252,6 +261,16 @@ void CheckRageClick(HWND hw, int mx, int my) {
         mousejitter::SetEnabled(!mousejitter::IsEnabled());
         std::cout << "[多绑定脚本] UI 请求切换支持开关，实际状态: "
                   << (mousejitter::IsEnabled() ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    RectF* clr = &g_ConsoleLogToggleRect;
+    if (mx >= clr->X && mx <= clr->X + clr->Width &&
+        my >= clr->Y && my <= clr->Y + clr->Height) {
+        consolelog::SetEnabled(!consolelog::IsEnabled());
+        std::cout << "[控制台日志] UI 请求切换读控制台支持开关，实际状态: "
+                  << (consolelog::IsEnabled() ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
@@ -316,3 +335,13 @@ void CheckRageClick(HWND hw, int mx, int my) {
 }
 
 bool IsRageModeEnabled() { return g_rageEnabled; }
+
+void EnableRageModeFromLaunch(HWND hw)
+{
+    g_rageEnabled = true;
+    std::cout << "[超频配置] 检测到 -semirage 启动参数，已直接启用超频配置总开关。" << std::endl;
+    if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
+    if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
+    if (consolelog::IsEnabled()) consolelog::SetEnabled(true);
+    if (hw) InvalidateRect(hw, nullptr, FALSE);
+}

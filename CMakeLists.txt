@@ -51,6 +51,7 @@ set(SOURCES
     src/app/ui_common.cpp
     src/core/antistupid.cpp
     src/core/config.cpp
+    src/core/console_log.cpp
     src/core/flashoverlay.cpp
     src/core/gsi_server.cpp
     src/core/hotkey.cpp
@@ -83,6 +84,7 @@ set(HEADERS
     include/app/console.h
     include/core/antistupid.h
     include/core/config.h
+    include/core/console_log.h
     include/core/flashoverlay.h
     include/core/gsi_server.h
     include/core/hotkey.h

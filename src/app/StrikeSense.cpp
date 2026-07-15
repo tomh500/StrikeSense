@@ -5,6 +5,7 @@
 #include "steam_helper.h"
 #include "gsi_server.h"
 #include "config.h"
+#include "console_log.h"
 #include "sound_player.h"
 #include "antistupid.h"
 #include "i18n.h"
@@ -13,6 +14,7 @@
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
+#include <Shellapi.h>
 #include <commctrl.h>
 #include <gdiplus.h>
 #include <fstream>
@@ -112,6 +114,7 @@ static void RemoveTrayIcon(HWND hw);
 static void RestoreFromTray(HWND hw);
 static void ShowTrayMenu(HWND hw);
 static int ResolveCloseAction(HWND hw);
+static bool HasLaunchArg(const std::wstring& expected);
 int AddCS2vulkanDebugVersion();
 
 
@@ -131,9 +134,27 @@ static void LogTerminate()
     abort();
 }
 
+static bool HasLaunchArg(const std::wstring& expected)
+{
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argv) return false;
+
+    bool found = false;
+    for (int i = 1; i < argc; ++i) {
+        if (_wcsicmp(argv[i], expected.c_str()) == 0) {
+            found = true;
+            break;
+        }
+    }
+    LocalFree(argv);
+    return found;
+}
+
 // ===== WinMain =====
 // ===== 修正后的 wWinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
+    const bool launchSemiRage = HasLaunchArg(L"-semirage");
     // 互斥锁：防止多个实例同时运行
     std::set_terminate(LogTerminate);
     g_hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
@@ -166,6 +187,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     config::EnsureDirectoriesExist(); config::Load();
     LoadQuickStopConfig();
     mousejitter::LoadConfig();
+    consolelog::LoadConfig();
     sound::Init(); sound::PreloadSounds();
     if (gsi::Initialize()) gsi::StartServer();
 
@@ -182,6 +204,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     if (!hwMain) return FALSE;
     g_hwnd = hwMain;
     vscript::Initialize(hInst, hwMain);
+    if (launchSemiRage) EnableRageModeFromLaunch(hwMain);
     SetTimer(hwMain, 2001, 200, nullptr);
 
     // 页面初始化
@@ -218,6 +241,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
         }
     }
     mousejitter::Shutdown();
+    consolelog::Shutdown();
     StopQuickStopHook();
     gsi::StopServer(); gsi::Cleanup(); vscript::Shutdown(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);

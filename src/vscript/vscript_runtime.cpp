@@ -1,5 +1,6 @@
 ﻿#include "vscript_internal.h"
 
+#include "console_log.h"
 #include "mouse_jitter.h"
 #include "quickstop.h"
 #include <TlHelp32.h>
@@ -706,6 +707,18 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         const value previous = GetVarFromMap(s_prevVars, varName);
         return BoolValue(ToText(current) == ToText(args[1]) && ToText(previous) != ToText(current));
     }
+    if ((name == L"TakeConsoleLog" || name == L"ConsumeConsoleLog") && args.size() >= 1) {
+        return BoolValue(ConsumeConsoleLogExact(ToText(args[0])));
+    }
+    if (name == L"TakeConsoleLogContains" && args.size() >= 1) {
+        return BoolValue(ConsumeConsoleLogContains(ToText(args[0])));
+    }
+    if (name == L"TakeConsoleLogPrefix" && args.size() >= 1) {
+        return BoolValue(ConsumeConsoleLogPrefix(ToText(args[0])));
+    }
+    if (name == L"GetConsoleLogQueueSize") {
+        return NumberValue((double)s_consoleLogQueue.size());
+    }
     if (name == L"Delta" && args.size() >= 1) {
         const std::wstring varName = ToText(args[0]);
         return NumberValue(ToNumber(GetVar(varName)) - ToNumber(GetVarFromMap(s_prevVars, varName)));
@@ -869,6 +882,18 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"GetMouseJitterSupportEnabled") {
         const bool enabled = mousejitter::IsEnabled();
         std::wcout << L"[脚本] 读取多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        return BoolValue(enabled);
+    }
+    if (name == L"SetConsoleLogSupportEnabled" && args.size() >= 1) {
+        const bool enabled = Truthy(args[0]);
+        std::wcout << L"[脚本] 请求设置读控制台支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        consolelog::SetEnabled(enabled);
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(consolelog::IsEnabled() == enabled);
+    }
+    if (name == L"GetConsoleLogSupportEnabled") {
+        const bool enabled = consolelog::IsEnabled();
+        std::wcout << L"[脚本] 读取读控制台支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
         return BoolValue(enabled);
     }
     if (name == L"SetLenientCS2WindowDetection" && args.size() >= 1) {

@@ -335,6 +335,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\ui_common.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\antistupid.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\config.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\console_log.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\flashoverlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\gsi_server.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\hotkey.cpp" />
@@ -364,6 +365,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\antistupid.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\config.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\console_log.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\flashoverlay.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\gsi_server.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\hotkey.h" />

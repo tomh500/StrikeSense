@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <codecvt>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -32,6 +33,7 @@ std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 std::unordered_map<std::wstring, ULONGLONG> s_cooldownTicks;
 std::unordered_set<std::wstring> s_stateKeys;
 std::unordered_set<std::wstring> s_constVars;
+std::deque<std::wstring> s_consoleLogQueue;
 execution_context* s_activeExecution = nullptr;
 bool s_currentPrivilegedAllowed = false;
 std::wstring s_currentScriptPath;
@@ -487,7 +489,11 @@ bool ScriptHasEdgeGuard(const std::wstring& path)
     std::wstring script = LoadScriptCached(path);
     return script.find(L"on:") != std::wstring::npos ||
         script.find(L"Changed(") != std::wstring::npos ||
-        script.find(L"ChangedTo(") != std::wstring::npos;
+        script.find(L"ChangedTo(") != std::wstring::npos ||
+        script.find(L"TakeConsoleLog(") != std::wstring::npos ||
+        script.find(L"TakeConsoleLogContains(") != std::wstring::npos ||
+        script.find(L"TakeConsoleLogPrefix(") != std::wstring::npos ||
+        script.find(L"ConsumeConsoleLog(") != std::wstring::npos;
 }
 
 bool ConfirmContinuousAllowed(const std::wstring& path)
@@ -607,6 +613,68 @@ void SetPrevAlias(const std::wstring& name, const std::wstring& source)
     SetStateVar(name, GetVarFromMap(s_prevVars, source));
 }
 
+namespace {
+    bool StartsWithDetail(const std::wstring& text, const std::wstring& prefix)
+    {
+        return text.rfind(prefix, 0) == 0;
+    }
+
+    void SetTakenConsoleLogVars(const std::wstring& text, const std::wstring& payload, bool matched)
+    {
+        s_vars[L"console_log_taken_text"] = TextValue(matched ? text : L"void");
+        s_vars[L"console_log_taken_payload"] = TextValue(matched ? payload : L"void");
+        s_vars[L"console_log_taken_matched"] = BoolValue(matched);
+        s_vars[L"console_log_queue_size"] = NumberValue((double)s_consoleLogQueue.size());
+    }
+}
+
+bool ConsumeConsoleLogExact(const std::wstring& expected)
+{
+    const std::wstring target = Trim(expected);
+    for (auto it = s_consoleLogQueue.begin(); it != s_consoleLogQueue.end(); ++it) {
+        if (*it != target) continue;
+        const std::wstring text = *it;
+        s_consoleLogQueue.erase(it);
+        SetTakenConsoleLogVars(text, L"", true);
+        std::wcout << L"[脚本] 已消费控制台日志精确匹配: " << text << std::endl;
+        return true;
+    }
+    SetTakenConsoleLogVars(L"", L"", false);
+    return false;
+}
+
+bool ConsumeConsoleLogContains(const std::wstring& needle)
+{
+    const std::wstring target = Trim(needle);
+    for (auto it = s_consoleLogQueue.begin(); it != s_consoleLogQueue.end(); ++it) {
+        if (it->find(target) == std::wstring::npos) continue;
+        const std::wstring text = *it;
+        s_consoleLogQueue.erase(it);
+        SetTakenConsoleLogVars(text, L"", true);
+        std::wcout << L"[脚本] 已消费控制台日志包含匹配: " << text << std::endl;
+        return true;
+    }
+    SetTakenConsoleLogVars(L"", L"", false);
+    return false;
+}
+
+bool ConsumeConsoleLogPrefix(const std::wstring& prefix)
+{
+    const std::wstring target = prefix;
+    for (auto it = s_consoleLogQueue.begin(); it != s_consoleLogQueue.end(); ++it) {
+        if (!StartsWithDetail(*it, target)) continue;
+        const std::wstring text = *it;
+        const std::wstring payload = Trim(text.substr(target.size()));
+        s_consoleLogQueue.erase(it);
+        SetTakenConsoleLogVars(text, payload, true);
+        std::wcout << L"[脚本] 已消费控制台日志前缀匹配: " << text
+                   << L"，payload=" << payload << std::endl;
+        return true;
+    }
+    SetTakenConsoleLogVars(L"", L"", false);
+    return false;
+}
+
 void RegisterBuildWarning()
 {
     if (s_runtimeCapability == buildcode::userdebug && GetBuildCode() == buildcode::user && s_owner) {
@@ -679,6 +747,86 @@ bool IsOemUnlockValid()
     if (!fs::exists(path)) return false;
     std::wstring key = Trim(ReadAllWide(path));
     return ParseOemKey(key);
+}
+
+namespace {
+    bool StartsWithText(const std::wstring& text, const std::wstring& prefix)
+    {
+        return text.rfind(prefix, 0) == 0;
+    }
+
+    void SetPersistentScriptVar(const std::wstring& name, const detail::value& v)
+    {
+        detail::s_vars[name] = v;
+    }
+
+    std::wstring AfterPrefixTrimmed(const std::wstring& text, size_t prefixSize)
+    {
+        if (text.size() <= prefixSize) return L"";
+        return detail::Trim(text.substr(prefixSize));
+    }
+}
+
+void UpdateFromConsoleLog(const std::wstring& raw, const std::wstring& text)
+{
+    std::lock_guard<std::recursive_mutex> lock(s_mutex);
+    static int consoleLogCount = 0;
+    ++consoleLogCount;
+
+    const std::wstring clean = Trim(text);
+    const bool isScriptSignal = clean == L"/log" || StartsWithText(clean, L"/log ");
+    const std::wstring payload = isScriptSignal ? AfterPrefixTrimmed(clean, 4) : L"";
+    if (!clean.empty()) {
+        s_consoleLogQueue.push_back(clean);
+        while (s_consoleLogQueue.size() > 256) s_consoleLogQueue.pop_front();
+    }
+
+    bool isChat = false;
+    std::wstring channel = L"void";
+    std::wstring player = L"void";
+    std::wstring location = L"void";
+    std::wstring message = L"void";
+
+    if (StartsWithText(clean, L"[")) {
+        const size_t channelEnd = clean.find(L']');
+        if (channelEnd != std::wstring::npos) {
+            const std::wstring rest = Trim(clean.substr(channelEnd + 1));
+            size_t colon = rest.find(L'：');
+            if (colon == std::wstring::npos) colon = rest.find(L':');
+            if (colon != std::wstring::npos) {
+                isChat = true;
+                channel = clean.substr(1, channelEnd - 1);
+                std::wstring playerPart = Trim(rest.substr(0, colon));
+                message = Trim(rest.substr(colon + 1));
+
+                size_t locationSep = playerPart.find(L'﹫');
+                if (locationSep == std::wstring::npos) locationSep = playerPart.find(L'@');
+                if (locationSep != std::wstring::npos) {
+                    player = Trim(playerPart.substr(0, locationSep));
+                    location = Trim(playerPart.substr(locationSep + 1));
+                } else {
+                    player = playerPart;
+                }
+            }
+        }
+    }
+
+    SetPersistentScriptVar(L"console_log_raw", TextValue(raw));
+    SetPersistentScriptVar(L"console_log_text", TextValue(clean));
+    SetPersistentScriptVar(L"console_log_count", NumberValue((double)consoleLogCount));
+    SetPersistentScriptVar(L"console_log_has_line", BoolValue(true));
+    SetPersistentScriptVar(L"console_log_is_script_signal", BoolValue(isScriptSignal));
+    SetPersistentScriptVar(L"console_log_command", TextValue(isScriptSignal ? L"/log" : L"void"));
+    SetPersistentScriptVar(L"console_log_payload", TextValue(isScriptSignal ? payload : L"void"));
+    SetPersistentScriptVar(L"console_log_is_chat", BoolValue(isChat));
+    SetPersistentScriptVar(L"console_log_channel", TextValue(channel));
+    SetPersistentScriptVar(L"console_log_player", TextValue(player));
+    SetPersistentScriptVar(L"console_log_location", TextValue(location));
+    SetPersistentScriptVar(L"console_log_message", TextValue(message));
+    SetPersistentScriptVar(L"console_log_queue_size", NumberValue((double)s_consoleLogQueue.size()));
+
+    std::wcout << L"[脚本] 已更新控制台日志变量，第 " << consoleLogCount
+               << L" 行，内容=" << clean << std::endl;
 }
 
 void UpdateFromGsi(const nlohmann::json& state)

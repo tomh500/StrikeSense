@@ -87,6 +87,7 @@ void i18n::Init() {
     cn[Keys::Rage_HORIZONTAL_SCALE] = L"横向 Peek 倍率 (%)"; en[Keys::Rage_HORIZONTAL_SCALE] = L"Horizontal Peek (%)";
     cn[Keys::Rage_VERTICAL_SCALE] = L"前后移动倍率 (%)"; en[Keys::Rage_VERTICAL_SCALE] = L"Forward/Back (%)";
     cn[Keys::Rage_MOUSE_JITTER] = L"为多绑定的脚本提供支持"; en[Keys::Rage_MOUSE_JITTER] = L"Support multi-bind scripts";
+    cn[Keys::Rage_CONSOLE_LOG] = L"为读控制台的方法提供支持"; en[Keys::Rage_CONSOLE_LOG] = L"Support console.log reader";
     cn[Keys::ITEM_TITLE] = L"道具助手"; en[Keys::ITEM_TITLE] = L"Item Helper";
     cn[Keys::ITEM_PLACEHOLDER] = L"功能开发中..."; en[Keys::ITEM_PLACEHOLDER] = L"Coming soon...";
 
@@ -190,6 +191,7 @@ namespace i18n { namespace Keys {
     const char *Rage_TITLE="Rage_TITLE",*Rage_PLACEHOLDER="Rage_PLACEHOLDER",*Rage_QUICKSTOP="Rage_QUICKSTOP",*Rage_MICRO_PULSE="Rage_MICRO_PULSE",*Rage_MIN_PULSE="Rage_MIN_PULSE",*Rage_MAX_PULSE="Rage_MAX_PULSE",*Rage_CAP_PULSE="Rage_CAP_PULSE";
     const char *Rage_MICRO_MOVE="Rage_MICRO_MOVE",*Rage_MOVE_START="Rage_MOVE_START",*Rage_MOVE_CAP="Rage_MOVE_CAP",*Rage_CURVE="Rage_CURVE",*Rage_HORIZONTAL_SCALE="Rage_HORIZONTAL_SCALE",*Rage_VERTICAL_SCALE="Rage_VERTICAL_SCALE";
     const char* Rage_MOUSE_JITTER = "Rage_MOUSE_JITTER";
+    const char* Rage_CONSOLE_LOG = "Rage_CONSOLE_LOG";
     const char *ITEM_TITLE="ITEM_TITLE",*ITEM_PLACEHOLDER="ITEM_PLACEHOLDER";
     const char* EVO_HINT_MUTE = "evo_hint_mute";
     const char* EVO_STATUS_DISABLED = "evo_status_disabled";

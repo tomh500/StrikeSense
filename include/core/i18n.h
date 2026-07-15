@@ -22,6 +22,7 @@ namespace Keys {
         extern const char* Rage_TITLE, *Rage_PLACEHOLDER, *Rage_QUICKSTOP, *Rage_MICRO_PULSE, *Rage_MIN_PULSE, *Rage_MAX_PULSE, *Rage_CAP_PULSE;
         extern const char* Rage_MICRO_MOVE, *Rage_MOVE_START, *Rage_MOVE_CAP, *Rage_CURVE, *Rage_HORIZONTAL_SCALE, *Rage_VERTICAL_SCALE;
         extern const char* Rage_MOUSE_JITTER;
+        extern const char* Rage_CONSOLE_LOG;
         extern const char* ITEM_TITLE, *ITEM_PLACEHOLDER;
 
         // ===== 修复：改成符合项目结构的 const char* 外部声明 =====

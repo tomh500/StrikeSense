@@ -43,6 +43,7 @@ bool EnsureOemUnlockFile();
 bool IsOemUnlockValid();
 
 void UpdateFromGsi(const nlohmann::json& state);
+void UpdateFromConsoleLog(const std::wstring& raw, const std::wstring& text);
 void TickContinuousScripts();
 bool ExecuteScriptFile(const std::wstring& path);
 

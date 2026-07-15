@@ -176,6 +176,11 @@ GSI 中收到的叶子字段会尽量同步成 `gsi_...` 变量。
 | `ChangedTo(name, value)` | `string, any` | `bool` | 是否从别的值切换到了指定值 |
 | `Delta(name)` | `string` | `number` | 当前数值减去上一帧数值 |
 | `Cooldown(key, ms)` | `string, number` | `bool` | 冷却通过返回 `true`，冷却中返回 `false` |
+| `TakeConsoleLog(text)` | `string` | `bool` | 从控制台日志队列中精确匹配并消费一条日志；匹配后同一条不会再次触发 |
+| `ConsumeConsoleLog(text)` | `string` | `bool` | `TakeConsoleLog` 的同义函数 |
+| `TakeConsoleLogContains(text)` | `string` | `bool` | 从控制台日志队列中匹配包含指定文本的一条日志并消费 |
+| `TakeConsoleLogPrefix(prefix)` | `string` | `bool` | 从控制台日志队列中匹配指定前缀的一条日志并消费，并写入 `console_log_taken_payload` |
+| `GetConsoleLogQueueSize()` | 无 | `number` | 返回当前尚未被消费的控制台日志数量 |
 
 示例：
 
@@ -199,6 +204,56 @@ if(Cooldown("live_popup", 3000)){
 
 `Changed(...)` 和 `ChangedTo(...)` 本身就是边沿条件，可以直接用于持续脚本。
 系统也兼容 `on:Changed(...)`，但额外的 `on:` 没有必要。
+
+### 控制台日志事件
+
+开启超频配置里的“为读控制台的方法提供支持”后，StrikeSense 会监听 CS2 的 `console.log` 新增内容。开启时会跳到文件末尾，只读取之后新增的日志，避免把历史 `echoln` 一次性重放。
+
+脚本可以读取最近一条日志变量：
+
+| 变量 | 类型 | 说明 |
+| --- | --- | --- |
+| `console_log_raw` | `string` | 原始日志行，包含时间前缀 |
+| `console_log_text` | `string` | 去掉时间前缀后的日志内容 |
+| `console_log_count` | `number` | 新增日志计数 |
+| `console_log_queue_size` | `number` | 尚未被 `TakeConsoleLog*` 消费的日志数量 |
+| `console_log_is_script_signal` | `bool` | 最近一行是否为 `/log ...` |
+| `console_log_payload` | `string` | 最近一行 `/log ...` 后面的内容 |
+| `console_log_is_chat` | `bool` | 最近一行是否被解析为玩家聊天 |
+| `console_log_channel` | `string` | 聊天频道，例如 `ALL`、`CT` |
+| `console_log_player` | `string` | 聊天玩家名 |
+| `console_log_location` | `string` | 聊天位置，没有则为 `void` |
+| `console_log_message` | `string` | 聊天内容 |
+| `console_log_taken_text` | `string` | 最近一次 `TakeConsoleLog*` 消费到的完整文本 |
+| `console_log_taken_payload` | `string` | 最近一次 `TakeConsoleLogPrefix(prefix)` 消费到的前缀后文本 |
+| `console_log_taken_matched` | `bool` | 最近一次消费函数是否匹配成功 |
+
+推荐使用消费式 API 写触发逻辑。消费成功后，同一条日志会从队列中移除，不会在下一轮持续脚本里重复执行：
+
+```cpp
+// 游戏控制台执行：echoln testcommand
+if(TakeConsoleLog("testcommand")){
+    Log("检测到 testcommand");
+}
+
+// 游戏控制台执行：echoln /log hello
+if(TakeConsoleLogPrefix("/log ")){
+    Log(console_log_taken_payload);
+}
+
+// 任意日志或玩家聊天里包含指定文本时触发
+if(TakeConsoleLogContains("rush b")){
+    Log("检测到 rush b");
+}
+```
+
+如果只关心最近一行，也可以使用变量式写法：
+
+```cpp
+if(Changed("console_log_count") && console_log_text == "testcommand"){
+    Log("最近一行是 testcommand");
+}
+```
 
 ## 第一个实用脚本
 
@@ -381,6 +436,8 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 | `GetQuickStopPaused()` | 无 | `bool` | 读取自动急停暂停状态 |
 | `SetMouseJitterSupportEnabled(enabled)` | `bool` | `bool` | 开关“为多绑定的脚本提供支持”；开启要求超频配置已启用，且只在 CS2 前台抖动 |
 | `GetMouseJitterSupportEnabled()` | 无 | `bool` | 读取多绑定脚本支持开关状态 |
+| `SetConsoleLogSupportEnabled(enabled)` | `bool` | `bool` | 开关“为读控制台的方法提供支持”；开启要求超频配置已启用，并会同步刷新 UI |
+| `GetConsoleLogSupportEnabled()` | 无 | `bool` | 读取读控制台支持开关状态 |
 | `SetLenientCS2WindowDetection(enabled)` | `bool` | `bool` | 开关“宽容检测游戏窗口”；开启后公共前台检测始终返回真，并同步刷新 UI |
 | `GetLenientCS2WindowDetection()` | 无 | `bool` | 读取宽容检测游戏窗口开关状态 |
 | `IsCS2WindowActive()` | 无 | `bool` | 读取当前公共 CS2 前台检测结果 |
@@ -711,6 +768,13 @@ string JudgeState(int hp){
 - `GetQuickStopPaused`
 - `SetMouseJitterSupportEnabled`
 - `GetMouseJitterSupportEnabled`
+- `SetConsoleLogSupportEnabled`
+- `GetConsoleLogSupportEnabled`
+- `TakeConsoleLog`
+- `ConsumeConsoleLog`
+- `TakeConsoleLogContains`
+- `TakeConsoleLogPrefix`
+- `GetConsoleLogQueueSize`
 - `SetLenientCS2WindowDetection`
 - `GetLenientCS2WindowDetection`
 - `IsCS2WindowActive`
@@ -831,6 +895,7 @@ for(int i=0; i<Size(accounts); i++){
 - `vscript_examples/syntax_showcase.vscript`
 - `vscript_examples/steam_accounts_showcase.vscript`
 - `vscript_examples/quickstop_snipers_only.vscript`
+- `vscript_examples/console_log_signal.vscript`
 - `vscript_examples/sniper_crosshair.vscrpit`
 
 文件选择器同时兼容标准扩展名 `.vscript` 和早期示例使用的拼写 `.vscrpit`。

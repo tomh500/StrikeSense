@@ -12,6 +12,7 @@
 #include <SDL_mixer.h>
 #include <gdiplus.h>
 #include <chrono>
+#include <deque>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -82,6 +83,7 @@ extern std::unordered_map<std::wstring, std::wstring> s_scriptCache;
 extern std::unordered_map<std::wstring, ULONGLONG> s_cooldownTicks;
 extern std::unordered_set<std::wstring> s_stateKeys;
 extern std::unordered_set<std::wstring> s_constVars;
+extern std::deque<std::wstring> s_consoleLogQueue;
 extern execution_context* s_activeExecution;
 extern bool s_currentPrivilegedAllowed;
 extern std::wstring s_currentScriptPath;
@@ -206,6 +208,9 @@ bool TryExecuteWhile(const std::wstring& stmt);
 bool TryExecuteFor(const std::wstring& stmt);
 void SetJsonVar(const std::wstring& name, const nlohmann::json& j, const char* key);
 void SetPrevAlias(const std::wstring& name, const std::wstring& source);
+bool ConsumeConsoleLogExact(const std::wstring& expected);
+bool ConsumeConsoleLogContains(const std::wstring& needle);
+bool ConsumeConsoleLogPrefix(const std::wstring& prefix);
 void RegisterBuildWarning();
 
 } // namespace vscript::detail
