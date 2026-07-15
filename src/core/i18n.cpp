@@ -43,6 +43,11 @@ void i18n::Init() {
     cn[Keys::EVO_STYLE_HOLLOW] = L"空心圆"; en[Keys::EVO_STYLE_HOLLOW] = L"Hollow";
     cn[Keys::EVO_STYLE_SOLID] = L"实心圆"; en[Keys::EVO_STYLE_SOLID] = L"Solid";
     cn[Keys::EVO_STYLE_CLASSIC] = L"经典"; en[Keys::EVO_STYLE_CLASSIC] = L"Classic";
+    cn["EVO_STYLE_CROSS"] = L"分离十字"; en["EVO_STYLE_CROSS"] = L"Cross";
+    cn["EVO_STYLE_CORNERS"] = L"四角标"; en["EVO_STYLE_CORNERS"] = L"Corners";
+    cn["EVO_STYLE_T"] = L"T 型"; en["EVO_STYLE_T"] = L"T Shape";
+    cn["EVO_CROSSHAIR_ON"] = L"已启用"; en["EVO_CROSSHAIR_ON"] = L"Enabled";
+    cn["EVO_CROSSHAIR_OFF"] = L"关闭时隐藏参数"; en["EVO_CROSSHAIR_OFF"] = L"Options hidden";
     cn[Keys::EVO_WAITING_KEY] = L"按下任何字母键或数字键..."; en[Keys::EVO_WAITING_KEY] = L"Press any letter or number...";
     cn[Keys::EVO_CLICK_MODIFY] = L"点击修改快捷键"; en[Keys::EVO_CLICK_MODIFY] = L"Click to rebind";
     cn[Keys::EVO_STATUS_NORMAL] = L"正常"; en[Keys::EVO_STATUS_NORMAL] = L"Normal";

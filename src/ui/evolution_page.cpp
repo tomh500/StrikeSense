@@ -5,6 +5,9 @@
 #include <nlohmann/json.hpp>
 #include <thread>
 #include <atomic>
+#include <array>
+#include <cmath>
+#include <iostream>
 #include "normalgen.h"
 #include "StrikeSense.h"
 #include "Hotkey.h"
@@ -21,6 +24,114 @@ bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷
 bool g_isBindingItemHelperHotkey = false; // 添加这行：标记是否正在录入道具助手快捷键
 
 static Gdiplus::RectF g_lenientWindowToggleRect;
+
+namespace evolutionui {
+
+constexpr int kCrosshairStyleCount = 6;
+bool volumeExpanded = true;
+bool crosshairExpanded = false;
+Gdiplus::RectF volumeHeaderRect;
+Gdiplus::RectF crosshairHeaderRect;
+Gdiplus::RectF crosshairEnableRect;
+Gdiplus::RectF hotkeyRect;
+Gdiplus::RectF centerDotRect;
+Gdiplus::RectF volumeSliderRect;
+std::array<Gdiplus::RectF, kCrosshairStyleCount> styleRects;
+std::array<Gdiplus::RectF, 3> rgbSliderRects;
+std::array<Gdiplus::RectF, 4> parameterSliderRects;
+
+bool Hit(const Gdiplus::RectF& rect, int x, int y)
+{
+    return x >= rect.X && x <= rect.X + rect.Width
+        && y >= rect.Y && y <= rect.Y + rect.Height;
+}
+
+void DrawSectionHeader(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
+    const wchar_t* title, bool expanded, bool canExpand)
+{
+    using namespace Gdiplus;
+    SolidBrush background(Color(255, 222, 239, 251));
+    SolidBrush titleBrush(Color(255, 30, 60, 100));
+    SolidBrush arrowBrush(canExpand ? Color(255, 45, 125, 180) : Color(150, 120, 145, 165));
+    Pen border(Color(255, 155, 205, 235), 1.0f);
+    Font titleFont(L"Microsoft YaHei", 10, FontStyleBold);
+    g.FillRectangle(&background, rect);
+    g.DrawRectangle(&border, rect);
+    g.DrawString(title, -1, &titleFont, PointF(rect.X + 34.f, rect.Y + 8.f), &titleBrush);
+    PointF arrow[3];
+    if (expanded && canExpand) {
+        arrow[0] = PointF(rect.X + 12.f, rect.Y + 14.f);
+        arrow[1] = PointF(rect.X + 24.f, rect.Y + 14.f);
+        arrow[2] = PointF(rect.X + 18.f, rect.Y + 21.f);
+    } else {
+        arrow[0] = PointF(rect.X + 14.f, rect.Y + 10.f);
+        arrow[1] = PointF(rect.X + 14.f, rect.Y + 23.f);
+        arrow[2] = PointF(rect.X + 22.f, rect.Y + 16.5f);
+    }
+    g.FillPolygon(&arrowBrush, arrow, 3);
+}
+
+void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
+    Gdiplus::Color color, int style, float thickness, float scale,
+    int gap, int length, bool centerDot)
+{
+    using namespace Gdiplus;
+    Pen pen(color, thickness);
+    pen.SetStartCap(LineCapRound);
+    pen.SetEndCap(LineCapRound);
+    SolidBrush brush(color);
+    const float multiplier = 0.5f + scale * 2.5f;
+    const float radius = 20.f * scale;
+    const float scaledGap = gap * multiplier;
+    const float scaledLength = length * multiplier;
+
+    switch (style) {
+    case 0:
+        g.DrawEllipse(&pen, centerX - radius, centerY - radius, radius * 2.f, radius * 2.f);
+        g.DrawLine(&pen, centerX - radius - 4.f, centerY, centerX - radius + 1.f, centerY);
+        g.DrawLine(&pen, centerX + radius - 1.f, centerY, centerX + radius + 4.f, centerY);
+        g.DrawLine(&pen, centerX, centerY - radius - 4.f, centerX, centerY - radius + 1.f);
+        g.DrawLine(&pen, centerX, centerY + radius - 1.f, centerX, centerY + radius + 4.f);
+        break;
+    case 1:
+        g.FillEllipse(&brush, centerX - radius, centerY - radius, radius * 2.f, radius * 2.f);
+        break;
+    case 2:
+        g.DrawLine(&pen, centerX - scaledLength, centerY, centerX + scaledLength, centerY);
+        g.DrawLine(&pen, centerX, centerY - scaledLength, centerX, centerY + scaledLength);
+        break;
+    case 3:
+        g.DrawLine(&pen, centerX - scaledGap - scaledLength, centerY, centerX - scaledGap, centerY);
+        g.DrawLine(&pen, centerX + scaledGap, centerY, centerX + scaledGap + scaledLength, centerY);
+        g.DrawLine(&pen, centerX, centerY - scaledGap - scaledLength, centerX, centerY - scaledGap);
+        g.DrawLine(&pen, centerX, centerY + scaledGap, centerX, centerY + scaledGap + scaledLength);
+        break;
+    case 4:
+        g.DrawLine(&pen, centerX - scaledGap - scaledLength, centerY - scaledGap - scaledLength,
+            centerX - scaledGap, centerY - scaledGap);
+        g.DrawLine(&pen, centerX + scaledGap, centerY - scaledGap,
+            centerX + scaledGap + scaledLength, centerY - scaledGap - scaledLength);
+        g.DrawLine(&pen, centerX - scaledGap - scaledLength, centerY + scaledGap + scaledLength,
+            centerX - scaledGap, centerY + scaledGap);
+        g.DrawLine(&pen, centerX + scaledGap, centerY + scaledGap,
+            centerX + scaledGap + scaledLength, centerY + scaledGap + scaledLength);
+        break;
+    case 5:
+        g.DrawLine(&pen, centerX - scaledGap - scaledLength, centerY, centerX - scaledGap, centerY);
+        g.DrawLine(&pen, centerX + scaledGap, centerY, centerX + scaledGap + scaledLength, centerY);
+        g.DrawLine(&pen, centerX, centerY + scaledGap, centerX, centerY + scaledGap + scaledLength);
+        break;
+    default:
+        break;
+    }
+
+    if (centerDot && style != 1) {
+        const float dotRadius = (std::max)(1.5f, thickness * 0.8f);
+        g.FillEllipse(&brush, centerX - dotRadius, centerY - dotRadius, dotRadius * 2.f, dotRadius * 2.f);
+    }
+}
+
+} // namespace evolutionui
 
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
@@ -40,6 +151,8 @@ void SaveEvolutionParams() {
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
     j["crosshair_style"] = g_crosshairStyle;
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
+    j["crosshair_gap"] = g_crosshairGap; j["crosshair_length"] = g_crosshairLength;
+    j["crosshair_center_dot"] = g_crosshairCenterDot;
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -88,6 +201,8 @@ void LoadEvolutionParams() {
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
         gv("crosshair_scale", g_crosshairScale);
+        gv("crosshair_gap", g_crosshairGap); gv("crosshair_length", g_crosshairLength);
+        gb("crosshair_center_dot", g_crosshairCenterDot);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -111,7 +226,8 @@ void LoadEvolutionParams() {
         gv("item_helper_key_next", g_itemHelperKeyNext);
         gv("item_helper_key_sel", g_itemHelperKeySelect);
 
-        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale);
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
+            g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         ApplyCrosshairEnabled(g_crosshairEnabled);
         
     } catch (...) {
@@ -139,20 +255,9 @@ static LRESULT CALLBACK CrosshairWndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) 
         Graphics gx(md); gx.SetSmoothingMode(SmoothingModeAntiAlias);
         int cx = W / 2, cy = H / 2;
         Color crCol(255, (BYTE)g_crosshairR, (BYTE)g_crosshairG, (BYTE)g_crosshairB);
-        Pen crPen(crCol, (REAL)g_crosshairThickness); float sz = 20.f * g_crosshairScale;
-        if (g_crosshairStyle == 0) {
-            gx.DrawEllipse(&crPen, cx - sz, cy - sz, sz * 2, sz * 2);
-            gx.DrawLine(&crPen, (REAL)(cx - sz - 4), (REAL)cy, (REAL)(cx - sz + 1), (REAL)cy);
-            gx.DrawLine(&crPen, (REAL)(cx + sz - 1), (REAL)cy, (REAL)(cx + sz + 4), (REAL)cy);
-            gx.DrawLine(&crPen, (REAL)cx, (REAL)(cy - sz - 4), (REAL)cx, (REAL)(cy - sz + 1));
-            gx.DrawLine(&crPen, (REAL)cx, (REAL)(cy + sz - 1), (REAL)cx, (REAL)(cy + sz + 4));
-        } else if (g_crosshairStyle == 1) {
-            SolidBrush crBr(crCol); gx.FillEllipse(&crBr, cx - sz, cy - sz, sz * 2, sz * 2);
-        } else {
-            gx.DrawLine(&crPen, cx - 6, cy, cx + 6, cy);
-            gx.DrawLine(&crPen, cx, cy - 6, cx, cy + 6);
-            gx.DrawEllipse(&crPen, cx - 1.5f, cy - 1.5f, 3.f, 3.f);
-        }
+        evolutionui::DrawCrosshairShape(gx, static_cast<float>(cx), static_cast<float>(cy), crCol,
+            g_crosshairStyle, static_cast<float>(g_crosshairThickness), g_crosshairScale,
+            g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
         BitBlt(hdc, 0, 0, W, H, md, 0, 0, SRCCOPY);
         SelectObject(md, ob); DeleteObject(mb); DeleteDC(md);
         EndPaint(hw, &ps); return 0;
@@ -197,14 +302,18 @@ void RefreshCrosshairOverlay()
     RedrawWindow(g_crossHWnd, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ERASE);
 }
 
-void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale)
+void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale,
+    int gap, int length, bool centerDot)
 {
     g_crosshairR = std::clamp(r, 0, 255);
     g_crosshairG = std::clamp(g, 0, 255);
     g_crosshairB = std::clamp(b, 0, 255);
-    g_crosshairStyle = std::clamp(style, 0, 2);
+    g_crosshairStyle = std::clamp(style, 0, evolutionui::kCrosshairStyleCount - 1);
     g_crosshairThickness = std::clamp(thickness, 1, 10);
     g_crosshairScale = std::clamp(scale, 0.1f, 0.6f);
+    g_crosshairGap = std::clamp(gap, 0, 16);
+    g_crosshairLength = std::clamp(length, 4, 30);
+    g_crosshairCenterDot = centerDot;
     RefreshCrosshairOverlay();
 }
 
@@ -220,7 +329,7 @@ void ApplyCrosshairEnabled(bool enabled)
 }
 
 // ===== UI 绘制层 =====
-void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
+static void PaintEvolutionPageLegacy(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
     using namespace i18n; // 注入国际化空间以识别 Keys::
 
@@ -368,7 +477,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 }
 
 // ===== UI 点击事件层 =====
-void CheckEvolutionClick(HWND hw, int mx, int my) {
+static void CheckEvolutionClickLegacy(HWND hw, int mx, int my) {
 
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
@@ -438,18 +547,18 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     for (int i = 0; i < 3; ++i) {
         int bx = rgbLabelX + i * rgbSpacing;
         int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
-        if (ui::CheckSliderClick(mx, my, bx + 20, yRgb, rgbBarW, val)) { *rgbV[i] = (int)(val * 255.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+        if (ui::CheckSliderClick(mx, my, bx + 20, yRgb, rgbBarW, val)) { *rgbV[i] = (int)(val * 255.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     }
     int thBarX = cx + 10 + 40, thBarW = 80;
-    if (ui::CheckSliderClick(mx, my, thBarX, yRow2, thBarW, val)) { g_crosshairThickness = 1 + (int)(val * 9.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, thBarX, yRow2, thBarW, val)) { g_crosshairThickness = 1 + (int)(val * 9.f); ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int scBarX = thBarX + thBarW + 40 + 40, scBarW = 100;
-    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.1f + val * 0.5f; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
+    if (ui::CheckSliderClick(mx, my, scBarX, yRow2, scBarW, val)) { g_crosshairScale = 0.1f + val * 0.5f; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return; }
     int ddX = scBarX + scBarW + 40 + 40, ddW = 100;
     if (my >= yRow2 - 2 && my <= yRow2 + 18 && mx >= ddX && mx <= ddX + ddW) { g_styleDropdownOpen = !g_styleDropdownOpen; InvalidateRect(hw, nullptr, FALSE); return; }
     if (g_styleDropdownOpen) {
         for (int j = 0; j < 3; ++j) {
             if (mx >= ddX && mx <= ddX + ddW && my >= yRow2 + 16 + j * 18 && my <= yRow2 + 34 + j * 18) {
-                g_crosshairStyle = j; g_styleDropdownOpen = false; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return;
+                g_crosshairStyle = j; g_styleDropdownOpen = false; ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle, g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength, g_crosshairCenterDot); SaveEvolutionParams(); InvalidateRect(hw, nullptr, FALSE); return;
             }
         }
         g_styleDropdownOpen = false; InvalidateRect(hw, nullptr, FALSE); return;
@@ -458,6 +567,340 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
     if (ui::CheckToggleClick(mx, my, tx, tye)) {
         ApplyCrosshairEnabled(!g_crosshairEnabled);
         SaveEvolutionParams();
+        InvalidateRect(hw, nullptr, FALSE);
+    }
+}
+
+void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
+{
+    using namespace Gdiplus;
+    using namespace evolutionui;
+
+    ui::DrawHeader(g, cx, cw, _(i18n::Keys::EVO_TITLE));
+    Font normalFont(L"Microsoft YaHei", 10);
+    Font smallFont(L"Microsoft YaHei", 9);
+    Font boldFont(L"Microsoft YaHei", 9, FontStyleBold);
+    SolidBrush text(Color(255, 30, 60, 100));
+    SolidBrush dim(Color(255, 100, 130, 160));
+    SolidBrush cardBackground(Color(255, 246, 251, 255));
+    SolidBrush selectedBackground(Color(255, 175, 220, 248));
+    SolidBrush buttonBackground(Color(255, 231, 244, 252));
+    SolidBrush previewBackground(Color(255, 28, 36, 48));
+    SolidBrush colorSwatch(Color(255, static_cast<BYTE>(g_crosshairR),
+        static_cast<BYTE>(g_crosshairG), static_cast<BYTE>(g_crosshairB)));
+    Pen cardBorder(Color(255, 170, 210, 235));
+    Pen selectedBorder(Color(255, 75, 165, 220), 1.5f);
+    Pen buttonBorder(Color(255, 150, 200, 230));
+
+    const int sectionX = cx + 8;
+    const int sectionWidth = cw - 16;
+    volumeHeaderRect = RectF(static_cast<REAL>(sectionX), 48.f, static_cast<REAL>(sectionWidth), 36.f);
+    DrawSectionHeader(g, volumeHeaderRect, _(i18n::Keys::EVO_VOL_ADJ), volumeExpanded, true);
+
+    wchar_t volumeSummary[32]{};
+    swprintf_s(volumeSummary, L"%.0f%%", g_death_vol * 100.f);
+    g.DrawString(volumeSummary, -1, &smallFont,
+        PointF(volumeHeaderRect.X + volumeHeaderRect.Width - 150.f, volumeHeaderRect.Y + 9.f), &dim);
+    g.DrawString(_(i18n::Keys::EVO_ENABLE), -1, &smallFont,
+        PointF(volumeHeaderRect.X + volumeHeaderRect.Width - 100.f, volumeHeaderRect.Y + 9.f), &text);
+    g_deathMuteToggleRect = RectF(volumeHeaderRect.X + volumeHeaderRect.Width - 58.f,
+        volumeHeaderRect.Y + 6.f, 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(g_deathMuteToggleRect.X),
+        static_cast<int>(g_deathMuteToggleRect.Y), g_deathMute);
+
+    int crosshairY = 96;
+    if (volumeExpanded) {
+        RectF volumeBody(static_cast<REAL>(sectionX), 84.f, static_cast<REAL>(sectionWidth), 126.f);
+        g.FillRectangle(&cardBackground, volumeBody);
+        g.DrawRectangle(&cardBorder, volumeBody);
+
+        g.DrawString(L"CS2 音量", -1, &smallFont, PointF(static_cast<REAL>(sectionX + 14), 101.f), &text);
+        volumeSliderRect = RectF(static_cast<REAL>(sectionX + 88), 101.f,
+            static_cast<REAL>((std::max)(140, sectionWidth - 225)), 24.f);
+        ui::DrawSlider(g, static_cast<int>(volumeSliderRect.X), 109,
+            static_cast<int>(volumeSliderRect.Width), g_death_vol);
+        g.FillEllipse(&colorSwatch,
+            volumeSliderRect.X + volumeSliderRect.Width * g_death_vol - 7.f, 102.f, 14.f, 14.f);
+
+        std::wstring keyName;
+        if (g_hotkeyVk == 0) keyName = L"None";
+        else {
+            if (g_hotkeyMod & MOD_CONTROL) keyName += L"Ctrl+";
+            if (g_hotkeyMod & MOD_ALT) keyName += L"Alt+";
+            if (g_hotkeyMod & MOD_SHIFT) keyName += L"Shift+";
+            if ((g_hotkeyVk >= 'A' && g_hotkeyVk <= 'Z') || (g_hotkeyVk >= '0' && g_hotkeyVk <= '9'))
+                keyName += static_cast<wchar_t>(g_hotkeyVk);
+            else keyName += L"Vk=" + std::to_wstring(g_hotkeyVk);
+        }
+        g.DrawString(_(i18n::Keys::EVO_HOTKEY), -1, &smallFont,
+            PointF(static_cast<REAL>(sectionX + 14), 139.f), &text);
+        hotkeyRect = RectF(static_cast<REAL>(sectionX + 170), 134.f, 190.f, 26.f);
+        g.FillRectangle(&buttonBackground, hotkeyRect);
+        g.DrawRectangle(&buttonBorder, hotkeyRect);
+        const std::wstring hotkeyText = g_isBindingHotkey ? _(i18n::Keys::EVO_WAITING_KEY) : keyName;
+        g.DrawString(hotkeyText.c_str(), -1, &smallFont,
+            PointF(hotkeyRect.X + 8.f, hotkeyRect.Y + 4.f), &text);
+
+        g.DrawString(L"宽容检测游戏窗口", -1, &smallFont,
+            PointF(static_cast<REAL>(sectionX + 14), 176.f), &text);
+        g_lenientWindowToggleRect = RectF(static_cast<REAL>(sectionX + 170), 169.f, 50.f, 24.f);
+        ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
+            static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
+        g.DrawString(_(i18n::Keys::EVO_HINT_MUTE), -1, &smallFont,
+            PointF(static_cast<REAL>(sectionX + 235), 175.f), &dim);
+        crosshairY = 222;
+    } else {
+        volumeSliderRect = RectF{};
+        hotkeyRect = RectF{};
+        g_lenientWindowToggleRect = RectF{};
+    }
+
+    crosshairHeaderRect = RectF(static_cast<REAL>(sectionX), static_cast<REAL>(crosshairY),
+        static_cast<REAL>(sectionWidth), 40.f);
+    DrawSectionHeader(g, crosshairHeaderRect, _(i18n::Keys::EVO_CROSSHAIR),
+        crosshairExpanded, g_crosshairEnabled);
+    g.FillRectangle(&colorSwatch, crosshairHeaderRect.X + crosshairHeaderRect.Width - 180.f,
+        crosshairHeaderRect.Y + 11.f, 18.f, 18.f);
+    g.DrawString(i18n::T(g_crosshairEnabled ? "EVO_CROSSHAIR_ON" : "EVO_CROSSHAIR_OFF"),
+        -1, &smallFont, PointF(crosshairHeaderRect.X + crosshairHeaderRect.Width - 154.f,
+        crosshairHeaderRect.Y + 10.f), g_crosshairEnabled ? &text : &dim);
+    crosshairEnableRect = RectF(crosshairHeaderRect.X + crosshairHeaderRect.Width - 58.f,
+        crosshairHeaderRect.Y + 8.f, 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(crosshairEnableRect.X),
+        static_cast<int>(crosshairEnableRect.Y), g_crosshairEnabled);
+
+    if (!g_crosshairEnabled || !crosshairExpanded) {
+        for (auto& rect : styleRects) rect = RectF{};
+        for (auto& rect : rgbSliderRects) rect = RectF{};
+        for (auto& rect : parameterSliderRects) rect = RectF{};
+        centerDotRect = RectF{};
+        return;
+    }
+
+    const int bodyY = crosshairY + 40;
+    RectF crosshairBody(static_cast<REAL>(sectionX), static_cast<REAL>(bodyY),
+        static_cast<REAL>(sectionWidth), 238.f);
+    g.FillRectangle(&cardBackground, crosshairBody);
+    g.DrawRectangle(&cardBorder, crosshairBody);
+
+    const wchar_t* styleNames[kCrosshairStyleCount] = {
+        i18n::T("EVO_STYLE_HOLLOW"), i18n::T("EVO_STYLE_SOLID"), i18n::T("EVO_STYLE_CLASSIC"),
+        i18n::T("EVO_STYLE_CROSS"), i18n::T("EVO_STYLE_CORNERS"), i18n::T("EVO_STYLE_T")
+    };
+    g.DrawString(_(i18n::Keys::EVO_STYLE), -1, &boldFont,
+        PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(bodyY + 12)), &text);
+    for (int i = 0; i < kCrosshairStyleCount; ++i) {
+        const int column = i % 3;
+        const int row = i / 3;
+        styleRects[i] = RectF(static_cast<REAL>(sectionX + 60 + column * 96),
+            static_cast<REAL>(bodyY + 8 + row * 31), 88.f, 25.f);
+        g.FillRectangle(i == g_crosshairStyle ? &selectedBackground : &buttonBackground, styleRects[i]);
+        g.DrawRectangle(i == g_crosshairStyle ? &selectedBorder : &buttonBorder, styleRects[i]);
+        g.DrawString(styleNames[i], -1, &smallFont,
+            PointF(styleRects[i].X + 8.f, styleRects[i].Y + 3.f), &text);
+    }
+
+    RectF preview(static_cast<REAL>(sectionX + sectionWidth - 142),
+        static_cast<REAL>(bodyY + 8), 126.f, 58.f);
+    g.FillRectangle(&previewBackground, preview);
+    evolutionui::DrawCrosshairShape(g, preview.X + preview.Width / 2.f,
+        preview.Y + preview.Height / 2.f,
+        Color(255, static_cast<BYTE>(g_crosshairR), static_cast<BYTE>(g_crosshairG),
+            static_cast<BYTE>(g_crosshairB)),
+        g_crosshairStyle, static_cast<float>(g_crosshairThickness), g_crosshairScale,
+        g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
+
+    const int rgbY = bodyY + 88;
+    const wchar_t* rgbLabels[] = { L"R", L"G", L"B" };
+    const int rgbValues[] = { g_crosshairR, g_crosshairG, g_crosshairB };
+    const int rgbWidth = (std::max)(72, (sectionWidth - 126) / 3);
+    for (int i = 0; i < 3; ++i) {
+        const int x = sectionX + 14 + i * (rgbWidth + 36);
+        g.DrawString(rgbLabels[i], -1, &smallFont, PointF(static_cast<REAL>(x), static_cast<REAL>(rgbY)), &text);
+        rgbSliderRects[i] = RectF(static_cast<REAL>(x + 18), static_cast<REAL>(rgbY - 6),
+            static_cast<REAL>(rgbWidth), 24.f);
+        ui::DrawSlider(g, static_cast<int>(rgbSliderRects[i].X), rgbY + 2,
+            static_cast<int>(rgbSliderRects[i].Width), rgbValues[i] / 255.f);
+        wchar_t value[8]{};
+        swprintf_s(value, L"%d", rgbValues[i]);
+        g.DrawString(value, -1, &smallFont,
+            PointF(rgbSliderRects[i].X + rgbSliderRects[i].Width + 4.f, static_cast<REAL>(rgbY)), &dim);
+    }
+
+    const wchar_t* parameterLabels[] = {
+        _(i18n::Keys::EVO_THICKNESS), _(i18n::Keys::EVO_SCALE), L"中心间距", L"准星臂长"
+    };
+    const float parameterValues[] = {
+        (g_crosshairThickness - 1) / 9.f, (g_crosshairScale - 0.1f) / 0.5f,
+        g_crosshairGap / 16.f, (g_crosshairLength - 4) / 26.f
+    };
+    const std::wstring displayValues[] = {
+        std::to_wstring(g_crosshairThickness),
+        std::to_wstring(static_cast<int>(std::lround(g_crosshairScale * 100.f))) + L"%",
+        std::to_wstring(g_crosshairGap), std::to_wstring(g_crosshairLength)
+    };
+    const int parameterBarWidth = (std::max)(90, sectionWidth / 2 - 150);
+    for (int i = 0; i < 4; ++i) {
+        const int column = i % 2;
+        const int row = i / 2;
+        const int x = sectionX + 14 + column * (sectionWidth / 2);
+        const int y = bodyY + 126 + row * 38;
+        g.DrawString(parameterLabels[i], -1, &smallFont,
+            PointF(static_cast<REAL>(x), static_cast<REAL>(y)), &text);
+        parameterSliderRects[i] = RectF(static_cast<REAL>(x + 72), static_cast<REAL>(y - 6),
+            static_cast<REAL>(parameterBarWidth), 24.f);
+        ui::DrawSlider(g, static_cast<int>(parameterSliderRects[i].X), y + 2,
+            static_cast<int>(parameterSliderRects[i].Width), parameterValues[i]);
+        g.DrawString(displayValues[i].c_str(), -1, &smallFont,
+            PointF(parameterSliderRects[i].X + parameterSliderRects[i].Width + 5.f,
+                static_cast<REAL>(y)), &dim);
+    }
+
+    g.DrawString(L"显示中心点", -1, &smallFont,
+        PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(bodyY + 207)), &text);
+    centerDotRect = RectF(static_cast<REAL>(sectionX + 100), static_cast<REAL>(bodyY + 200), 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(centerDotRect.X), static_cast<int>(centerDotRect.Y),
+        g_crosshairCenterDot);
+    g.DrawString(L"关闭后可获得更干净的空心与分离式准星", -1, &smallFont,
+        PointF(static_cast<REAL>(sectionX + 165), static_cast<REAL>(bodyY + 207)), &dim);
+}
+
+void CheckEvolutionClick(HWND hw, int mx, int my)
+{
+    using namespace evolutionui;
+    float value = 0.f;
+
+    if (Hit(g_deathMuteToggleRect, mx, my)) {
+        if (!normalgen::CheckAdminPermission() && !g_deathMute) {
+            const int result = MessageBoxW(hw,
+                L"音量降低器需要管理员权限才能正常工作。\n是否重新以管理员身份启动程序？",
+                L"权限不足", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
+            if (result == IDYES) {
+                if (g_hMutex) { CloseHandle(g_hMutex); g_hMutex = nullptr; }
+                wchar_t exePath[MAX_PATH]{};
+                GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+                SHELLEXECUTEINFOW executeInfo{};
+                executeInfo.cbSize = sizeof(executeInfo);
+                executeInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+                executeInfo.lpVerb = L"runas";
+                executeInfo.lpFile = exePath;
+                executeInfo.nShow = SW_SHOWNORMAL;
+                if (ShellExecuteExW(&executeInfo)) DestroyWindow(hw);
+            }
+            return;
+        }
+        g_deathMute = !g_deathMute;
+        if (g_deathMute) StartCS2VolumeControl(g_death_vol);
+        else StopCS2VolumeControl();
+        SaveEvolutionParams();
+        std::cout << "[进化分支] 即时音量调整已切换为: " << (g_deathMute ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (Hit(volumeHeaderRect, mx, my)) {
+        volumeExpanded = !volumeExpanded;
+        std::cout << "[进化分支] 即时音量面板已" << (volumeExpanded ? "展开" : "折叠") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (volumeExpanded && Hit(hotkeyRect, mx, my)) {
+        g_isBindingHotkey = !g_isBindingHotkey;
+        SetFocus(hw);
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    if (g_isBindingHotkey && !Hit(hotkeyRect, mx, my)) g_isBindingHotkey = false;
+
+    if (volumeExpanded && ui::CheckSliderClick(mx, my,
+        static_cast<int>(volumeSliderRect.X), static_cast<int>(volumeSliderRect.Y + 8.f),
+        static_cast<int>(volumeSliderRect.Width), value)) {
+        g_death_vol = value;
+        if (g_deathMute) SetCS2VolumeReduction(g_death_vol);
+        SaveEvolutionParams();
+        std::cout << "[进化分支] CS2 音量比例已调整为: " << static_cast<int>(g_death_vol * 100.f) << "%" << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (volumeExpanded && Hit(g_lenientWindowToggleRect, mx, my)) {
+        SetLenientCS2WindowDetection(!IsLenientCS2WindowDetection());
+        SaveEvolutionParams();
+        std::cout << "[进化分支] 宽容检测游戏窗口已切换" << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (Hit(crosshairEnableRect, mx, my)) {
+        ApplyCrosshairEnabled(!g_crosshairEnabled);
+        crosshairExpanded = g_crosshairEnabled;
+        SaveEvolutionParams();
+        std::cout << "[狙击准星] 已切换为: " << (g_crosshairEnabled ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (Hit(crosshairHeaderRect, mx, my)) {
+        if (g_crosshairEnabled) {
+            crosshairExpanded = !crosshairExpanded;
+            std::cout << "[狙击准星] 参数面板已" << (crosshairExpanded ? "展开" : "折叠") << std::endl;
+        }
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (!g_crosshairEnabled || !crosshairExpanded) return;
+
+    for (int i = 0; i < kCrosshairStyleCount; ++i) {
+        if (!Hit(styleRects[i], mx, my)) continue;
+        g_crosshairStyle = i;
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
+            g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength,
+            g_crosshairCenterDot);
+        SaveEvolutionParams();
+        std::cout << "[狙击准星] 样式已切换为: " << i << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    int* rgbValues[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
+    for (int i = 0; i < 3; ++i) {
+        if (!ui::CheckSliderClick(mx, my, static_cast<int>(rgbSliderRects[i].X),
+            static_cast<int>(rgbSliderRects[i].Y + 8.f), static_cast<int>(rgbSliderRects[i].Width), value)) continue;
+        *rgbValues[i] = static_cast<int>(std::lround(value * 255.f));
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
+            g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength,
+            g_crosshairCenterDot);
+        SaveEvolutionParams();
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        if (!ui::CheckSliderClick(mx, my, static_cast<int>(parameterSliderRects[i].X),
+            static_cast<int>(parameterSliderRects[i].Y + 8.f),
+            static_cast<int>(parameterSliderRects[i].Width), value)) continue;
+        if (i == 0) g_crosshairThickness = 1 + static_cast<int>(std::lround(value * 9.f));
+        else if (i == 1) g_crosshairScale = 0.1f + value * 0.5f;
+        else if (i == 2) g_crosshairGap = static_cast<int>(std::lround(value * 16.f));
+        else g_crosshairLength = 4 + static_cast<int>(std::lround(value * 26.f));
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
+            g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength,
+            g_crosshairCenterDot);
+        SaveEvolutionParams();
+        std::cout << "[狙击准星] 参数 " << i << " 已调整" << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (Hit(centerDotRect, mx, my)) {
+        g_crosshairCenterDot = !g_crosshairCenterDot;
+        ApplyCrosshairVisual(g_crosshairR, g_crosshairG, g_crosshairB, g_crosshairStyle,
+            g_crosshairThickness, g_crosshairScale, g_crosshairGap, g_crosshairLength,
+            g_crosshairCenterDot);
+        SaveEvolutionParams();
+        std::cout << "[狙击准星] 中心点已切换为: " << (g_crosshairCenterDot ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
     }
 }

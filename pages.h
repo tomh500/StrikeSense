@@ -32,7 +32,7 @@ extern HINSTANCE hInst;
 extern bool g_langCN;
 extern bool g_styleDropdownOpen;
 extern int  g_dropdownSelection;
-extern Gdiplus::RectF g_dropdownRects[3];
+extern Gdiplus::RectF g_dropdownRects[6];
 extern WCHAR szWindowClass[];
 extern HANDLE g_hMutex; // 全局互斥锁（用于管理员提权时释放）
 
@@ -47,13 +47,16 @@ extern Gdiplus::RectF g_deathMuteToggleRect;
 extern bool  g_crosshairEnabled;
 extern int   g_crosshairR, g_crosshairG, g_crosshairB;
 extern int   g_crosshairStyle, g_crosshairThickness;
+extern int   g_crosshairGap, g_crosshairLength;
+extern bool  g_crosshairCenterDot;
 extern float g_crosshairScale;
 
 // ===== 进化参数持久化 =====
 void SaveEvolutionParams();
 void LoadEvolutionParams();
 void ApplyCrosshairEnabled(bool enabled);
-void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale);
+void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale,
+    int gap, int length, bool centerDot);
 void RefreshCrosshairOverlay();
 
 // ===== 通用 UI 工具 =====

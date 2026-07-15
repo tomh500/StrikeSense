@@ -65,7 +65,7 @@ int g_currentPage = 0;
 bool g_langCN = true;
 bool g_styleDropdownOpen = false;
 int g_dropdownSelection = -1;
-Gdiplus::RectF g_dropdownRects[3];
+Gdiplus::RectF g_dropdownRects[6];
 
 float g_death_vol = 0.8f;
 bool  g_deathMute = false;
@@ -78,6 +78,9 @@ bool  g_crosshairEnabled = false;
 int   g_crosshairR = 255, g_crosshairG = 0, g_crosshairB = 0;
 int   g_crosshairStyle = 0;
 int   g_crosshairThickness = 2;
+int   g_crosshairGap = 4;
+int   g_crosshairLength = 12;
+bool  g_crosshairCenterDot = true;
 float g_crosshairScale = 0.2f;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
