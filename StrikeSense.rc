@@ -28,8 +28,8 @@ LANGUAGE 4, 2
 /////////////////////////////////////////////////////////////////////////////
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 202607152108
- PRODUCTVERSION 202607152108
+ FILEVERSION 202607152115
+ PRODUCTVERSION 202607152115
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -46,12 +46,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "无损平方集团"
             VALUE "FileDescription", "StrikeSense - CS2 GSI客户端"
-            VALUE "FileVersion", "测试发布版 202607152108"
+            VALUE "FileVersion", "测试发布版 202607152115"
             VALUE "InternalName", "StrikeSense"
             VALUE "LegalCopyright", "Copyright (C) 2026 无损平方集团"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "测试发布版 202607152108"
+            VALUE "ProductVersion", "测试发布版 202607152115"
             VALUE "PrivateBuild", "\n本程序承诺：\n永不联网！\n绝对无毒！\n数据安全！\n快速好用！\n\n因供应商要求，无法检查更新。"
         END
     END

@@ -143,12 +143,12 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, 1, 1000 },
         { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, 1, 1000 },
         { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, 1, 1000 },
-        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 5000 },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 5000 },
-        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 50, 5000 },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 100 },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 2000 },
+        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, 50, 2000 },
         { i18n::Keys::Rage_CURVE, &cfg.curve_percent, 10, 1000 },
-        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 1, 500 },
-        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 1, 500 },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 1, 200 },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 1, 200 },
     };
 
     int slW = cw - 280;
@@ -181,6 +181,8 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE4), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 48)), &hintCol);
+    g.DrawString(_(i18n::Keys::Rage_HINT_LINE5), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 64)), &hintCol);
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {

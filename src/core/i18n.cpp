@@ -97,13 +97,17 @@ void i18n::Init() {
     cn[Keys::Rage_ENABLE_TEXT] = L"启用超频配置:";
     en[Keys::Rage_ENABLE_TEXT] = L"Enable Rage Mode:";
     
-    cn[Keys::Rage_HINT_LINE1] = L"触发条件：按下 W / A / S / D 后松手 → 自动发送反向键（例如松W按S，松A按D）";
-    en[Keys::Rage_HINT_LINE1] = L"Trigger: Release W/A/S/D → Auto counter-strafe (e.g., release W to tap S)";
-    
-    cn[Keys::Rage_HINT_LINE2] = L"微步/常规/长移动分段曲线计算，横纵方向独立缩放；Shift/Ctrl 时静默跳过";
-    en[Keys::Rage_HINT_LINE2] = L"Segmented pulse curve with axis scaling. Shift/Ctrl silently skips QuickStop.";
-    cn[Keys::Rage_HINT_LINE3] = L"滑块使用均衡曲线；点击右侧数字可直接输入任意整数，不受滑块范围限制";
-    en[Keys::Rage_HINT_LINE3] = L"Balanced sliders; click a value to enter any integer beyond the slider range.";
+    cn[Keys::Rage_HINT_LINE1] = L"Micro Pulse / Min Pulse / Max Pulse / Cap Pulse：控制反向按键的最短、起步、长按和最终上限时长。";
+    en[Keys::Rage_HINT_LINE1] = L"Micro/Min/Max/Cap Pulse: shortest, base, long-move and hard-cap duration for counter-strafe taps.";
+
+    cn[Keys::Rage_HINT_LINE2] = L"Micro Move / Move Start / Move Cap：决定按住多久算微移、多久进入常规补偿，以及多久后不再继续增加急停力度。";
+    en[Keys::Rage_HINT_LINE2] = L"Micro Move / Move Start / Move Cap: define micro-move, normal compensation start, and when scaling stops increasing.";
+    cn[Keys::Rage_HINT_LINE3] = L"Curve：控制从 Min 到 Max 的增长快慢；值越大，越偏向在后段才把急停力度拉满。";
+    en[Keys::Rage_HINT_LINE3] = L"Curve: controls how quickly the pulse grows from Min to Max; higher values ramp later.";
+    cn[Keys::Rage_HINT_LINE4] = L"Horizontal Peek / Forward-Back：分别缩放左右急停和前后急停力度，100% 代表保持原始计算结果。";
+    en[Keys::Rage_HINT_LINE4] = L"Horizontal Peek / Forward-Back: scale left-right and forward-back quickstop strength; 100% keeps the raw result.";
+    cn[Keys::Rage_HINT_LINE5] = L"多绑定脚本支持用于鼠标抖动类脚本；控制台支持用于读取新增 console.log；右侧数字可直接输入。";
+    en[Keys::Rage_HINT_LINE5] = L"Multi-bind support is for mouse-jitter scripts; console support reads new console.log entries; click values to type directly.";
     
     cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
     en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";
@@ -202,6 +206,8 @@ namespace i18n { namespace Keys {
     const char* Rage_HINT_LINE1 = "Rage_HINT_LINE1";
     const char* Rage_HINT_LINE2 = "Rage_HINT_LINE2";
     const char* Rage_HINT_LINE3 = "Rage_HINT_LINE3";
+    const char* Rage_HINT_LINE4 = "Rage_HINT_LINE4";
+    const char* Rage_HINT_LINE5 = "Rage_HINT_LINE5";
     const char* Rage_REQ_ADMIN_TITLE = "Rage_REQ_ADMIN_TITLE";
     const char* Rage_REQ_ADMIN_MSG = "Rage_REQ_ADMIN_MSG";
     const char* Rage_RISK_WARNING_TITLE = "Rage_RISK_WARNING_TITLE";

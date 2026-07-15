@@ -31,6 +31,8 @@ namespace Keys {
         extern const char* Rage_HINT_LINE1;
         extern const char* Rage_HINT_LINE2;
         extern const char* Rage_HINT_LINE3;
+        extern const char* Rage_HINT_LINE4;
+        extern const char* Rage_HINT_LINE5;
         extern const char* Rage_REQ_ADMIN_TITLE;
         extern const char* Rage_REQ_ADMIN_MSG;
         extern const char* Rage_RISK_WARNING_TITLE;
