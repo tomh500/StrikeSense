@@ -7,6 +7,7 @@ extern float g_textguiX;
 extern float g_textguiY;
 extern float g_textguiScale;
 extern float g_textguiOpacity;
+extern float g_textguiRainbowSpeed;
 extern int g_textguiR;
 extern int g_textguiG;
 extern int g_textguiB;

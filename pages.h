@@ -54,6 +54,7 @@ extern float g_crosshairScale;
 // Textgui 变量
 extern bool  g_textguiEnabled;
 extern float g_textguiX, g_textguiY, g_textguiScale, g_textguiOpacity;
+extern float g_textguiRainbowSpeed;
 extern int   g_textguiR, g_textguiG, g_textguiB;
 extern bool  g_textguiShowWatermark;
 extern bool  g_textguiRainbow;

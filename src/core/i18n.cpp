@@ -55,6 +55,14 @@ void i18n::Init() {
     cn[Keys::EVO_HINT_MUTE] = L"此开关开启后，仅降低CS2进程的音量，不影响其他程序，本功能需要管理员权限";en[Keys::EVO_HINT_MUTE] = L"When enabled, only lowers CS2 volume without affecting other apps.Requires admin privileges.";
     cn[Keys::EVO_STATUS_DISABLED] = L"(已禁用)";en[Keys::EVO_STATUS_DISABLED] = L"(Disabled)";
     cn[Keys::EVO_LOCK_VIEW] = L"已封锁（仅查看）";en[Keys::EVO_LOCK_VIEW] = L"Blocked (View Only)";
+    cn["EVO_TEXTGUI"] = L"Textgui"; en["EVO_TEXTGUI"] = L"Textgui";
+    cn["EVO_TEXTGUI_X"] = L"X"; en["EVO_TEXTGUI_X"] = L"X";
+    cn["EVO_TEXTGUI_Y"] = L"Y"; en["EVO_TEXTGUI_Y"] = L"Y";
+    cn["EVO_TEXTGUI_SCALE"] = L"\u7f29\u653e"; en["EVO_TEXTGUI_SCALE"] = L"Scale";
+    cn["EVO_TEXTGUI_OPACITY"] = L"\u900f\u660e\u5ea6"; en["EVO_TEXTGUI_OPACITY"] = L"Opacity";
+    cn["EVO_TEXTGUI_RAINBOW_SPEED"] = L"\u5f69\u8679\u901f\u5ea6"; en["EVO_TEXTGUI_RAINBOW_SPEED"] = L"Rainbow Speed";
+    cn["EVO_TEXTGUI_MARK"] = L"StrikeSense \u6807\u8bc6"; en["EVO_TEXTGUI_MARK"] = L"StrikeSense Mark";
+    cn["EVO_TEXTGUI_RAINBOW"] = L"ARGB \u5f69\u8679"; en["EVO_TEXTGUI_RAINBOW"] = L"ARGB Rainbow";
 
     cn[Keys::LEGAL_TITLE] = L"合法配置"; en[Keys::LEGAL_TITLE] = L"Legit Config";
     cn[Keys::LEGAL_SAVE] = L"保存"; en[Keys::LEGAL_SAVE] = L"Save";

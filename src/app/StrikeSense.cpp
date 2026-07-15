@@ -89,6 +89,7 @@ float g_textguiX = 1.0f;
 float g_textguiY = 0.04f;
 float g_textguiScale = 1.0f;
 float g_textguiOpacity = 0.9f;
+float g_textguiRainbowSpeed = 1.0f;
 int   g_textguiR = 80;
 int   g_textguiG = 180;
 int   g_textguiB = 240;

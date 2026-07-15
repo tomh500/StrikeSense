@@ -29,6 +29,8 @@ static Gdiplus::RectF g_lenientWindowToggleRect;
 namespace evolutionui {
 
 constexpr int kCrosshairStyleCount = 6;
+constexpr float kTextguiRainbowSpeedMin = 0.1f;
+constexpr float kTextguiRainbowSpeedMax = 5.0f;
 Gdiplus::RectF crosshairEnableRect;
 Gdiplus::RectF hotkeyRect;
 Gdiplus::RectF centerDotRect;
@@ -39,7 +41,7 @@ std::array<Gdiplus::RectF, 4> parameterSliderRects;
 Gdiplus::RectF textguiEnableRect;
 Gdiplus::RectF textguiWatermarkRect;
 Gdiplus::RectF textguiRainbowRect;
-std::array<Gdiplus::RectF, 4> textguiSliderRects;
+std::array<Gdiplus::RectF, 5> textguiSliderRects;
 std::array<Gdiplus::RectF, 3> textguiColorRects;
 
 bool Hit(const Gdiplus::RectF& rect, int x, int y)
@@ -129,6 +131,7 @@ void SaveEvolutionParams() {
     j["textgui_enabled"] = g_textguiEnabled;
     j["textgui_x"] = g_textguiX; j["textgui_y"] = g_textguiY;
     j["textgui_scale"] = g_textguiScale; j["textgui_opacity"] = g_textguiOpacity;
+    j["textgui_rainbow_speed"] = g_textguiRainbowSpeed;
     j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
     j["textgui_show_watermark"] = g_textguiShowWatermark;
     j["textgui_rainbow"] = g_textguiRainbow;
@@ -185,6 +188,7 @@ void LoadEvolutionParams() {
         gb("textgui_enabled", g_textguiEnabled);
         gv("textgui_x", g_textguiX); gv("textgui_y", g_textguiY);
         gv("textgui_scale", g_textguiScale); gv("textgui_opacity", g_textguiOpacity);
+        gv("textgui_rainbow_speed", g_textguiRainbowSpeed);
         gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
         gb("textgui_show_watermark", g_textguiShowWatermark);
         gb("textgui_rainbow", g_textguiRainbow);
@@ -352,6 +356,8 @@ void ApplyTextguiEnabled(bool enabled)
     g_textguiY = std::clamp(g_textguiY, 0.f, 1.f);
     g_textguiScale = std::clamp(g_textguiScale, 0.75f, 1.8f);
     g_textguiOpacity = std::clamp(g_textguiOpacity, 0.2f, 1.f);
+    g_textguiRainbowSpeed = std::clamp(g_textguiRainbowSpeed,
+        evolutionui::kTextguiRainbowSpeedMin, evolutionui::kTextguiRainbowSpeedMax);
     g_textguiR = std::clamp(g_textguiR, 0, 255);
     g_textguiG = std::clamp(g_textguiG, 0, 255);
     g_textguiB = std::clamp(g_textguiB, 0, 255);
@@ -676,7 +682,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
         static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
     const int textguiSectionY = nextSectionY + 42;
-    g.DrawString(L"Textgui", -1, &rF,
+    g.DrawString(i18n::T("EVO_TEXTGUI"), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(textguiSectionY)), &text);
     textguiEnableRect = RectF(static_cast<REAL>(sectionX + 220),
         static_cast<REAL>(textguiSectionY - 4), 50.f, 24.f);
@@ -698,20 +704,27 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
                 rect.Y + 3.f, 14.f, 14.f);
         };
 
-        const wchar_t* labels[] = { L"X", L"Y", L"Scale", L"Opacity" };
+        const wchar_t* labels[] = {
+            i18n::T("EVO_TEXTGUI_X"), i18n::T("EVO_TEXTGUI_Y"),
+            i18n::T("EVO_TEXTGUI_SCALE"), i18n::T("EVO_TEXTGUI_OPACITY"),
+            i18n::T("EVO_TEXTGUI_RAINBOW_SPEED")
+        };
         const float values[] = {
             g_textguiX, g_textguiY, (g_textguiScale - 0.75f) / 1.05f,
-            (g_textguiOpacity - 0.2f) / 0.8f
+            (g_textguiOpacity - 0.2f) / 0.8f,
+            (g_textguiRainbowSpeed - evolutionui::kTextguiRainbowSpeedMin)
+                / (evolutionui::kTextguiRainbowSpeedMax - evolutionui::kTextguiRainbowSpeedMin)
         };
         const std::wstring shown[] = {
             std::to_wstring(static_cast<int>(std::lround(g_textguiX * 100.f))) + L"%",
             std::to_wstring(static_cast<int>(std::lround(g_textguiY * 100.f))) + L"%",
             std::to_wstring(static_cast<int>(std::lround(g_textguiScale * 100.f))) + L"%",
-            std::to_wstring(static_cast<int>(std::lround(g_textguiOpacity * 100.f))) + L"%"
+            std::to_wstring(static_cast<int>(std::lround(g_textguiOpacity * 100.f))) + L"%",
+            std::to_wstring(static_cast<int>(std::lround(g_textguiRainbowSpeed * 100.f))) + L"%"
         };
         const int textguiBodyY = textguiSectionY + 32;
         const int textguiBarWidth = (std::max)(90, sectionWidth / 2 - 150);
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 5; ++i) {
             const int column = i % 2;
             const int row = i / 2;
             const int x = sectionX + 14 + column * (sectionWidth / 2);
@@ -727,7 +740,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
 
         const wchar_t* colorLabels[] = { L"R", L"G", L"B" };
         const int colorValues[] = { g_textguiR, g_textguiG, g_textguiB };
-        const int colorY = textguiBodyY + 74;
+        const int colorY = textguiBodyY + 108;
         const int colorWidth = (std::max)(72, (sectionWidth - 210) / 3);
         for (int i = 0; i < 3; ++i) {
             const int x = sectionX + 14 + i * (colorWidth + 70);
@@ -742,14 +755,14 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
                     static_cast<REAL>(colorY)), &dim);
         }
 
-        g.DrawString(L"StrikeSense Mark", -1, &sF,
+        g.DrawString(i18n::T("EVO_TEXTGUI_MARK"), -1, &sF,
             PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 38)), &text);
         textguiWatermarkRect = RectF(static_cast<REAL>(sectionX + 150),
             static_cast<REAL>(colorY + 31), 50.f, 24.f);
         ui::DrawToggle(g, static_cast<int>(textguiWatermarkRect.X),
             static_cast<int>(textguiWatermarkRect.Y), g_textguiShowWatermark);
 
-        g.DrawString(L"ARGB Rainbow", -1, &sF,
+        g.DrawString(i18n::T("EVO_TEXTGUI_RAINBOW"), -1, &sF,
             PointF(static_cast<REAL>(sectionX + 230), static_cast<REAL>(colorY + 38)), &text);
         textguiRainbowRect = RectF(static_cast<REAL>(sectionX + 350),
             static_cast<REAL>(colorY + 31), 50.f, 24.f);
@@ -927,14 +940,16 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
 
     if (g_textguiEnabled) {
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 5; ++i) {
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
                 static_cast<int>(textguiSliderRects[i].Y + 8.f),
                 static_cast<int>(textguiSliderRects[i].Width), value)) continue;
             if (i == 0) g_textguiX = value;
             else if (i == 1) g_textguiY = value;
             else if (i == 2) g_textguiScale = 0.75f + value * 1.05f;
-            else g_textguiOpacity = 0.2f + value * 0.8f;
+            else if (i == 3) g_textguiOpacity = 0.2f + value * 0.8f;
+            else g_textguiRainbowSpeed = evolutionui::kTextguiRainbowSpeedMin
+                + value * (evolutionui::kTextguiRainbowSpeedMax - evolutionui::kTextguiRainbowSpeedMin);
             ApplyTextguiEnabled(g_textguiEnabled);
             SaveEvolutionParams();
             RefreshTextguiOverlay();

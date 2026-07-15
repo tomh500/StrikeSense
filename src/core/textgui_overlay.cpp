@@ -66,11 +66,21 @@ std::vector<std::wstring> collect_enabled_features()
     return features;
 }
 
+float text_width_f(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& text)
+{
+    if (text.empty()) return 0.f;
+    Gdiplus::RectF bounds;
+    Gdiplus::StringFormat fmt(Gdiplus::StringFormat::GenericTypographic());
+    fmt.SetFormatFlags(fmt.GetFormatFlags() | Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
+    g.MeasureString(text.c_str(), static_cast<INT>(text.size()), &font,
+        Gdiplus::PointF(0.f, 0.f), &fmt, &bounds);
+    return bounds.Width;
+}
+
 int text_width(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& text)
 {
-    Gdiplus::RectF bounds;
-    g.MeasureString(text.c_str(), -1, &font, Gdiplus::PointF(0.f, 0.f), &bounds);
-    return static_cast<int>(std::ceil(bounds.Width));
+    const float width = text_width_f(g, font, text);
+    return static_cast<int>(std::ceil(width));
 }
 
 Gdiplus::Color color_from_hue(float hue, BYTE alpha)
@@ -105,14 +115,15 @@ void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::
     float x, float y, BYTE alpha, float baseHue)
 {
     Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * 0.65f), 0, 0, 0));
-    float cursor = x;
+    Gdiplus::StringFormat fmt(Gdiplus::StringFormat::GenericTypographic());
+    fmt.SetFormatFlags(fmt.GetFormatFlags() | Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
     for (size_t i = 0; i < text.size(); ++i) {
         const std::wstring ch(1, text[i]);
+        const float cursor = x + text_width_f(g, font, text.substr(0, i));
         const float hue = baseHue + static_cast<float>(i) * 18.f;
         Gdiplus::SolidBrush brush(color_from_hue(hue, alpha));
-        g.DrawString(ch.c_str(), -1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &shadow);
-        g.DrawString(ch.c_str(), -1, &font, Gdiplus::PointF(cursor, y), &brush);
-        cursor += static_cast<float>(text_width(g, font, ch));
+        g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &fmt, &shadow);
+        g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor, y), &fmt, &brush);
     }
 }
 
@@ -154,7 +165,8 @@ void redraw()
 
         Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
         Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
-        const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f, 360.f);
+        const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
+        const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
 
         auto features = collect_enabled_features();
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
