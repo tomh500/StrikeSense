@@ -825,7 +825,7 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"SetDeathMute" && args.size() >= 1) {
         bool next = Truthy(args[0]);
         if (next) {
-            if (!normalgen::CheckAdminPermission()) return BoolValue(true);
+            if (!normalgen::CheckAdminPermission()) return BoolValue(false);
             StartCS2VolumeControl(g_death_vol);
         } else {
             StopCS2VolumeControl();

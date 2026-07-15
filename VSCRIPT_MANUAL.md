@@ -2,8 +2,8 @@
 
 ## 文档版本
 
-- API 文档版本：`2026.07.04`
-- 对应程序构建时间戳：`202607040217`
+- API 文档版本：`2026.07.15`
+- 对应程序构建时间戳：`202607151838`
 - 适用范围：StrikeSense 内置 VScript 解释器
 - 适用场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件编写脚本
 
@@ -273,6 +273,10 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 | `ammo_clip_max` | `number` | 弹夹上限 |
 | `ammo_reserve` | `number` | 备弹 |
 
+列表包含 GSI 当前提供的全部武器；通过 `weapon.state == "active"` 可以寻找手持武器。
+如果只需要判断当前手持武器，优先使用始终与活动武器同步的 `weapon_name`、`weapon_type` 和 `weapon_state`。
+离开游戏或 GSI 尚未提供 `player.weapons` 时，本 API 返回空列表。
+
 ## Steam 与本地环境 API
 
 ### 路径与基础环境
@@ -367,11 +371,11 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 
 | API | 参数 | 返回类型 | 说明 |
 | --- | --- | --- | --- |
-| `SetProcessVolume(process_name, volume_percent)` | `string, float` | `bool` | 设置进程音量 |
+| `SetProcessVolume(process_name, volume_percent)` | `string, float` | `bool` | 设置进程音量，百分比范围 `0` 到 `100` |
 | `SetProcessMute(process_name, muted)` | `string, bool` | `bool` | 设置进程静音 |
-| `SetDeathVolume(value)` | `float` | `bool` | 设置死亡静音音量参数 |
-| `SetDeathMute(enabled)` | `bool` | `bool` | 开关死亡静音功能 |
-| `SetQuickStopEnabled(enabled)` | `bool` | `bool` | 开关自动急停，并同步保存配置 |
+| `SetDeathVolume(value)` | `float` | `bool` | 设置死亡静音音量参数，范围 `0.0` 到 `1.0` |
+| `SetDeathMute(enabled)` | `bool` | `bool` | 开关死亡静音功能；开启失败（例如无管理员权限）返回 `false` |
+| `SetQuickStopEnabled(enabled)` | `bool` | `bool` | 实时开关自动急停；开启要求超频模式已启用 |
 | `GetQuickStopEnabled()` | 无 | `bool` | 读取自动急停总开关状态 |
 | `SetQuickStopPaused(paused)` | `bool` | `bool` | 暂停或恢复自动急停脉冲执行 |
 | `GetQuickStopPaused()` | 无 | `bool` | 读取自动急停暂停状态 |
@@ -498,6 +502,8 @@ const string modeName = "match";
 - 逻辑：`&&` `||` `!`
 - 复合赋值：`+=` `-=` `*=` `/=` `%=` 
 - 自增自减：`i++` `++i` `i--` `--i`
+
+比较与逻辑表达式不仅能写在 `if`、`while` 中，也能用于变量初始化、赋值、函数参数和 `return`。
 
 示例：
 
@@ -814,3 +820,7 @@ for(int i=0; i<Size(accounts); i++){
 
 - `vscript_examples/syntax_showcase.vscript`
 - `vscript_examples/steam_accounts_showcase.vscript`
+- `vscript_examples/quickstop_snipers_only.vscript`
+- `vscript_examples/sniper_crosshair.vscrpit`
+
+文件选择器同时兼容标准扩展名 `.vscript` 和早期示例使用的拼写 `.vscrpit`。

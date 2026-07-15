@@ -480,8 +480,23 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
         }
         return { std::wstring::npos, L'\0' };
     };
-    if (e.size() >= 2 && e.front() == L'(' && e.back() == L')') {
+    if (e.size() >= 2 && e.front() == L'(' && e.back() == L')' &&
+        FindMatchingToken(e, 0, L'(', L')') == e.size() - 1) {
         return EvalExprWithVars(e.substr(1, e.size() - 2), vars);
+    }
+    if (e.rfind(L"on:", 0) == 0) {
+        return BoolValue(EvalCondition(e));
+    }
+    if (e.rfind(L"!", 0) == 0 ||
+        FindLogicalOp(e, L"||") != std::wstring::npos ||
+        FindLogicalOp(e, L"&&") != std::wstring::npos ||
+        FindLogicalOp(e, L">=") != std::wstring::npos ||
+        FindLogicalOp(e, L"<=") != std::wstring::npos ||
+        FindLogicalOp(e, L"==") != std::wstring::npos ||
+        FindLogicalOp(e, L"!=") != std::wstring::npos ||
+        FindLogicalOp(e, L">") != std::wstring::npos ||
+        FindLogicalOp(e, L"<") != std::wstring::npos) {
+        return BoolValue(EvalConditionWithVars(e, vars));
     }
     if (auto list = ParseListLiteral(e, vars)) {
         return *list;
@@ -583,7 +598,8 @@ bool EvalConditionWithVars(std::wstring cond, const std::map<std::wstring, value
 {
     cond = Trim(cond);
     if (cond.empty()) return false;
-    if (cond.size() >= 2 && cond.front() == L'(' && cond.back() == L')')
+    if (cond.size() >= 2 && cond.front() == L'(' && cond.back() == L')' &&
+        FindMatchingToken(cond, 0, L'(', L')') == cond.size() - 1)
         return EvalConditionWithVars(cond.substr(1, cond.size() - 2), vars);
     if (cond.rfind(L"!", 0) == 0) return !EvalConditionWithVars(cond.substr(1), vars);
     size_t orPos = FindLogicalOp(cond, L"||");

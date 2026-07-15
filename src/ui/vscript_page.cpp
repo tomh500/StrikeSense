@@ -50,7 +50,7 @@ std::wstring PickScript(HWND owner)
     ofn.hwndOwner = owner;
     ofn.lpstrFile = file;
     ofn.nMaxFile = MAX_PATH;
-    ofn.lpstrFilter = L"StrikeSense Script\0*.vscript;*.vscript;*.txt\0All Files\0*.*\0";
+    ofn.lpstrFilter = L"StrikeSense Script\0*.vscript;*.vscrpit;*.txt\0All Files\0*.*\0";
     ofn.lpstrInitialDir = initDir.c_str();
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
     if (GetOpenFileNameW(&ofn)) return file;
