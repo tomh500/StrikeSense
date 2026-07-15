@@ -1,18 +1,35 @@
-// @name: 狙击枪准星自动开关
+// @name: 狙击枪准星开关同步
 // @provider: StrikeSense
-// @version: 1.1.0
-// @notice: 手持狙击枪时启用准星，切回其他武器会自动关闭。示范脚本已改成开关与参数分离写法。
+// @version: 1.2.0
+// @notice: 仅同步准星开关，不修改样式、颜色、粗细或其他视觉参数。手持狙击枪时开启，切回其他武器时关闭。
 
-if(on:(weapon_name=="weapon_awp" || weapon_name=="weapon_ssg08")){
-    SetCrosshairVisual(255, 40, 40, 2, 2, 0.22);
-    SetCrosshairEnabled(true);
-};
+auto weapons = GetCurrentPlayerWeapons();
+string activeWeapon = "void";
+string activeType = "void";
 
-if(on:(weapon_name=="weapon_scar20" || weapon_name=="weapon_g3sg1")){
-    SetCrosshairVisual(255, 220, 80, 2, 2, 0.22);
-    SetCrosshairEnabled(true);
-};
+for (int i = 0; i < Size(weapons); i++) {
+    auto weapon = weapons[i];
+    if (weapon.state == "active") {
+        activeWeapon = weapon.name;
+        activeType = weapon.type;
+        break;
+    }
+}
 
-if(on:weapon_type!="SniperRifle"){
-    SetCrosshairEnabled(false);
-};
+bool shouldEnable = activeType == "SniperRifle"
+    || activeWeapon == "weapon_awp"
+    || activeWeapon == "weapon_ssg08"
+    || activeWeapon == "weapon_scar20"
+    || activeWeapon == "weapon_g3sg1";
+
+if (GetCrosshairEnabled() != shouldEnable) {
+    SetCrosshairEnabled(shouldEnable);
+}
+
+if (Changed("weapon_name") || Changed("weapon_type")) {
+    if (shouldEnable) {
+        Log("当前手持狙击枪，已开启准星开关: " + activeWeapon);
+    } else {
+        Log("当前手持非狙击枪，已关闭准星开关: " + activeWeapon);
+    }
+}

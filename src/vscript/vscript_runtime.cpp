@@ -920,6 +920,9 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
         return BoolValue(true);
     }
+    if (name == L"GetCrosshairEnabled") {
+        return BoolValue(g_crosshairEnabled);
+    }
     if ((name == L"SetCrosshairVisual" || name == L"SetCrosshairConfig") && args.size() >= 6) {
         ApplyCrosshairVisual(
             std::clamp((int)ToNumber(args[0]), 0, 255),
