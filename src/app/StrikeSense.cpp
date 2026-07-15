@@ -30,6 +30,7 @@
 #include <regex>
 #include <sstream>
 #include <iterator>
+#include <utility>
 #include <vector>
 #include <Windows.h>
 #include "SteamHelper.h"
@@ -693,48 +694,48 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND hD, UINT m, WPARAM wp, LPARAM lp) {
                 // 3. 根据函数的各种返回值进行分流弹窗提示
                 switch (vulkanResult) {
                 case 0:
-                    // 成功追加了 -vulkan
-                    MessageBoxW(hD, L"GSI 配置成功！已成功为您的 Steam 账号 CS2 启动项追加了 -vulkan 参数。\n\n请完全重启 Steam 客户端以使启动项生效！", L"提示", MB_OK | MB_ICONINFORMATION);
+                    // 成功追加了必要启动项
+                    MessageBoxW(hD, L"GSI 配置成功！已成功为您的 Steam 账号 CS2 启动项追加了 -vulkan 和 -condebug 参数。\n\n请完全重启 Steam 客户端以使启动项生效！", L"提示", MB_OK | MB_ICONINFORMATION);
                     break;
 
                 case 1:
-                    // 本地所有账号本来就都有 -vulkan 
-                    MessageBoxW(hD, L"GSI 配置成功！检测到您的 Steam 账号启动项中本来就已包含 -vulkan，无需重复添加。", L"提示", MB_OK | MB_ICONINFORMATION);
+                    // 本地所有账号本来就都有必要启动项
+                    MessageBoxW(hD, L"GSI 配置成功！检测到您的 Steam 账号启动项中本来就已包含 -vulkan 和 -condebug，无需重复添加。", L"提示", MB_OK | MB_ICONINFORMATION);
                     break;
 
                 case 3:
                     // 注册表找不到 Steam 路径
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：在注册表中未检测到标准的 Steam 安装路径，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：在注册表中未检测到标准的 Steam 安装路径，请手动为 CS2 添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 4:
                     // 找不到账号文件夹 (userdata 为空)
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未在本地 Steam 目录中发现任何登录过的用户数据，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未在本地 Steam 目录中发现任何登录过的用户数据，请手动为 CS2 添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 5:
                     // 物理上找不到任何 localconfig.vdf
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未找到有效的 Steam 本地配置文件(localconfig.vdf)，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：未找到有效的 Steam 本地配置文件(localconfig.vdf)，请手动为 CS2 添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 6:
                     // 文件被独占或无权打开
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件当前被占用或拒绝访问，请【完全关闭 Steam 客户端】后再试，或手动添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件当前被占用或拒绝访问，请【完全关闭 Steam 客户端】后再试，或手动添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 7:
                     // 找到了配置文件，但里面没有 CS2 (730) 记录
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：检测到您的 Steam 账号在该电脑上【从未启动过 CS2】，请至少运行一次游戏后再试，或手动添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：检测到您的 Steam 账号在该电脑上【从未启动过 CS2】，请至少运行一次游戏后再试，或手动添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 case 8:
                     // 正则解析异常或格式不规范
-                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件格式解析异常，为了安全未进行强行修改，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但未能自动添加启动项：本地配置文件格式解析异常，为了安全未进行强行修改，请手动为 CS2 添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
 
                 default:
                     // 防御性未知错误
-                    MessageBoxW(hD, L"GSI 配置成功！但添加启动项时发生了未知的兼容性问题，请手动为 CS2 添加 -vulkan 启动项。", L"警告", MB_OK | MB_ICONWARNING);
+                    MessageBoxW(hD, L"GSI 配置成功！但添加启动项时发生了未知的兼容性问题，请手动为 CS2 添加 -vulkan 和 -condebug 启动项。", L"警告", MB_OK | MB_ICONWARNING);
                     break;
                 }
 
@@ -790,6 +791,18 @@ int AddCS2vulkanDebugVersion() {
     const vector<string>& userIDs = helper.GetSteamUserIDs();
     if (userIDs.empty()) return 4;
 
+    auto ensureLaunchOptions = [](string currentOptions) {
+        bool changed = false;
+        const vector<string> requiredOptions = { "-vulkan", "-condebug" };
+        for (const string& option : requiredOptions) {
+            if (currentOptions.find(option) != string::npos) continue;
+            if (!currentOptions.empty() && currentOptions.back() != ' ') currentOptions += " ";
+            currentOptions += option;
+            changed = true;
+        }
+        return pair<string, bool>{ currentOptions, changed };
+    };
+
     bool anyAddedTotal = false;
     bool allAlreadyHad = true;
     bool foundAnyVdf = false; // 新增：是否至少找到了一个物理文件
@@ -839,15 +852,12 @@ int AddCS2vulkanDebugVersion() {
 
             if (regex_search(line, match, launchRegex)) {
                 string currentOptions = match[1].str();
-                if (currentOptions.find("-vulkan") != string::npos) {
+                auto [newOptions, optionsChanged] = ensureLaunchOptions(currentOptions);
+                if (!optionsChanged) {
                     continue;
                 }
 
                 allAlreadyHad = false;
-                string newOptions = currentOptions;
-                if (!newOptions.empty() && newOptions.back() != ' ') newOptions += " ";
-                newOptions += "-vulkan";
-
                 string newLine = "\"LaunchOptions\"\t\t\"" + newOptions + "\"";
                 content.replace(posLaunch, line.length(), newLine);
                 modified = true;
@@ -856,7 +866,7 @@ int AddCS2vulkanDebugVersion() {
         else {
             size_t posBrace = content.find('{', pos730);
             if (posBrace != string::npos) {
-                string insertStr = "\n\t\t\t\t\t\t\"LaunchOptions\"\t\t\"-vulkan\"";
+                string insertStr = "\n\t\t\t\t\t\t\"LaunchOptions\"\t\t\"-vulkan -condebug\"";
                 content.insert(posBrace + 1, insertStr);
                 modified = true;
                 allAlreadyHad = false;
