@@ -594,7 +594,6 @@ case WM_KEYDOWN: {
         case IDM_CREATE_GSI_CFG: OnCreateGSIConfig(hw); break;
         case IDM_DEBUGGER: g_Console.ShowDebugger(hInst, hw); break;
         case IDM_ABOUT: DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hw, About); break;
-        case IDM_SETTINGS: g_currentPage = PAGE_SETTINGS; InvalidateRect(hw, nullptr, FALSE); break;
         case IDM_EXIT: g_forceExit = true; DestroyWindow(hw); break;
         default: return DefWindowProc(hw, m, wp, lp);
         }

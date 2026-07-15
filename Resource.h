@@ -21,7 +21,6 @@
 // 菜单项
 #define IDM_DEBUGGER			110
 #define IDM_CREATE_GSI_CFG		111
-#define IDM_SETTINGS			112
 
 // Debugger 窗口控件
 #define IDC_DEBUG_EDIT			1001
