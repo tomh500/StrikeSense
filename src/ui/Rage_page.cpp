@@ -116,7 +116,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
 
     const int jitterY = yBase + 34;
-    g.DrawString(L"为多绑定的脚本提供支持", -1, &rF, PointF((REAL)(cx + 10), (REAL)jitterY), &tdCol);
+    g.DrawString(_(i18n::Keys::Rage_MOUSE_JITTER), -1, &rF, PointF((REAL)(cx + 10), (REAL)jitterY), &tdCol);
     g_MouseJitterToggleRect = RectF((REAL)(cx + 220), (REAL)(jitterY - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, jitterY - 4, mousejitter::IsEnabled());
 
@@ -229,10 +229,15 @@ void CheckRageClick(HWND hw, int mx, int my) {
             if (ret != IDYES) return;
         }
         g_rageEnabled = !g_rageEnabled;
-        if (!g_rageEnabled)
+        if (g_rageEnabled)
         {
-            SetQuickStopEnabled(false);
-            mousejitter::SetEnabled(false);
+            if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
+            if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
+        }
+        else
+        {
+            StopQuickStopForRageDisabled();
+            mousejitter::StopForRageDisabled();
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;

@@ -1,5 +1,6 @@
     #include "config.h"
     #include <windows.h>
+    #include <algorithm>
     #include <iostream>
     #include <fstream>
     #include <nlohmann/json.hpp>
@@ -149,6 +150,9 @@ void EnsureDirectory(const fs::path& p)
             if (j.contains("show_mvp") && j["show_mvp"].is_boolean())
                 s.show_mvp = j["show_mvp"];
 
+            if (j.contains("close_behavior") && j["close_behavior"].is_number_integer())
+                s.close_behavior = std::clamp(j["close_behavior"].get<int>(), 0, 2);
+
             std::cout << "[配置] gsi.json 加载成功。" << std::endl;
 
             // 然后加载音效配置
@@ -196,6 +200,7 @@ void EnsureDirectory(const fs::path& p)
             j["low_memory"] = s.low_memory;
             j["show_mvp"] = s.show_mvp;
             j["enable_kill_sound"] = s.enable_kill_sound;
+            j["close_behavior"] = s.close_behavior;
 
             // 保留 __comments
             if (!j.contains("__comments"))
@@ -212,6 +217,7 @@ void EnsureDirectory(const fs::path& p)
                 j["__comments"]["low_memory"] = "是否开启低内存模式";
                 j["__comments"]["show_mvp"] = "是否展示MVP信息板";
                 j["__comments"]["enable_kill_sound"] = "是否开启击杀音效替换";
+                j["__comments"]["close_behavior"] = "关闭主窗口时的行为：0=询问，1=隐藏到托盘，2=关闭程序";
             }
 
             std::ofstream out(path);

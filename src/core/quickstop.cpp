@@ -70,6 +70,14 @@ void SetQuickStopEnabled(bool enabled)
         StartQuickStopHook();
     else
         StopQuickStopHook();
+
+    SaveQuickStopConfig();
+}
+
+void StopQuickStopForRageDisabled()
+{
+    StopQuickStopHook();
+    std::cout << "[急停] 超频配置关闭，已停止自动急停运行，但保留开关偏好。" << std::endl;
 }
 
 void LoadQuickStopConfig()
@@ -93,6 +101,7 @@ void LoadQuickStopConfig()
         auto gb = [&](const char* k, bool& v) { if (j.contains(k) && j[k].is_boolean()) v = j[k]; };
         auto gi = [&](const char* k, int& v) { if (j.contains(k) && j[k].is_number()) v = j[k].get<int>(); };
 
+        gb("enabled", s_qsConfig.enabled);
         gi("micro_pulse", s_qsConfig.micro_pulse);
         gi("min_pulse", s_qsConfig.min_pulse);
         gi("max_pulse", s_qsConfig.max_pulse);
@@ -103,7 +112,6 @@ void LoadQuickStopConfig()
         gi("curve_percent", s_qsConfig.curve_percent);
         gi("horizontal_scale_percent", s_qsConfig.horizontal_scale_percent);
         gi("vertical_scale_percent", s_qsConfig.vertical_scale_percent);
-        s_qsConfig.enabled = false;
 
         std::cout << "[急停] quickstop.json 加载成功。" << std::endl;
     }
@@ -119,6 +127,7 @@ void SaveQuickStopConfig()
 
     try {
         nlohmann::json j;
+        j["enabled"] = s.enabled;
         j["micro_pulse"] = s.micro_pulse;
         j["min_pulse"] = s.min_pulse;
         j["max_pulse"] = s.max_pulse;

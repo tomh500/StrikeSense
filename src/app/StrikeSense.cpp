@@ -13,6 +13,7 @@
 #include <iostream>
 #include <filesystem>
 #include <ShlObj.h>
+#include <commctrl.h>
 #include <gdiplus.h>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -26,16 +27,25 @@
 #include "vscript.h"
 #include <regex>
 #include <sstream>
+#include <iterator>
 #include <vector>
 #include <Windows.h>
 #include "SteamHelper.h"
 #pragma comment(lib, "gdiplus.lib")
 #pragma comment(lib, "SteamHelper.lib")
+#pragma comment(lib, "comctl32.lib")
 
 using namespace std;
 using namespace filesystem;
 namespace fs = std::filesystem;
 #define MAX_LOADSTRING 100
+constexpr UINT WM_TRAYICON = WM_APP + 100;
+constexpr UINT TRAY_ICON_ID = 1;
+constexpr int CLOSE_ACTION_CANCEL = 0;
+constexpr int CLOSE_ACTION_TRAY = 1;
+constexpr int CLOSE_ACTION_EXIT = 2;
+constexpr int TRAY_CMD_RESTORE = 41001;
+constexpr int TRAY_CMD_EXIT = 41002;
 
 // ===== 全局变量定义 =====
 HWND g_hwnd = nullptr;
@@ -44,7 +54,9 @@ WCHAR szTitle[MAX_LOADSTRING], szWindowClass[MAX_LOADSTRING];
 Console g_Console;
 std::wstring g_gsiCfgPath;
 static ULONG_PTR g_gdiToken = 0;
-HANDLE g_hMutex = nullptr; 
+HANDLE g_hMutex = nullptr;
+static bool g_forceExit = false;
+static bool g_trayIconAdded = false;
 
 int g_currentPage = 0;
 bool g_langCN = true;
@@ -95,6 +107,11 @@ INT_PTR CALLBACK ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
 static std::wstring GetCS2CfgPath();
 static void OnCreateGSIConfig(HWND);
 static void PaintAll(HWND, HDC);
+static void AddTrayIcon(HWND hw);
+static void RemoveTrayIcon(HWND hw);
+static void RestoreFromTray(HWND hw);
+static void ShowTrayMenu(HWND hw);
+static int ResolveCloseAction(HWND hw);
 int AddCS2vulkanDebugVersion();
 
 
@@ -148,6 +165,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     std::cout << "============================================" << std::endl;
     config::EnsureDirectoriesExist(); config::Load();
     LoadQuickStopConfig();
+    mousejitter::LoadConfig();
     sound::Init(); sound::PreloadSounds();
     if (gsi::Initialize()) gsi::StartServer();
 
@@ -256,6 +274,117 @@ static void PaintAll(HWND hw, HDC hdc) {
     }
     BitBlt(hdc, 0, 0, W, H, md, 0, 0, SRCCOPY);
     SelectObject(md, ob); DeleteObject(mb); DeleteDC(md);
+}
+
+static void AddTrayIcon(HWND hw)
+{
+    if (g_trayIconAdded) return;
+
+    NOTIFYICONDATAW nid{};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = hw;
+    nid.uID = TRAY_ICON_ID;
+    nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    nid.uCallbackMessage = WM_TRAYICON;
+    nid.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_STRIKESENSE));
+    wcscpy_s(nid.szTip, L"StrikeSense");
+
+    if (Shell_NotifyIconW(NIM_ADD, &nid)) {
+        g_trayIconAdded = true;
+        std::cout << "[托盘] 已隐藏到系统托盘。" << std::endl;
+    }
+}
+
+static void RemoveTrayIcon(HWND hw)
+{
+    if (!g_trayIconAdded) return;
+
+    NOTIFYICONDATAW nid{};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = hw;
+    nid.uID = TRAY_ICON_ID;
+    Shell_NotifyIconW(NIM_DELETE, &nid);
+    g_trayIconAdded = false;
+    std::cout << "[托盘] 已移除系统托盘图标。" << std::endl;
+}
+
+static void RestoreFromTray(HWND hw)
+{
+    RemoveTrayIcon(hw);
+    ShowWindow(hw, SW_SHOW);
+    ShowWindow(hw, SW_RESTORE);
+    SetForegroundWindow(hw);
+    std::cout << "[托盘] 主窗口已恢复显示。" << std::endl;
+}
+
+static void ShowTrayMenu(HWND hw)
+{
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+
+    AppendMenuW(menu, MF_STRING, TRAY_CMD_RESTORE, L"显示窗口");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING, TRAY_CMD_EXIT, L"退出程序");
+
+    POINT pt{};
+    GetCursorPos(&pt);
+    SetForegroundWindow(hw);
+    const int cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, hw, nullptr);
+    DestroyMenu(menu);
+
+    if (cmd == TRAY_CMD_RESTORE) RestoreFromTray(hw);
+    else if (cmd == TRAY_CMD_EXIT) {
+        g_forceExit = true;
+        DestroyWindow(hw);
+    }
+}
+
+static int ResolveCloseAction(HWND hw)
+{
+    config::Settings settings = config::Load();
+    if (settings.close_behavior == CLOSE_ACTION_TRAY || settings.close_behavior == CLOSE_ACTION_EXIT)
+        return settings.close_behavior;
+
+    TASKDIALOG_BUTTON buttons[] = {
+        { CLOSE_ACTION_TRAY, L"隐藏到托盘\n程序继续在后台运行，可从托盘图标恢复。" },
+        { CLOSE_ACTION_EXIT, L"关闭程序\n停止后台功能并退出 StrikeSense。" },
+    };
+
+    TASKDIALOGCONFIG cfg{};
+    cfg.cbSize = sizeof(cfg);
+    cfg.hwndParent = hw;
+    cfg.hInstance = hInst;
+    cfg.dwFlags = TDF_USE_COMMAND_LINKS | TDF_ALLOW_DIALOG_CANCELLATION;
+    cfg.pszWindowTitle = L"关闭 StrikeSense";
+    cfg.pszMainInstruction = L"要隐藏到托盘还是关闭程序？";
+    cfg.pszContent = L"隐藏到托盘后，可以通过托盘图标重新呼出窗口或彻底退出。";
+    cfg.cButtons = static_cast<UINT>(std::size(buttons));
+    cfg.pButtons = buttons;
+    cfg.nDefaultButton = CLOSE_ACTION_TRAY;
+    cfg.pszVerificationText = L"不再询问，记住我的选择";
+    cfg.dwCommonButtons = TDCBF_CANCEL_BUTTON;
+
+    int selected = CLOSE_ACTION_CANCEL;
+    BOOL checked = FALSE;
+    const HRESULT hr = TaskDialogIndirect(&cfg, &selected, nullptr, &checked);
+    if (FAILED(hr)) {
+        selected = MessageBoxW(hw, L"是否隐藏到系统托盘？\n选择“否”将关闭程序。", L"关闭 StrikeSense",
+            MB_YESNOCANCEL | MB_ICONQUESTION | MB_DEFBUTTON1);
+        if (selected == IDYES) return CLOSE_ACTION_TRAY;
+        if (selected == IDNO) return CLOSE_ACTION_EXIT;
+        return CLOSE_ACTION_CANCEL;
+    }
+
+    if (selected != CLOSE_ACTION_TRAY && selected != CLOSE_ACTION_EXIT)
+        return CLOSE_ACTION_CANCEL;
+
+    if (checked) {
+        settings.close_behavior = selected;
+        config::Save(settings);
+        std::cout << "[托盘] 已保存关闭行为偏好: " << selected << std::endl;
+    }
+
+    return selected;
 }
 
 LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
@@ -438,7 +567,7 @@ case WM_KEYDOWN: {
         case IDM_DEBUGGER: g_Console.ShowDebugger(hInst, hw); break;
         case IDM_ABOUT: DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hw, About); break;
         case IDM_SETTINGS: g_currentPage = PAGE_SETTINGS; InvalidateRect(hw, nullptr, FALSE); break;
-        case IDM_EXIT: DestroyWindow(hw); break;
+        case IDM_EXIT: g_forceExit = true; DestroyWindow(hw); break;
         default: return DefWindowProc(hw, m, wp, lp);
         }
         break;
@@ -454,9 +583,32 @@ case WM_KEYDOWN: {
             return 0;
         }
         break;
-    case WM_CLOSE: DestroyWindow(hw); break;
+    case WM_TRAYICON:
+        if (lp == WM_LBUTTONDBLCLK) RestoreFromTray(hw);
+        else if (lp == WM_RBUTTONUP || lp == WM_CONTEXTMENU) ShowTrayMenu(hw);
+        return 0;
+    case WM_CLOSE: {
+        if (g_forceExit) {
+            DestroyWindow(hw);
+            break;
+        }
+
+        const int action = ResolveCloseAction(hw);
+        if (action == CLOSE_ACTION_TRAY) {
+            AddTrayIcon(hw);
+            ShowWindow(hw, SW_HIDE);
+            return 0;
+        }
+        if (action == CLOSE_ACTION_EXIT) {
+            g_forceExit = true;
+            DestroyWindow(hw);
+            break;
+        }
+        return 0;
+    }
     case WM_DESTROY:
 {
+    RemoveTrayIcon(hw);
     flashoverlay::Shutdown();
     itemhelper_overlay::Shutdown();
     KillTimer(hw, 2001);

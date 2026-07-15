@@ -28,6 +28,7 @@ void SaveQuickStopConfig();
 void ApplyQuickStopConfigChanges();
 void SetQuickStopEnabled(bool enabled);
 bool IsQuickStopEnabled();
+void StopQuickStopForRageDisabled();
 void ProcessQuickStopCommand(const std::string& cmd);
 void StartQuickStopHook();
 void StopQuickStopHook();

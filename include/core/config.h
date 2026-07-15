@@ -17,6 +17,7 @@ struct Settings {
     bool low_memory = false;
     bool show_mvp = false;
     bool enable_kill_sound = true;
+    int close_behavior = 0; // 0=询问, 1=隐藏到托盘, 2=关闭程序
 
 
     std::wstring snd_1, snd_2, snd_3, snd_4, snd_5;
