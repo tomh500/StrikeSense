@@ -134,7 +134,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     flashoverlay::Initialize(hInst);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607151944" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607151952" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;

@@ -1,8 +1,10 @@
 #include "pages.h"
 #include "i18n.h"
 #include "quickstop.h"
+#include "resource.h"
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -18,18 +20,64 @@ static Gdiplus::RectF g_QSToggleRect;
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
 static constexpr int kQSSliderCount = 10;
 static std::array<Gdiplus::RectF, kQSSliderCount> g_sliderRects;
+static std::array<Gdiplus::RectF, kQSSliderCount> g_valueRects;
+
+struct QuickStopInputContext {
+    const wchar_t* label = nullptr;
+    int current = 0;
+    int result = 0;
+    bool accepted = false;
+};
+
+static INT_PTR CALLBACK QuickStopValueDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    auto* context = reinterpret_cast<QuickStopInputContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_INITDIALOG) {
+        context = reinterpret_cast<QuickStopInputContext*>(lParam);
+        SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+        SetDlgItemTextW(dialog, IDC_QUICKSTOP_VALUE_LABEL, context->label);
+        SetDlgItemTextW(dialog, IDC_QUICKSTOP_VALUE_EDIT, std::to_wstring(context->current).c_str());
+        SendDlgItemMessageW(dialog, IDC_QUICKSTOP_VALUE_EDIT, EM_SETSEL, 0, -1);
+        SetFocus(GetDlgItem(dialog, IDC_QUICKSTOP_VALUE_EDIT));
+        return FALSE;
+    }
+    if (message != WM_COMMAND || !context) return FALSE;
+    if (LOWORD(wParam) == IDOK) {
+        wchar_t text[128]{};
+        GetDlgItemTextW(dialog, IDC_QUICKSTOP_VALUE_EDIT, text, static_cast<int>(std::size(text)));
+        context->result = _wtoi(text);
+        context->accepted = true;
+        EndDialog(dialog, IDOK);
+        return TRUE;
+    }
+    if (LOWORD(wParam) == IDCANCEL) {
+        EndDialog(dialog, IDCANCEL);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static bool PromptQuickStopValue(HWND owner, const wchar_t* label, int current, int& result)
+{
+    QuickStopInputContext context{ label, current, current, false };
+    DialogBoxParamW(hInst, MAKEINTRESOURCEW(IDD_QUICKSTOP_VALUE), owner,
+        QuickStopValueDialogProc, reinterpret_cast<LPARAM>(&context));
+    if (!context.accepted) return false;
+    result = context.result;
+    return true;
+}
 
 static float QuickStopSliderPosition(int value, int minimum, int maximum)
 {
     const double clamped = std::clamp(value, minimum, maximum);
-    return static_cast<float>(std::log(clamped / static_cast<double>(minimum)) /
-        std::log(maximum / static_cast<double>(minimum)));
+    const double linear = (clamped - minimum) / static_cast<double>(maximum - minimum);
+    return static_cast<float>(std::pow(linear, 0.72));
 }
 
 static int QuickStopSliderValue(float position, int minimum, int maximum)
 {
-    const double ratio = maximum / static_cast<double>(minimum);
-    return static_cast<int>(std::lround(minimum * std::pow(ratio, std::clamp(position, 0.0f, 1.0f))));
+    const double linear = std::pow(std::clamp(position, 0.0f, 1.0f), 1.0 / 0.72);
+    return static_cast<int>(std::lround(minimum + linear * (maximum - minimum)));
 }
 
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
@@ -43,6 +91,8 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     SolidBrush knB(Color(255, 60, 160, 230));
     SolidBrush warnCol(Color(255, 200, 80, 80));
     SolidBrush hintCol(Color(180, 100, 130, 160));
+    SolidBrush valueBackground(Color(255, 252, 254, 255));
+    Pen valueBorder(Color(255, 145, 195, 225), 1.0f);
 
     // 警告：Rage 模式不保存
     g.DrawString(_(i18n::Keys::Rage_WARN_NOSAVE), -1, &xsF, PointF((REAL)(cx + 10), 38.f), &warnCol);
@@ -103,7 +153,10 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
         wchar_t valT[16];
         swprintf_s(valT, L"%d", *defs[i].value);
-        g.DrawString(valT, -1, &sF, PointF((REAL)(barX + slW + 8), (REAL)(sy - 2)), &tdCol);
+        g_valueRects[i] = RectF((REAL)(barX + slW + 6), (REAL)(sy - 10), 68.f, 22.f);
+        g.FillRectangle(&valueBackground, g_valueRects[i]);
+        g.DrawRectangle(&valueBorder, g_valueRects[i]);
+        g.DrawString(valT, -1, &sF, PointF(g_valueRects[i].X + 7.0f, g_valueRects[i].Y + 2.0f), &tdCol);
 
         // 记录滑块区域用于点击检测
         g_sliderRects[i] = RectF((REAL)barX, (REAL)(sy - 8), (REAL)slW, 24.f);
@@ -196,20 +249,34 @@ void CheckRageClick(HWND hw, int mx, int my) {
 
     // 滑块检测
     auto& cfg = GetQSConfig();
-    struct { int* v; int min, max; } targets[] = {
-        { &cfg.micro_pulse, 1, 1000 },
-        { &cfg.min_pulse, 1, 1000 },
-        { &cfg.max_pulse, 1, 1000 },
-        { &cfg.cap_pulse, 1, 1000 },
-        { &cfg.micro_move_at, 1, 5000 },
-        { &cfg.move_start_at, 1, 5000 },
-        { &cfg.move_cap_at, 50, 5000 },
-        { &cfg.curve_percent, 10, 1000 },
-        { &cfg.horizontal_scale_percent, 1, 500 },
-        { &cfg.vertical_scale_percent, 1, 500 },
+    struct { const char* nameKey; int* v; int min, max; } targets[] = {
+        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, 1, 1000 },
+        { i18n::Keys::Rage_MIN_PULSE, &cfg.min_pulse, 1, 1000 },
+        { i18n::Keys::Rage_MAX_PULSE, &cfg.max_pulse, 1, 1000 },
+        { i18n::Keys::Rage_CAP_PULSE, &cfg.cap_pulse, 1, 1000 },
+        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, 1, 5000 },
+        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, 1, 5000 },
+        { i18n::Keys::Rage_MOVE_CAP, &cfg.move_cap_at, 50, 5000 },
+        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, 10, 1000 },
+        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, 1, 500 },
+        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, 1, 500 },
     };
 
     for (int i = 0; i < kQSSliderCount; ++i) {
+        const auto& valueRect = g_valueRects[i];
+        if (mx >= valueRect.X && mx <= valueRect.X + valueRect.Width &&
+            my >= valueRect.Y && my <= valueRect.Y + valueRect.Height) {
+            int entered = *targets[i].v;
+            if (PromptQuickStopValue(hw, _(targets[i].nameKey), *targets[i].v, entered)) {
+                *targets[i].v = entered;
+                ApplyQuickStopConfigChanges();
+                std::cout << "[急停] 数字输入参数 " << i << " = " << entered
+                          << "（允许超出滑块范围）" << std::endl;
+                InvalidateRect(hw, nullptr, FALSE);
+            }
+            return;
+        }
+
         auto& r = g_sliderRects[i];
         if (mx >= r.X && mx <= r.X + r.Width &&
             my >= r.Y && my <= r.Y + r.Height) {

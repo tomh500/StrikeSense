@@ -100,8 +100,8 @@ void i18n::Init() {
     
     cn[Keys::Rage_HINT_LINE2] = L"微步/常规/长移动分段曲线计算，横纵方向独立缩放；Shift/Ctrl 时静默跳过";
     en[Keys::Rage_HINT_LINE2] = L"Segmented pulse curve with axis scaling. Shift/Ctrl silently skips QuickStop.";
-    cn[Keys::Rage_HINT_LINE3] = L"滑块使用对数刻度：低值区域可精调，同时保留极大的高值定义域";
-    en[Keys::Rage_HINT_LINE3] = L"Logarithmic sliders preserve low-value precision while covering a very large range.";
+    cn[Keys::Rage_HINT_LINE3] = L"滑块使用均衡曲线；点击右侧数字可直接输入任意整数，不受滑块范围限制";
+    en[Keys::Rage_HINT_LINE3] = L"Balanced sliders; click a value to enter any integer beyond the slider range.";
     
     cn[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ 权限不足";
     en[Keys::Rage_REQ_ADMIN_TITLE] = L"⚠️ Insufficient Privileges";

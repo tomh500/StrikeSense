@@ -10,6 +10,7 @@
 #define IDD_DEBUGGER			106
 #define IDD_CONFIRM_PATH		107
 #define IDD_SETTINGS			108
+#define IDD_QUICKSTOP_VALUE	120
 #define IDM_ABOUT				104
 #define IDM_EXIT				105
 #define IDI_STRIKESENSE			107
@@ -41,6 +42,8 @@
 #define IDC_CK_USE_OGG			1024
 #define IDC_EDIT_VOL			1025
 #define IDC_CK_ENABLE_KILL_SOUND 1026
+#define IDC_QUICKSTOP_VALUE_LABEL 1030
+#define IDC_QUICKSTOP_VALUE_EDIT 1031
 
 // 主窗口控件 — 音效文件标签和选择按钮
 #define IDC_SND_LABEL_1			2001

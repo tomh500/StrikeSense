@@ -230,14 +230,14 @@ namespace {
             const double progress = static_cast<double>(std::clamp(
                 move_duration_ms, move_start_at, move_cap_at) - move_start_at) /
                 static_cast<double>((std::max)(1, move_cap_at - move_start_at));
-            const double curve = std::clamp(cfg.curve_percent, 10, 1000) / 100.0;
+            const double curve = (std::max)(1, cfg.curve_percent) / 100.0;
             pulse = min_pulse + std::pow(progress, curve) * (max_pulse - min_pulse);
         }
 
         const bool horizontal = counter_key == 'A' || counter_key == 'D';
         const int direction_scale = horizontal
-            ? std::clamp(cfg.horizontal_scale_percent, 1, 500)
-            : std::clamp(cfg.vertical_scale_percent, 1, 500);
+            ? (std::max)(1, cfg.horizontal_scale_percent)
+            : (std::max)(1, cfg.vertical_scale_percent);
         pulse *= direction_scale / 100.0;
         return std::clamp(static_cast<int>(std::lround(pulse)), 1, cap_pulse);
     }
