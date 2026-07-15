@@ -13,8 +13,11 @@
 
 #pragma comment(lib, "ole32.lib")
 
+static std::atomic<bool> g_lenientCs2WindowDetection{ false };
+
 bool IsCS2WindowActive()
     {
+        if (g_lenientCs2WindowDetection.load()) return true;
         HWND fg = GetForegroundWindow();
         if (!fg) return false;
         wchar_t title[256];
@@ -23,6 +26,18 @@ bool IsCS2WindowActive()
         return (wt.find(L"Counter-Strike 2") != std::string::npos ||
                 wt.find(L"反恐精英：全球攻势") != std::string::npos);
     }
+
+void SetLenientCS2WindowDetection(bool enabled)
+{
+    g_lenientCs2WindowDetection.store(enabled);
+    std::cout << "[窗口检测] 宽容检测游戏窗口已切换为: "
+              << (enabled ? "开启" : "关闭") << std::endl;
+}
+
+bool IsLenientCS2WindowDetection()
+{
+    return g_lenientCs2WindowDetection.load();
+}
 
 namespace {
     std::thread g_volThread;

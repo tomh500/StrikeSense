@@ -20,6 +20,8 @@ extern bool g_crossThreadRunning;
 bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷键
 bool g_isBindingItemHelperHotkey = false; // 添加这行：标记是否正在录入道具助手快捷键
 
+static Gdiplus::RectF g_lenientWindowToggleRect;
+
 static std::wstring GetEvolutionConfigPath() {
     wchar_t p[MAX_PATH] = {};
     GetEnvironmentVariableW(L"USERPROFILE", p, MAX_PATH);
@@ -34,6 +36,7 @@ void SaveEvolutionParams() {
     j["langCN"] = g_langCN;
     j["hotkey_mod"] = g_hotkeyMod; j["hotkey_vk"] = g_hotkeyVk;
     j["crosshair_enabled"] = g_crosshairEnabled;
+    j["lenient_cs2_window_detection"] = IsLenientCS2WindowDetection();
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
     j["crosshair_style"] = g_crosshairStyle;
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
@@ -78,6 +81,9 @@ void LoadEvolutionParams() {
 
         gv("hotkey_mod", g_hotkeyMod); gv("hotkey_vk", g_hotkeyVk);
         gb("crosshair_enabled", g_crosshairEnabled);
+        bool lenientWindowDetection = IsLenientCS2WindowDetection();
+        gb("lenient_cs2_window_detection", lenientWindowDetection);
+        SetLenientCS2WindowDetection(lenientWindowDetection);
         gb("item_helper_enabled", g_itemHelperEnabled);
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
@@ -244,6 +250,10 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     g.DrawString(_(Keys::EVO_HINT_MUTE), -1, &sF, PointF((float)(cx + 140), 115.f), &tmDim);
 
+    g.DrawString(L"宽容检测游戏窗口:", -1, &sF, PointF((float)(cx + 10), 145.f), &tdCol);
+    g_lenientWindowToggleRect = RectF((REAL)(cx + 140), (REAL)141, 50.f, 24.f);
+    ui::DrawToggle(g, cx + 140, 141, IsLenientCS2WindowDetection());
+
     // 4. 快捷键区域（组合国际化）
     /*
     std::wstring keyName;
@@ -280,20 +290,20 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     wchar_t hs[128];
     swprintf_s(hs, L"%s: %s", _(Keys::EVO_HOTKEY), keyName.c_str());
-    g.DrawString(hs, -1, &rF, PointF((float)(cx + 10), 150.f), &tdCol); // 恢复高亮色
+    g.DrawString(hs, -1, &rF, PointF((float)(cx + 10), 178.f), &tdCol); // 恢复高亮色
     {
         Gdiplus::Pen kp(Color(255, 30, 60, 100)); // 恢复高亮色边框
-        Gdiplus::RectF keyRect((REAL)(cx + 10), 172.f, 200.f, 20.f);
+        Gdiplus::RectF keyRect((REAL)(cx + 10), 200.f, 200.f, 20.f);
         g.DrawRectangle(&kp, keyRect);
         
         // 如果在录入状态就显示“按下任意键...”，否则显示“点击修改快捷键”
         const wchar_t* hintStr = g_isBindingHotkey ? _(Keys::EVO_WAITING_KEY) : _(Keys::EVO_CLICK_MODIFY);
-        g.DrawString(hintStr, -1, &sF, PointF((float)(cx + 14), 174.f), &tdCol);
+        g.DrawString(hintStr, -1, &sF, PointF((float)(cx + 14), 202.f), &tdCol);
     }
 
     // 5. 准星设置区域
-    int yRgb = 235, yRow2 = 270;
-    g.DrawString(_(Keys::EVO_CROSSHAIR), -1, &rF, PointF((float)(cx + 10), 205.f), &tdCol);
+    int yRgb = 263, yRow2 = 298;
+    g.DrawString(_(Keys::EVO_CROSSHAIR), -1, &rF, PointF((float)(cx + 10), 233.f), &tdCol);
     int rgbLabelX = cx + 10; int rgbBarW = 80, rgbSpacing = 150;
     const wchar_t* rgbL[] = { L"R", L"G", L"B" };
     int* rgbV[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
@@ -362,9 +372,9 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
 
     int cx = SIDEBAR_W + 12, cw = 0;
     RECT rc; GetClientRect(hw, &rc); cw = rc.right - rc.left - cx - 12;
-    int yVolSlider = 80, yRgb = 235, yRow2 = 270; int slW = cw - 100; float val;
+    int yVolSlider = 80, yRgb = 263, yRow2 = 298; int slW = cw - 100; float val;
         // 检测是否点击了快捷键录入框区域 (X: cx+10 ~ cx+210, Y: 172 ~ 192)
-    if (mx >= cx + 10 && mx <= cx + 210 && my >= 172 && my <= 192) {
+    if (mx >= cx + 10 && mx <= cx + 210 && my >= 200 && my <= 220) {
         g_isBindingHotkey = !g_isBindingHotkey;
         SetFocus(hw); // 让窗口拿到键盘焦点
         InvalidateRect(hw, nullptr, FALSE);
@@ -415,6 +425,12 @@ void CheckEvolutionClick(HWND hw, int mx, int my) {
         SaveEvolutionParams();
         if (g_deathMute) StartCS2VolumeControl(g_death_vol);
         else StopCS2VolumeControl();
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+    if (ui::CheckToggleClick(mx, my, (int)g_lenientWindowToggleRect.X, (int)g_lenientWindowToggleRect.Y)) {
+        SetLenientCS2WindowDetection(!IsLenientCS2WindowDetection());
+        SaveEvolutionParams();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }

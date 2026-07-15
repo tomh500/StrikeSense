@@ -1,6 +1,7 @@
 #include "quickstop.h"
 #include "config.h"
 #include "pages.h"
+#include "volume_mixer.h"
 #include <algorithm>
 #include <array>
 #include <condition_variable>
@@ -401,7 +402,7 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
         // SendInput 产生的按键不参与真实移动计时，也不会反过来触发急停。
         if (kb && !(kb->flags & LLKHF_INJECTED))
         {
-            if (!IsCS2Foreground())
+            if (!IsCS2WindowActive())
             {
                 ResetPhysicalKeys();
                 return CallNextHookEx(nullptr, nCode, wParam, lParam);

@@ -1,5 +1,6 @@
 #include "pages.h"
 #include "i18n.h"
+#include "mouse_jitter.h"
 #include "quickstop.h"
 #include "resource.h"
 #include <array>
@@ -16,6 +17,7 @@ bool g_rageEnabled = false;
 static Gdiplus::RectF g_RageToggleRect;
 
 static Gdiplus::RectF g_QSToggleRect;
+static Gdiplus::RectF g_MouseJitterToggleRect;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
 static constexpr int kQSSliderCount = 10;
@@ -113,6 +115,11 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     const bool quickStopEnabled = IsQuickStopEnabled();
     ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
 
+    const int jitterY = yBase + 34;
+    g.DrawString(L"为多绑定的脚本提供支持", -1, &rF, PointF((REAL)(cx + 10), (REAL)jitterY), &tdCol);
+    g_MouseJitterToggleRect = RectF((REAL)(cx + 220), (REAL)(jitterY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, cx + 220, jitterY - 4, mousejitter::IsEnabled());
+
     if (!quickStopEnabled) return;
 
     // 读取最新值
@@ -140,7 +147,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int slW = cw - 280;
     if (slW < 100) slW = 100;
     for (int i = 0; i < kQSSliderCount; ++i) {
-        int sy = yBase + 40 + i * 34;
+        int sy = yBase + 74 + i * 34;
         const wchar_t* wlabel = _(defs[i].nameKey); 
         g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
 
@@ -163,7 +170,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     }
 
     // 触发条件说明
-    const int hintY = yBase + 40 + kQSSliderCount * 34 + 8;
+    const int hintY = yBase + 74 + kQSSliderCount * 34 + 8;
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE1), -1, &xsF, PointF((REAL)(cx + 10), (REAL)hintY), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE2), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 16)), &hintCol);
     g.DrawString(_(i18n::Keys::Rage_HINT_LINE3), -1, &xsF, PointF((REAL)(cx + 10), (REAL)(hintY + 32)), &hintCol);
@@ -225,6 +232,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         if (!g_rageEnabled)
         {
             SetQuickStopEnabled(false);
+            mousejitter::SetEnabled(false);
         }
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -233,6 +241,16 @@ void CheckRageClick(HWND hw, int mx, int my) {
     if (!g_rageEnabled) return;
 
     // 急停开关
+    RectF* mjr = &g_MouseJitterToggleRect;
+    if (mx >= mjr->X && mx <= mjr->X + mjr->Width &&
+        my >= mjr->Y && my <= mjr->Y + mjr->Height) {
+        mousejitter::SetEnabled(!mousejitter::IsEnabled());
+        std::cout << "[多绑定脚本] UI 请求切换支持开关，实际状态: "
+                  << (mousejitter::IsEnabled() ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
     RectF* qsr = &g_QSToggleRect;
     if (mx >= qsr->X && mx <= qsr->X + qsr->Width &&
         my >= qsr->Y && my <= qsr->Y + qsr->Height) {

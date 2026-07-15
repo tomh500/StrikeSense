@@ -57,6 +57,7 @@ set(SOURCES
     src/core/i18n.cpp
     src/core/itemhelper_overlay.cpp
     src/core/kernelcore.cpp
+    src/core/mouse_jitter.cpp
     src/core/normalgen.cpp
     src/core/quickstop.cpp
     src/core/sound_player.cpp
@@ -88,6 +89,7 @@ set(HEADERS
     include/core/i18n.h
     include/core/itemhelper_overlay.h
     include/core/kernelcore.h
+    include/core/mouse_jitter.h
     include/core/normalgen.h
     include/core/quickstop.h
     include/core/sound_player.h

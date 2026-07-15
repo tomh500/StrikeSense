@@ -379,6 +379,11 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 | `GetQuickStopEnabled()` | 无 | `bool` | 读取自动急停总开关状态 |
 | `SetQuickStopPaused(paused)` | `bool` | `bool` | 暂停或恢复自动急停脉冲执行 |
 | `GetQuickStopPaused()` | 无 | `bool` | 读取自动急停暂停状态 |
+| `SetMouseJitterSupportEnabled(enabled)` | `bool` | `bool` | 开关“为多绑定的脚本提供支持”；开启要求超频配置已启用，且只在 CS2 前台抖动 |
+| `GetMouseJitterSupportEnabled()` | 无 | `bool` | 读取多绑定脚本支持开关状态 |
+| `SetLenientCS2WindowDetection(enabled)` | `bool` | `bool` | 开关“宽容检测游戏窗口”；开启后公共前台检测始终返回真，并同步刷新 UI |
+| `GetLenientCS2WindowDetection()` | 无 | `bool` | 读取宽容检测游戏窗口开关状态 |
+| `IsCS2WindowActive()` | 无 | `bool` | 读取当前公共 CS2 前台检测结果 |
 
 ### 准星控制
 
@@ -704,6 +709,11 @@ string JudgeState(int hp){
 - `GetQuickStopEnabled`
 - `SetQuickStopPaused`
 - `GetQuickStopPaused`
+- `SetMouseJitterSupportEnabled`
+- `GetMouseJitterSupportEnabled`
+- `SetLenientCS2WindowDetection`
+- `GetLenientCS2WindowDetection`
+- `IsCS2WindowActive`
 - `SetCrosshairEnabled`
 - `SetCrosshairVisual`
 - `SetCrosshairConfig`

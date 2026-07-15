@@ -19,6 +19,7 @@
 #include <exception>
 #include "flashoverlay.h"
 #include "normalgen.h"
+#include "mouse_jitter.h"
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "itemhelper_page.h"   
@@ -198,6 +199,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
+    mousejitter::Shutdown();
     StopQuickStopHook();
     gsi::StopServer(); gsi::Cleanup(); vscript::Shutdown(); sound::Quit();
     Gdiplus::GdiplusShutdown(g_gdiToken);

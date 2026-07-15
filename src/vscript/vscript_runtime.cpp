@@ -1,5 +1,6 @@
 ﻿#include "vscript_internal.h"
 
+#include "mouse_jitter.h"
 #include "quickstop.h"
 #include <TlHelp32.h>
 #include <Shellapi.h>
@@ -857,6 +858,36 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         const bool paused = IsQuickStopPaused();
         std::wcout << L"[脚本] 读取自动急停暂停状态: " << (paused ? L"暂停中" : L"运行中") << std::endl;
         return BoolValue(paused);
+    }
+    if (name == L"SetMouseJitterSupportEnabled" && args.size() >= 1) {
+        const bool enabled = Truthy(args[0]);
+        std::wcout << L"[脚本] 请求设置多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        mousejitter::SetEnabled(enabled);
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(mousejitter::IsEnabled() == enabled);
+    }
+    if (name == L"GetMouseJitterSupportEnabled") {
+        const bool enabled = mousejitter::IsEnabled();
+        std::wcout << L"[脚本] 读取多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        return BoolValue(enabled);
+    }
+    if (name == L"SetLenientCS2WindowDetection" && args.size() >= 1) {
+        const bool enabled = Truthy(args[0]);
+        std::wcout << L"[脚本] 请求设置宽容检测游戏窗口: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        SetLenientCS2WindowDetection(enabled);
+        SaveEvolutionParams();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(IsLenientCS2WindowDetection() == enabled);
+    }
+    if (name == L"GetLenientCS2WindowDetection") {
+        const bool enabled = IsLenientCS2WindowDetection();
+        std::wcout << L"[脚本] 读取宽容检测游戏窗口: " << (enabled ? L"开启" : L"关闭") << std::endl;
+        return BoolValue(enabled);
+    }
+    if (name == L"IsCS2WindowActive") {
+        const bool active = IsCS2WindowActive();
+        std::wcout << L"[脚本] 读取 CS2 前台状态: " << (active ? L"是" : L"否") << std::endl;
+        return BoolValue(active);
     }
     if (name == L"SetCrosshairEnabled" && args.size() >= 1) {
         ApplyCrosshairEnabled(Truthy(args[0]));
