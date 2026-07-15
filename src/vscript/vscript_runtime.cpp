@@ -566,7 +566,8 @@ value JsonToValue(const nlohmann::json& input)
 value BuildAllPlayersValue()
 {
     std::vector<value> items;
-    for (auto it = gsi::state::allplayers.begin(); it != gsi::state::allplayers.end(); ++it) {
+    const auto allPlayers = s_gsiSnapshot.value("allplayers", nlohmann::json::object());
+    for (auto it = allPlayers.begin(); it != allPlayers.end(); ++it) {
         if (!it.value().is_object()) continue;
         std::map<std::wstring, value> fields;
         fields[L"slot"] = TextValue(Utf8ToWide(it.key()));
@@ -581,7 +582,9 @@ value BuildAllPlayersValue()
 value BuildCurrentPlayerWeaponsValue()
 {
     std::vector<value> items;
-    for (auto it = gsi::state::player_weapons.begin(); it != gsi::state::player_weapons.end(); ++it) {
+    const auto player = s_gsiSnapshot.value("player", nlohmann::json::object());
+    const auto weapons = player.value("weapons", nlohmann::json::object());
+    for (auto it = weapons.begin(); it != weapons.end(); ++it) {
         if (!it.value().is_object()) continue;
         std::map<std::wstring, value> fields;
         fields[L"slot"] = TextValue(Utf8ToWide(it.key()));

@@ -11,25 +11,11 @@ extern HANDLE g_hMutex;
 bool g_rageEnabled = false;
 static Gdiplus::RectF g_RageToggleRect;
 
-// ===== 急停 UI 状态 =====
-static bool g_qsEnabled = false;
 static Gdiplus::RectF g_QSToggleRect;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
 static Gdiplus::RectF g_sliderRects[5];
 static int g_sliderCount = 0;
-
-static void SyncQSParams()
-{
-    auto& cfg = GetQSConfig();
-    g_qsEnabled = cfg.enabled;
-}
-
-static void SaveQSParam(int idx)
-{
-    SaveQuickStopConfig();
-    std::cout << "[急停] 滑块 " << idx << " 已保存" << std::endl;
-}
 
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
@@ -59,12 +45,12 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     // 标题和开关
     g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF((REAL)(cx + 10), (REAL)yBase), &tdCol);
     g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
-    ui::DrawToggle(g, cx + 220, yBase - 4, g_qsEnabled);
+    const bool quickStopEnabled = IsQuickStopEnabled();
+    ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
 
-    if (!g_qsEnabled) return;
+    if (!quickStopEnabled) return;
 
     // 读取最新值
-    SyncQSParams();
     auto& cfg = GetQSConfig();
 
     // 修复：类型完全统一为项目的底层核心 const char*
@@ -167,7 +153,6 @@ void CheckRageClick(HWND hw, int mx, int my) {
         g_rageEnabled = !g_rageEnabled;
         if (!g_rageEnabled)
         {
-            g_qsEnabled = false;
             SetQuickStopEnabled(false);
         }
         InvalidateRect(hw, nullptr, FALSE);
@@ -180,14 +165,16 @@ void CheckRageClick(HWND hw, int mx, int my) {
     RectF* qsr = &g_QSToggleRect;
     if (mx >= qsr->X && mx <= qsr->X + qsr->Width &&
         my >= qsr->Y && my <= qsr->Y + qsr->Height) {
-        g_qsEnabled = !g_qsEnabled;
-        SetQuickStopEnabled(g_qsEnabled);
-        std::cout << "[急停] 开关: " << (g_qsEnabled ? "开启" : "关闭") << std::endl;
+        const bool requestedEnabled = !IsQuickStopEnabled();
+        SetQuickStopEnabled(requestedEnabled);
+        const bool actualEnabled = IsQuickStopEnabled();
+        std::cout << "[急停] UI 请求切换开关，实际状态: "
+                  << (actualEnabled ? "开启" : "关闭") << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
 
-    if (!g_qsEnabled) return;
+    if (!IsQuickStopEnabled()) return;
 
     // 滑块检测
     auto& cfg = GetQSConfig();

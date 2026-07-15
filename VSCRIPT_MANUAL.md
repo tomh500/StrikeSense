@@ -197,6 +197,9 @@ if(Cooldown("live_popup", 3000)){
 }
 ```
 
+`Changed(...)` 和 `ChangedTo(...)` 本身就是边沿条件，可以直接用于持续脚本。
+系统也兼容 `on:Changed(...)`，但额外的 `on:` 没有必要。
+
 ## 第一个实用脚本
 
 ```cpp

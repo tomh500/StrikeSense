@@ -615,6 +615,15 @@ bool EvalCondition(std::wstring cond)
     }
     bool now = EvalConditionWithVars(cond, s_vars);
     if (!edge) return now;
+
+    // Changed/ChangedTo 本身已经比较了当前帧与上一帧。再次用 on: 包裹时，
+    // 旧实现会用同一组全局快照计算两遍，导致 before 与 now 恒等，条件永远为假。
+    // 将这类条件视为已经完成边沿检测，兼容 on:Changed(...) 的直观写法。
+    if (cond.find(L"Changed(") != std::wstring::npos ||
+        cond.find(L"ChangedTo(") != std::wstring::npos) {
+        return now;
+    }
+
     bool before = EvalConditionWithVars(cond, s_prevVars);
     return now && !before;
 }

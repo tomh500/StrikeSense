@@ -24,6 +24,7 @@ bool s_oemValid = false;
 std::vector<mounted_script> s_mounted;
 std::map<std::wstring, value> s_vars;
 std::map<std::wstring, value> s_prevVars;
+nlohmann::json s_gsiSnapshot = nlohmann::json::object();
 std::unordered_map<int, image_window> s_images;
 std::unordered_map<int, sound_slot> s_sounds;
 std::recursive_mutex s_mutex;
@@ -484,7 +485,9 @@ void ResetTransientWeaponVars()
 bool ScriptHasEdgeGuard(const std::wstring& path)
 {
     std::wstring script = LoadScriptCached(path);
-    return script.find(L"on:") != std::wstring::npos;
+    return script.find(L"on:") != std::wstring::npos ||
+        script.find(L"Changed(") != std::wstring::npos ||
+        script.find(L"ChangedTo(") != std::wstring::npos;
 }
 
 bool ConfirmContinuousAllowed(const std::wstring& path)
@@ -497,7 +500,7 @@ bool ConfirmContinuousAllowed(const std::wstring& path)
     if (GetRuntimeCapability() == buildcode::userdebug) {
         int result = MessageBoxW(
             s_owner,
-            L"这个脚本没有 on: 状态边沿判断，持续执行可能反复打开网页、重复创建文件或反复执行命令。\n\n是否仍然允许它轮询？",
+            L"这个脚本没有 on:、Changed 或 ChangedTo 状态边沿判断，持续执行可能反复打开网页、重复创建文件或反复执行命令。\n\n是否仍然允许它轮询？",
             L"StrikeSense",
             MB_YESNO | MB_ICONWARNING
         );
@@ -505,7 +508,7 @@ bool ConfirmContinuousAllowed(const std::wstring& path)
     }
     MessageBoxW(
         s_owner,
-        L"user 模式禁止轮询没有 on: 状态判断的脚本。\n\n请给脚本加入类似 if(on:death_mute==true){ ... } 的结构，或者提升运行权限。",
+        L"user 模式禁止轮询没有状态边沿判断的脚本。\n\n请使用 on:、Changed 或 ChangedTo 包裹触发逻辑，或者提升运行权限。",
         L"StrikeSense 脚本结构被拒绝",
         MB_OK | MB_ICONWARNING
     );
@@ -681,6 +684,7 @@ bool IsOemUnlockValid()
 void UpdateFromGsi(const nlohmann::json& state)
 {
     std::lock_guard<std::recursive_mutex> lock(s_mutex);
+    s_gsiSnapshot = state;
     s_prevVars = s_vars;
     for (const auto& key : s_stateKeys) s_vars.erase(key);
     s_stateKeys.clear();

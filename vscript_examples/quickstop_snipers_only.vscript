@@ -15,7 +15,7 @@ for(int i=0; i<Size(weapons); i++){
     }
 }
 
-if(on:Changed("weapon_name")){
+if(Changed("weapon_name")){
     if(
         activeWeapon == "weapon_awp" ||
         activeWeapon == "weapon_ssg08" ||

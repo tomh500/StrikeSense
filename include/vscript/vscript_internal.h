@@ -74,6 +74,7 @@ extern bool s_oemValid;
 extern std::vector<mounted_script> s_mounted;
 extern std::map<std::wstring, value> s_vars;
 extern std::map<std::wstring, value> s_prevVars;
+extern nlohmann::json s_gsiSnapshot;
 extern std::unordered_map<int, image_window> s_images;
 extern std::unordered_map<int, sound_slot> s_sounds;
 extern std::recursive_mutex s_mutex;
