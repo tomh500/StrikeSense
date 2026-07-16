@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StrikeSense - 实用文档</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="index.html" class="logo">StrikeSense</a>
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav-links" id="navLinks">
+                <a href="index.html">返回首页</a>
+                <a href="rescenter.html">资源下载中心</a>
+                <a href="itemmaker.html">道具图制作</a>
+                <a href="oemkeygen.html">OEM 申请</a>
+                <a href="scriptdocs.html" class="active-link">脚本文档</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="docs-page">
+        <section class="container">
+            <div class="docs-switcher">
+                <a href="scriptdocs.html">文档导航</a>
+                <a href="vscriptdocs.html">VScript</a>
+                <a href="cscriptdocs.html">CScript</a>
+                <a href="practicaldocs.html" class="is-active">实用文档</a>
+            </div>
+
+            <article class="markdown-body">
+                <h1>StrikeSense 实用文档</h1>
+                <p>这份文档的重点不是再重复一遍语法，而是讲清楚 <strong>VScript 和 CScript 怎么真正联合起来</strong>。</p>
+                <p>它们的关系，不是两个互不相干的系统，而更像数学里“向量和解析几何”“立体几何和空间向量”那样：单看各自都能做题，但一旦连接起来，能解决的问题会一下子变多。</p>
+
+                <h2>这份文档真正要讲的本意</h2>
+                <ul>
+                    <li>VScript 不只是单独读 GSI，它还可以读取由游戏控制台写进 <code>console.log</code> 的内容。</li>
+                    <li>CScript 本身就是围绕控制台命令和按键动作展开的，所以它天然可以通过 <code>echoln</code> 往控制台里发“信号”。</li>
+                    <li>这样一来，CScript 就像“发送端”，VScript 就像“检测端”和“决策端”。</li>
+                    <li>两者连起来之后，你做的就不再是孤立脚本，而是一套可以互相配合的自定义系统。</li>
+                </ul>
+
+                <h2>一句话理解联合链路</h2>
+                <pre><code class="language-text">CScript 按键动作
+    ↓
+echoln 向 CS2 控制台输出文本
+    ↓
+CS2 把文本写入 console.log
+    ↓
+StrikeSense 读取新增的 console.log
+    ↓
+VScript 用 TakeConsoleLog / TakeConsoleLogPrefix / TakeConsoleLogContains 做检测
+    ↓
+VScript 再决定提示、切换、记录、联动、响应
+</code></pre>
+
+                <p>这就是联合的核心。不是抽象意义上的“配合使用”，而是有一条非常具体的通信路径。</p>
+
+                <h2>为什么这条链路有价值</h2>
+                <p>单独看时：</p>
+                <ul>
+                    <li>CScript 很擅长“按下这个键以后做一串控制台动作”。</li>
+                    <li>VScript 很擅长“检测状态变化、识别事件、做逻辑判断和后续响应”。</li>
+                </ul>
+
+                <p>联合起来后：</p>
+                <ul>
+                    <li>CScript 不只是执行动作，还能主动给 VScript 发送语义化信号。</li>
+                    <li>VScript 不只是等 GSI，它还能监听来自 CScript 的自定义事件。</li>
+                    <li>你就拥有了“按键执行层 + 事件判断层”两层能力。</li>
+                </ul>
+
+                <h2>先开启前提条件</h2>
+                <ol>
+                    <li>在 StrikeSense 里开启超频配置中的“为读控制台的方法提供支持”。</li>
+                    <li>确保你的 CScript 确实会执行 <code>echoln ...</code>。</li>
+                    <li>在 VScript 里使用控制台日志相关 API，例如 <code>TakeConsoleLog(...)</code>、<code>TakeConsoleLogPrefix(...)</code>、<code>TakeConsoleLogContains(...)</code>。</li>
+                </ol>
+
+                <p>如果没有这一步，VScript 就收不到来自控制台的新信号，联合链路也就不存在。</p>
+
+                <h2>联合的本质：把 CScript 变成 VScript 的“输入源”</h2>
+                <p>很多人一开始会把 VScript 和 CScript 分成“一个负责状态，一个负责按键”，这当然没错，但还不够。</p>
+                <p>更准确地说，<strong>CScript 可以把自己的执行过程，通过控制台文本，变成 VScript 可检测的输入源</strong>。这才是实用文档真正该讲的地方。</p>
+
+                <h2>最基础的联合示例</h2>
+                <h3>CScript：按下某个键时发送信号</h3>
+                <pre><code class="language-cscript">@OnPressed {
+    "echoln /log jumpthrow_start;+jump":0;
+    "-attack":1;
+    "-attack2":2;
+}
+
+@OnReleased {
+    "echoln /log jumpthrow_end;-jump":0;
+}</code></pre>
+
+                <h3>VScript：接收这个信号并做响应</h3>
+                <pre><code class="language-cpp">if(TakeConsoleLogPrefix("/log ")){
+    if(console_log_taken_payload == "jumpthrow_start"){
+        Log("检测到跳投开始");
+    }
+
+    if(console_log_taken_payload == "jumpthrow_end"){
+        Log("检测到跳投结束");
+    }
+}</code></pre>
+
+                <p>这就是最纯粹的联合。CScript 发消息，VScript 收消息。</p>
+
+                <h2>为什么推荐用 <code>/log</code> 这样的前缀</h2>
+                <p>因为控制台里不只有你的自定义输出，还可能有别的内容。加一个稳定前缀，相当于给“脚本间通信”单独开了一条频道。</p>
+
+                <p>推荐思路：</p>
+                <ul>
+                    <li>普通显示类提示用 <code>/notificationE</code>、<code>/notificationD</code></li>
+                    <li>脚本通信类信号用 <code>/log 你的消息</code></li>
+                    <li>需要更强结构化时，用统一前缀，例如 <code>/log cscript:jumpthrow:start</code></li>
+                </ul>
+
+                <h2>推荐你这样设计信号</h2>
+                <p>不要只输出“有个东西发生了”，而要输出“发生了什么、属于哪一类、当前是什么状态”。</p>
+
+                <pre><code class="language-text">/log cscript:quickstop:pressed
+/log cscript:quickstop:released
+/log cscript:crosshair:on
+/log cscript:crosshair:off
+/log cscript:awp_mode:enter
+/log cscript:awp_mode:leave
+</code></pre>
+
+                <p>这样 VScript 写判断时会非常清晰，也更方便后期扩展。</p>
+
+                <h2>案例一：CScript 发信号，VScript 负责提示与检测</h2>
+                <h3>CScript</h3>
+                <pre><code class="language-cscript">@OnPressed {
+    "echoln /log cscript:fakewalk:pressed;+speed":0;
+}
+
+@OnReleased {
+    "echoln /log cscript:fakewalk:released;-speed":0;
+}</code></pre>
+
+                <h3>VScript</h3>
+                <p>实际使用时，更推荐前缀消费写法：</p>
+
+                <pre><code class="language-cpp">if(TakeConsoleLogPrefix("/log ")){
+    if(console_log_taken_payload == "cscript:fakewalk:pressed"){
+        Log("FakeWalk 已按下");
+    }
+
+    if(console_log_taken_payload == "cscript:fakewalk:released"){
+        Log("FakeWalk 已松开");
+    }
+}</code></pre>
+
+                <p>这里 VScript 不负责按键本身，它负责“理解这个动作已经发生了”，然后你可以继续往后接更多逻辑。</p>
+
+                <h2>案例二：CScript 负责执行，VScript 负责决定是否联动其它功能</h2>
+                <p>这类场景最能体现联合的价值。</p>
+
+                <h3>CScript：进入某个模式时发信号</h3>
+                <pre><code class="language-cscript">@OnPressed {
+    "echoln /log cscript:sniper_mode:on;slot1":0;
+}
+
+@OnReleased {
+    "echoln /log cscript:sniper_mode:off":0;
+}</code></pre>
+
+                <h3>VScript：收到信号后控制程序侧功能</h3>
+                <pre><code class="language-cpp">if(TakeConsoleLogPrefix("/log ")){
+    if(console_log_taken_payload == "cscript:sniper_mode:on"){
+        SetQuickStopEnabled(true);
+        Log("已联动开启自动急停");
+    }
+
+    if(console_log_taken_payload == "cscript:sniper_mode:off"){
+        SetQuickStopEnabled(false);
+        Log("已联动关闭自动急停");
+    }
+}</code></pre>
+
+                <p>这时你会发现：CScript 不是直接“替代”VScript，而是把 VScript 唤醒，让它去调度程序内的更高层能力。</p>
+
+                <h2>案例三：用 CScript 产生人为事件，用 VScript 做复杂判断</h2>
+                <p>GSI 只能告诉你游戏状态发生了什么，但有些“用户自定义意图”并不在 GSI 里，例如：</p>
+                <ul>
+                    <li>我现在切进了某个自定义模式</li>
+                    <li>我现在开始执行某个特殊连招</li>
+                    <li>我刚刚按下了一个只用于脚本系统的状态键</li>
+                </ul>
+
+                <p>这些意图，GSI 不知道，但 CScript 可以通过 <code>echoln</code> 告诉 VScript。</p>
+
+                <pre><code class="language-cscript">@OnPressed {
+    "echoln /log usermode:entry;+lookatweapon":0;
+}
+
+@OnReleased {
+    "echoln /log usermode:exit;-lookatweapon":0;
+}</code></pre>
+
+                <pre><code class="language-cpp">if(TakeConsoleLogPrefix("/log ")){
+    if(console_log_taken_payload == "usermode:entry"){
+        Log("用户进入自定义模式");
+    }
+
+    if(console_log_taken_payload == "usermode:exit"){
+        Log("用户退出自定义模式");
+    }
+}</code></pre>
+
+                <p>你可以把它理解为：CScript 在帮你“人为制造新事件”，而 VScript 在帮你“解释和消费这些事件”。</p>
+
+                <h2>真正高级的理解</h2>
+                <p>从这个角度看，VScript 和 CScript 的关系已经不是“两个脚本功能列表”，而是一个小型分层系统：</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>层级</th>
+                            <th>主要角色</th>
+                            <th>职责</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>输入层</td>
+                            <td>CScript</td>
+                            <td>绑定按键、执行命令、通过 echoln 发出信号</td>
+                        </tr>
+                        <tr>
+                            <td>通信层</td>
+                            <td>console.log</td>
+                            <td>把控制台文本变成可读事件流</td>
+                        </tr>
+                        <tr>
+                            <td>逻辑层</td>
+                            <td>VScript</td>
+                            <td>检测、消费、判断、决定后续联动</td>
+                        </tr>
+                        <tr>
+                            <td>执行层</td>
+                            <td>StrikeSense 原生功能</td>
+                            <td>通知、TextGUI、程序模块开关、自动急停等</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <p>一旦你按这个思路写，自定义能力就会非常清楚：</p>
+                <ul>
+                    <li>CScript 负责“把动作变成信号”</li>
+                    <li>VScript 负责“把信号变成逻辑”</li>
+                    <li>程序原生功能负责“把逻辑变成最终效果”</li>
+                </ul>
+
+                <h2>这才叫“联合”而不是“并列使用”</h2>
+                <p>如果你只是同时写了一个 VScript 和一个 CScript，但它们互相不知道对方在做什么，那只是并列使用。</p>
+                <p>只有当：</p>
+                <ul>
+                    <li>CScript 主动向控制台发信号</li>
+                    <li>VScript 主动检测这些信号</li>
+                    <li>VScript 再根据这些信号去做响应或控制程序功能</li>
+                </ul>
+
+                <p>这才是真正的联合。</p>
+
+                <h2>可以联动哪些内容</h2>
+                <p>你可以把收到的控制台信号继续接到很多地方：</p>
+                <ul>
+                    <li><code>Log(...)</code> 输出调试信息</li>
+                    <li><code>Playsnd(...)</code> 播放音效</li>
+                    <li>TextGUI 显示状态</li>
+                    <li>模块通知的开关和显示</li>
+                    <li>自动急停、控制台读取支持、多绑定支持等程序级能力</li>
+                </ul>
+
+                <h2>推荐的写法习惯</h2>
+                <ol>
+                    <li>给所有联合信号统一加前缀，比如 <code>/log</code>。</li>
+                    <li>信号内容写清楚层级和状态，比如 <code>cscript:sniper_mode:on</code>。</li>
+                    <li>优先用 <code>TakeConsoleLogPrefix("/log ")</code> 来消费，而不是一直盯着最后一行文本。</li>
+                    <li>让 CScript 尽量负责动作，让 VScript 尽量负责判断，不要把职责混成一团。</li>
+                </ol>
+
+                <h2>最适合这套联合思路的场景</h2>
+                <ul>
+                    <li>一个按键不仅要执行动作，还要让程序知道“我进入了某种模式”。</li>
+                    <li>你想把某个按键操作同步为通知、日志、TextGUI 或模块状态。</li>
+                    <li>你想让“用户意图”也进入脚本系统，而不仅仅依赖 GSI 的自然状态变化。</li>
+                </ul>
+
+                <h2>一句话总结</h2>
+                <p>VScript 和 CScript 的联合，不是“两个文档都学一下”，而是 <strong>让 CScript 通过 <code>echoln</code> 给 VScript 发送可检测信号，再让 VScript 负责解释、判断和联动</strong>。这就像把本来分开的数学工具连成一个体系，能力上限会一下子抬高很多。</p>
+
+                <h2>建议阅读顺序</h2>
+                <ol>
+                    <li>先看 <a href="cscriptdocs.html">CScript 文档</a>，理解按键动作和 <code>echoln</code> 写法。</li>
+                    <li>再看 <a href="vscriptdocs.html">VScript 文档</a> 里与 <code>console.log</code>、<code>TakeConsoleLog*</code> 相关的部分。</li>
+                    <li>最后回到这份实用文档，把“发送信号”和“消费信号”真正串起来。</li>
+                </ol>
+            </article>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-content">
+            <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.getElementById('navLinks');
+
+        if (menuToggle && navLinks) {
+            menuToggle.addEventListener('click', () => {
+                menuToggle.classList.toggle('open');
+                navLinks.classList.toggle('open');
+            });
+        }
+    </script>
+</body>
+</html>
