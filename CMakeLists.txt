@@ -59,6 +59,7 @@ set(SOURCES
     src/core/itemhelper_overlay.cpp
     src/core/kernelcore.cpp
     src/core/mouse_jitter.cpp
+    src/core/module_notifications.cpp
     src/core/notifications_overlay.cpp
     src/core/normalgen.cpp
     src/core/quickstop.cpp
@@ -94,6 +95,7 @@ set(HEADERS
     include/core/itemhelper_overlay.h
     include/core/kernelcore.h
     include/core/mouse_jitter.h
+    include/core/module_notifications.h
     include/core/notifications_overlay.h
     include/core/normalgen.h
     include/core/quickstop.h

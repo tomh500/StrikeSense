@@ -1,24 +1,14 @@
 #include "textgui_overlay.h"
 
 #include "StrikeSense.h"
-#include "config.h"
-#include "console_log.h"
-#include "gsi_server.h"
-#include "itemhelper_overlay.h"
-#include "mouse_jitter.h"
-#include "notifications_overlay.h"
+#include "module_notifications.h"
 #include "pages.h"
-#include "quickstop.h"
 #include "volume_mixer.h"
-#include "vscript.h"
 
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <gdiplus.h>
 #include <iostream>
-#include <map>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -28,11 +18,6 @@ namespace {
 HWND s_hwnd = nullptr;
 HINSTANCE s_hInst = nullptr;
 bool s_visible = false;
-bool s_crosshairRecoilFollow = false;
-std::map<std::wstring, std::wstring> s_customLines;
-std::set<std::wstring> s_lastFeatureSet;
-bool s_hasFeatureSnapshot = false;
-bool s_consoleReaderNeeded = false;
 constexpr UINT_PTR kRefreshTimer = 3011;
 
 bool has_window()
@@ -51,70 +36,6 @@ void hide_overlay()
 bool should_show_overlay()
 {
     return g_textguiEnabled && IsCS2WindowActive();
-}
-
-std::wstring script_display_name(const vscript::mounted_script& script)
-{
-    if (script.hasMetadataName) return vscript::GetScriptDisplayName(script);
-    return std::filesystem::path(script.path).filename().wstring();
-}
-
-std::vector<std::wstring> collect_enabled_features()
-{
-    std::vector<std::wstring> features;
-    const config::Settings& settings = gsi::GetConfig();
-
-    if (settings.custom_musickit) features.push_back(L"自定义音乐包");
-    if (settings.enable_kill_sound) features.push_back(L"击杀音效替换");
-    if (settings.force_interrupt) features.push_back(L"强制打断音效");
-    if (settings.custom_flashbang) features.push_back(L"闪光覆盖图");
-    if (settings.low_memory) features.push_back(L"低内存模式");
-    if (settings.show_mvp) features.push_back(L"MVP信息");
-    if (HasLegalCfgSOCD()) features.push_back(L"SOCD");
-    if (HasLegalCfgMwheelJump()) features.push_back(L"滚轮跳");
-    if (HasLegalCfgMixedSensitivity()) features.push_back(L"混合灵敏度");
-    if (HasLegalCfgCrosshairSwitch() && s_crosshairRecoilFollow) features.push_back(L"准星跟随后坐力");
-    if (HasLegalCfgSoundReplace()) features.push_back(L"切刀音效替换");
-    if (g_deathMute) features.push_back(L"死亡音量控制");
-    if (g_crosshairEnabled) features.push_back(L"狙击准星");
-    if (itemhelper_overlay::IsOverlayVisible()) features.push_back(L"道具助手");
-    if (IsRageModeEnabled()) features.push_back(L"超频配置");
-    if (IsQuickStopRuntimeActive()) features.push_back(L"自动急停");
-    if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
-    if (consolelog::IsEnabled()) features.push_back(L"控制台日志");
-
-    for (const auto& script : vscript::MountedScripts()) {
-        if (!script.continuous) continue;
-        std::wstring name = script_display_name(script);
-        if (!name.empty()) features.push_back(name);
-    }
-
-    for (const auto& [id, text] : s_customLines) {
-        if (!text.empty()) features.push_back(text);
-    }
-
-    return features;
-}
-
-void sync_notifications_for_features()
-{
-    const auto features = collect_enabled_features();
-    const std::set<std::wstring> current(features.begin(), features.end());
-    if (!s_hasFeatureSnapshot) {
-        s_lastFeatureSet = current;
-        s_hasFeatureSnapshot = true;
-        return;
-    }
-
-    for (const auto& feature : current) {
-        if (s_lastFeatureSet.find(feature) == s_lastFeatureSet.end())
-            notifications_overlay::Push(feature, true);
-    }
-    for (const auto& feature : s_lastFeatureSet) {
-        if (current.find(feature) == current.end())
-            notifications_overlay::Push(feature, false);
-    }
-    s_lastFeatureSet = current;
 }
 
 float text_width_f(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& text)
@@ -187,15 +108,6 @@ void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::
     }
 }
 
-void update_console_reader_need()
-{
-    const bool needed = g_textguiEnabled && HasLegalCfgCrosshairSwitch();
-    if (needed == s_consoleReaderNeeded) return;
-    s_consoleReaderNeeded = needed;
-    consolelog::SetRuntimeReaderNeeded(needed);
-    std::cout << "[Textgui] 准星跟随控制台读取已" << (needed ? "启用" : "停用") << "。" << std::endl;
-}
-
 void redraw()
 {
     if (!has_window() || !should_show_overlay()) return;
@@ -221,7 +133,7 @@ void redraw()
     const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
     const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
 
-    auto features = collect_enabled_features();
+    auto features = modulenotifications::CollectEnabledFeatures();
     {
         Graphics measure(hdcMeasure);
         measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
@@ -320,7 +232,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
     case WM_TIMER:
         if (wp == kRefreshTimer) {
-            sync_notifications_for_features();
+            modulenotifications::Refresh();
             update_visibility();
             return 0;
         }
@@ -372,14 +284,9 @@ void Initialize(HINSTANCE hInst)
 void ApplyEnabled(bool enabled)
 {
     g_textguiEnabled = enabled;
-    update_console_reader_need();
+    modulenotifications::Refresh();
     if (enabled) {
         if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
-        if (!s_hasFeatureSnapshot) {
-            const auto features = collect_enabled_features();
-            s_lastFeatureSet = std::set<std::wstring>(features.begin(), features.end());
-            s_hasFeatureSnapshot = true;
-        }
         SetWindowPos(s_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         update_visibility();
         std::cout << "[Textgui] 已开启。" << std::endl;
@@ -388,14 +295,12 @@ void ApplyEnabled(bool enabled)
 
     if (has_window()) ShowWindow(s_hwnd, SW_HIDE);
     s_visible = false;
-    update_console_reader_need();
     std::cout << "[Textgui] 已关闭。" << std::endl;
 }
 
 void Refresh()
 {
-    update_console_reader_need();
-    sync_notifications_for_features();
+    modulenotifications::Refresh();
     if (!g_textguiEnabled) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
     update_visibility();
@@ -403,8 +308,7 @@ void Refresh()
 
 void Shutdown()
 {
-    consolelog::SetRuntimeReaderNeeded(false);
-    s_consoleReaderNeeded = false;
+    modulenotifications::Shutdown();
     if (has_window()) DestroyWindow(s_hwnd);
     s_hwnd = nullptr;
     s_visible = false;
@@ -413,33 +317,22 @@ void Shutdown()
 
 void RegisterCustomLine(const std::wstring& id, const std::wstring& text)
 {
-    if (id.empty()) return;
-    s_customLines[id] = text;
+    modulenotifications::RegisterCustomLine(id, text);
     std::wcout << L"[Textgui] 脚本注册文字: " << id << L" => " << text << std::endl;
     Refresh();
 }
 
 void RemoveCustomLine(const std::wstring& id)
 {
-    if (id.empty()) return;
-    s_customLines.erase(id);
+    modulenotifications::RemoveCustomLine(id);
     std::wcout << L"[Textgui] 脚本移除文字: " << id << std::endl;
     Refresh();
 }
 
 void UpdateCrosshairRecoilSignal(const std::wstring& text)
 {
-    if (text.find(L"/cr1") != std::wstring::npos) {
-        if (s_crosshairRecoilFollow) return;
-        s_crosshairRecoilFollow = true;
-        std::cout << "[Textgui] 已读取准星跟随后坐力状态: 开启" << std::endl;
-        Refresh();
-    } else if (text.find(L"/cr0") != std::wstring::npos) {
-        if (!s_crosshairRecoilFollow) return;
-        s_crosshairRecoilFollow = false;
-        std::cout << "[Textgui] 已读取准星跟随后坐力状态: 关闭" << std::endl;
-        Refresh();
-    }
+    modulenotifications::UpdateCrosshairRecoilSignal(text);
+    Refresh();
 }
 
 } // namespace textgui_overlay

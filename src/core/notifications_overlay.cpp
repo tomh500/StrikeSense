@@ -25,6 +25,13 @@ HBITMAP s_oldBitmap = nullptr;
 void* s_bits = nullptr;
 int s_bufferWidth = 0;
 int s_bufferHeight = 0;
+std::wstring s_cachedText;
+bool s_cachedEnabledState = true;
+int s_cachedStyle = -1;
+int s_cachedProgressBucket = -1;
+int s_cachedWidth = 0;
+int s_cachedHeight = 0;
+bool s_cacheDirty = true;
 constexpr UINT_PTR kTimer = 3021;
 constexpr UINT kFrameMs = 1000 / 60;
 constexpr int kAnimMs = 260;
@@ -81,6 +88,7 @@ void release_back_buffer()
     s_bits = nullptr;
     s_bufferWidth = 0;
     s_bufferHeight = 0;
+    s_cacheDirty = true;
 }
 
 bool ensure_back_buffer(HDC hdcScreen, int width, int height)
@@ -302,14 +310,14 @@ void draw()
     const float out = elapsed > outStart ? ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)) : 0.f;
     const int baseX = sw - width - 26;
     const int baseY = sh - height - 42;
-    int x = baseX + static_cast<int>((1.f - in + out) * 360.f);
+    int x = baseX + static_cast<int>(std::lround((1.f - in + out) * 360.f));
     int y = baseY;
     if (style == 1) {
         constexpr float vapeSlideY = 48.f;
-        y = baseY - static_cast<int>((1.f - in + out) * vapeSlideY);
+        y = baseY - static_cast<int>(std::lround((1.f - in + out) * vapeSlideY));
     } else if (style == 4) {
-        x = baseX + static_cast<int>(out * 360.f);
-        y = baseY - static_cast<int>((1.f - in) * 80.f);
+        x = baseX + static_cast<int>(std::lround(out * 360.f));
+        y = baseY - static_cast<int>(std::lround((1.f - in) * 80.f));
     }
 
     HDC hdcScreen = GetDC(nullptr);
@@ -318,18 +326,39 @@ void draw()
         return;
     }
 
-    using namespace Gdiplus;
-    Graphics g(s_hdcMem);
-    g.SetSmoothingMode(SmoothingModeAntiAlias);
-    g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
-    g.Clear(Color(0, 0, 0, 0));
-    RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
+    const int progressBucket = style == 0
+        ? static_cast<int>(std::lround(in * 24.f))
+        : ((style == 1 || style == 2) ? static_cast<int>(std::lround(progress * 48.f)) : 0);
+    const bool needsRedraw = s_cacheDirty
+        || s_cachedText != s_text
+        || s_cachedEnabledState != s_enabledState
+        || s_cachedStyle != style
+        || s_cachedProgressBucket != progressBucket
+        || s_cachedWidth != renderWidth
+        || s_cachedHeight != renderHeight;
 
-    if (style == 0) draw_liquidbounce(g, box, in);
-    else if (style == 1) draw_vape(g, box, progress);
-    else if (style == 2) draw_gpt(g, box, progress);
-    else if (style == 3) draw_gemini(g, box);
-    else draw_deepseek(g, box);
+    if (needsRedraw) {
+        using namespace Gdiplus;
+        Graphics g(s_hdcMem);
+        g.SetSmoothingMode(SmoothingModeAntiAlias);
+        g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+        g.Clear(Color(0, 0, 0, 0));
+        RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
+
+        if (style == 0) draw_liquidbounce(g, box, in);
+        else if (style == 1) draw_vape(g, box, progress);
+        else if (style == 2) draw_gpt(g, box, progress);
+        else if (style == 3) draw_gemini(g, box);
+        else draw_deepseek(g, box);
+
+        s_cachedText = s_text;
+        s_cachedEnabledState = s_enabledState;
+        s_cachedStyle = style;
+        s_cachedProgressBucket = progressBucket;
+        s_cachedWidth = renderWidth;
+        s_cachedHeight = renderHeight;
+        s_cacheDirty = false;
+    }
 
     POINT dst{ x - pad, y - pad };
     SIZE size{ renderWidth, renderHeight };
@@ -417,6 +446,7 @@ void Push(const std::wstring& text, bool enabled)
     s_text = text;
     s_enabledState = enabled;
     s_startTick = GetTickCount64();
+    s_cacheDirty = true;
     draw();
 }
 

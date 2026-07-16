@@ -1,8 +1,8 @@
 #include "console_log.h"
 
 #include "config.h"
+#include "module_notifications.h"
 #include "pages.h"
-#include "textgui_overlay.h"
 #include "vscript.h"
 
 #include <Windows.h>
@@ -100,7 +100,7 @@ namespace {
 
         if (!g_enabled.load() && g_runtimeReaderNeeded.load()) {
             if (clean.find("/cr1") != std::string::npos || clean.find("/cr0") != std::string::npos)
-                textgui_overlay::UpdateCrosshairRecoilSignal(Utf8ToWide(clean));
+                modulenotifications::UpdateCrosshairRecoilSignal(Utf8ToWide(clean));
             return;
         }
 
@@ -123,7 +123,7 @@ namespace {
                 latest = clean;
         }
         if (!latest.empty())
-            textgui_overlay::UpdateCrosshairRecoilSignal(Utf8ToWide(latest));
+            modulenotifications::UpdateCrosshairRecoilSignal(Utf8ToWide(latest));
     }
 
     void WorkerLoop()
