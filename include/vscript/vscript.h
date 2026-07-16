@@ -17,6 +17,7 @@ enum class buildcode {
 struct mounted_script {
     std::wstring path;
     bool continuous = false;
+    bool showInTextgui = true;
     std::wstring name;
     std::wstring author;
     std::wstring provider;

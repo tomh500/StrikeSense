@@ -19,13 +19,18 @@ extern int g_textguiG;
 extern int g_textguiB;
 extern bool g_textguiShowWatermark;
 extern bool g_textguiRainbow;
+extern bool g_textguiBackdrop;
+extern float g_textguiBackdropOpacity;
+extern std::wstring g_textguiCustomSlogan;
 
 namespace textgui_overlay {
 void Initialize(HINSTANCE hInst);
 void ApplyEnabled(bool enabled);
 void Refresh();
 void Shutdown();
-void RegisterCustomLine(const std::wstring& id, const std::wstring& text);
+void RegisterCustomLine(const std::wstring& id, const std::wstring& text,
+    const std::wstring& accessory = L"");
 void RemoveCustomLine(const std::wstring& id);
+void SetModuleHidden(const std::wstring& id, bool hidden);
 void UpdateCrosshairRecoilSignal(const std::wstring& text);
 }

@@ -10,10 +10,12 @@
 #include "quickstop.h"
 #include "vscript.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <map>
 #include <set>
+#include <unordered_set>
 
 namespace modulenotifications {
 namespace {
@@ -21,8 +23,16 @@ namespace {
 bool s_crosshairRecoilFollow = false;
 bool s_hasFeatureSnapshot = false;
 bool s_consoleReaderNeeded = false;
-std::set<std::wstring> s_lastFeatureSet;
-std::map<std::wstring, std::wstring> s_customLines;
+std::map<std::wstring, std::wstring> s_lastFeatureSet;
+std::map<std::wstring, feature_line> s_customLines;
+std::unordered_set<std::wstring> s_hiddenModules;
+
+const std::vector<std::wstring> kNativeModuleIds = {
+    L"custom_musickit", L"kill_sound", L"force_interrupt", L"flash_overlay",
+    L"low_memory", L"mvp_info", L"socd", L"mwheel_jump", L"mixed_sensitivity",
+    L"recoil_crosshair", L"knife_sound", L"death_volume", L"sniper_crosshair",
+    L"item_helper", L"rage", L"quick_stop", L"mouse_jitter", L"console_log"
+};
 
 std::wstring script_display_name(const vscript::mounted_script& script)
 {
@@ -41,38 +51,47 @@ void update_console_reader_need()
 
 } // namespace
 
-std::vector<std::wstring> CollectEnabledFeatures()
+std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
 {
-    std::vector<std::wstring> features;
+    std::vector<feature_line> features;
     const config::Settings& settings = gsi::GetConfig();
 
-    if (settings.custom_musickit) features.push_back(L"自定义音乐包");
-    if (settings.enable_kill_sound) features.push_back(L"击杀音效替换");
-    if (settings.force_interrupt) features.push_back(L"强制打断音效");
-    if (settings.custom_flashbang) features.push_back(L"闪光覆盖图");
-    if (settings.low_memory) features.push_back(L"低内存模式");
-    if (settings.show_mvp) features.push_back(L"MVP信息");
-    if (HasLegalCfgSOCD()) features.push_back(L"SOCD");
-    if (HasLegalCfgMwheelJump()) features.push_back(L"滚轮跳");
-    if (HasLegalCfgMixedSensitivity()) features.push_back(L"混合灵敏度");
-    if (HasLegalCfgCrosshairSwitch() && s_crosshairRecoilFollow) features.push_back(L"准星跟随后坐力");
-    if (HasLegalCfgSoundReplace()) features.push_back(L"切刀音效替换");
-    if (g_deathMute) features.push_back(L"死亡音量控制");
-    if (g_crosshairEnabled) features.push_back(L"狙击准星");
-    if (itemhelper_overlay::IsOverlayVisible()) features.push_back(L"道具助手");
-    if (IsRageModeEnabled()) features.push_back(L"超频配置");
-    if (IsQuickStopRuntimeActive()) features.push_back(L"自动急停");
-    if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
-    if (consolelog::IsEnabled()) features.push_back(L"控制台日志");
+    const auto add = [&](const wchar_t* id, const wchar_t* text,
+        const std::wstring& accessory = L"") {
+        if (includeHidden || !IsModuleHidden(id)) features.push_back({ id, text, accessory });
+    };
+
+    if (settings.custom_musickit) add(L"custom_musickit", L"自定义音乐包", settings.ogg ? L"OGG" : L"WAV");
+    if (settings.enable_kill_sound) add(L"kill_sound", L"击杀音效替换");
+    if (settings.force_interrupt) add(L"force_interrupt", L"强制打断音效");
+    if (settings.custom_flashbang) add(L"flash_overlay", L"闪光覆盖图");
+    if (settings.low_memory) add(L"low_memory", L"低内存模式");
+    if (settings.show_mvp) add(L"mvp_info", L"MVP信息");
+    if (HasLegalCfgSOCD()) add(L"socd", L"SOCD");
+    if (HasLegalCfgMwheelJump()) add(L"mwheel_jump", L"滚轮跳");
+    if (HasLegalCfgMixedSensitivity()) add(L"mixed_sensitivity", L"混合灵敏度");
+    if (HasLegalCfgCrosshairSwitch() && s_crosshairRecoilFollow) add(L"recoil_crosshair", L"准星跟随后坐力");
+    if (HasLegalCfgSoundReplace()) add(L"knife_sound", L"切刀音效替换");
+    if (g_deathMute) add(L"death_volume", L"死亡音量控制");
+    if (g_crosshairEnabled) {
+        static const wchar_t* styles[] = { L"空心圆", L"十字", L"圆点", L"四角", L"T形", L"X形" };
+        add(L"sniper_crosshair", L"狙击准星", styles[std::clamp(g_crosshairStyle, 0, 5)]);
+    }
+    if (itemhelper_overlay::IsOverlayVisible()) add(L"item_helper", L"道具助手");
+    if (IsRageModeEnabled()) add(L"rage", L"超频配置");
+    if (IsQuickStopRuntimeActive()) add(L"quick_stop", L"自动急停");
+    if (mousejitter::IsEnabled()) add(L"mouse_jitter", L"多绑定脚本");
+    if (consolelog::IsEnabled()) add(L"console_log", L"控制台日志");
 
     for (const auto& script : vscript::MountedScripts()) {
-        if (!script.continuous) continue;
+        if (!script.continuous || !script.showInTextgui) continue;
         std::wstring name = script_display_name(script);
-        if (!name.empty()) features.push_back(name);
+        const std::wstring id = L"script:" + script.path;
+        if (!name.empty() && (includeHidden || !IsModuleHidden(id))) features.push_back({ id, name, L"" });
     }
 
-    for (const auto& [id, text] : s_customLines) {
-        if (!text.empty()) features.push_back(text);
+    for (const auto& [id, line] : s_customLines) {
+        if (!line.text.empty() && (includeHidden || !IsModuleHidden(id))) features.push_back(line);
     }
 
     return features;
@@ -82,21 +101,22 @@ void Refresh()
 {
     update_console_reader_need();
 
-    const auto features = CollectEnabledFeatures();
-    const std::set<std::wstring> current(features.begin(), features.end());
+    const auto features = CollectEnabledFeatures(true);
+    std::map<std::wstring, std::wstring> current;
+    for (const auto& feature : features) current[feature.id] = feature.text;
     if (!s_hasFeatureSnapshot) {
         s_lastFeatureSet = current;
         s_hasFeatureSnapshot = true;
         return;
     }
 
-    for (const auto& feature : current) {
-        if (s_lastFeatureSet.find(feature) == s_lastFeatureSet.end())
-            notifications_overlay::Push(feature, true);
+    for (const auto& [id, text] : current) {
+        if (s_lastFeatureSet.find(id) == s_lastFeatureSet.end())
+            notifications_overlay::Push(text, true);
     }
-    for (const auto& feature : s_lastFeatureSet) {
-        if (current.find(feature) == current.end())
-            notifications_overlay::Push(feature, false);
+    for (const auto& [id, text] : s_lastFeatureSet) {
+        if (current.find(id) == current.end())
+            notifications_overlay::Push(text, false);
     }
     s_lastFeatureSet = current;
 }
@@ -107,10 +127,11 @@ void Shutdown()
     s_consoleReaderNeeded = false;
 }
 
-void RegisterCustomLine(const std::wstring& id, const std::wstring& text)
+void RegisterCustomLine(const std::wstring& id, const std::wstring& text,
+    const std::wstring& accessory)
 {
     if (id.empty()) return;
-    s_customLines[id] = text;
+    s_customLines[id] = { id, text, accessory };
     Refresh();
 }
 
@@ -119,6 +140,24 @@ void RemoveCustomLine(const std::wstring& id)
     if (id.empty()) return;
     s_customLines.erase(id);
     Refresh();
+}
+
+void SetModuleHidden(const std::wstring& id, bool hidden)
+{
+    if (id.empty()) return;
+    if (hidden) s_hiddenModules.insert(id);
+    else s_hiddenModules.erase(id);
+    std::wcout << L"[Textgui] 模块 " << id << (hidden ? L" 已隐藏。" : L" 已恢复显示。") << std::endl;
+}
+
+bool IsModuleHidden(const std::wstring& id)
+{
+    return s_hiddenModules.find(id) != s_hiddenModules.end();
+}
+
+std::vector<std::wstring> NativeModuleIds()
+{
+    return kNativeModuleIds;
 }
 
 void UpdateCrosshairRecoilSignal(const std::wstring& text)

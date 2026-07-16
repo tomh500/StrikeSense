@@ -108,6 +108,26 @@ void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::
     }
 }
 
+void draw_box_logo(Gdiplus::Graphics& g, float x, float y, float scale, BYTE alpha)
+{
+    using namespace Gdiplus;
+    Pen pen(Color(alpha, 255, 255, 255), (std::max)(1.f, 1.6f * scale));
+    pen.SetLineJoin(LineJoinRound);
+    const auto point = [&](float px, float py) { return PointF(x + px * scale, y + py * scale); };
+    const PointF base[] = {
+        point(4.f, 12.f), point(16.f, 18.f), point(28.f, 12.f), point(28.f, 25.f),
+        point(16.f, 31.f), point(4.f, 25.f), point(4.f, 12.f), point(16.f, 18.f),
+        point(16.f, 31.f), point(28.f, 25.f)
+    };
+    g.DrawLines(&pen, base, static_cast<INT>(std::size(base)));
+    const PointF backFlap[] = { point(4.f, 12.f), point(8.f, 3.f), point(20.f, 9.f), point(16.f, 18.f) };
+    const PointF rightFlap[] = { point(16.f, 18.f), point(24.f, 5.f), point(36.f, 10.f), point(28.f, 12.f) };
+    const PointF frontFlap[] = { point(4.f, 12.f), point(16.f, 18.f), point(10.f, 28.f), point(-2.f, 22.f) };
+    g.DrawPolygon(&pen, backFlap, static_cast<INT>(std::size(backFlap)));
+    g.DrawPolygon(&pen, rightFlap, static_cast<INT>(std::size(rightFlap)));
+    g.DrawPolygon(&pen, frontFlap, static_cast<INT>(std::size(frontFlap)));
+}
+
 void redraw()
 {
     if (!has_window() || !should_show_overlay()) return;
@@ -127,8 +147,10 @@ void redraw()
         static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
         static_cast<BYTE>(std::clamp(g_textguiG, 0, 255)),
         static_cast<BYTE>(std::clamp(g_textguiB, 0, 255)));
-    Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
+    Font titleFont(L"Segoe UI", 22.f * scale, FontStyleBold);
+    Font sloganFont(L"Microsoft YaHei UI", 11.f * scale, FontStyleRegular);
     Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
+    Font accessoryFont(L"Microsoft YaHei UI", 12.5f * scale, FontStyleRegular);
     const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
     const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
     const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
@@ -138,17 +160,29 @@ void redraw()
         Graphics measure(hdcMeasure);
         measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
-            return text_width(measure, itemFont, a) > text_width(measure, itemFont, b);
+            const int aw = text_width(measure, itemFont, a.text)
+                + (a.accessory.empty() ? 0 : text_width(measure, accessoryFont, L" " + a.accessory));
+            const int bw = text_width(measure, itemFont, b.text)
+                + (b.accessory.empty() ? 0 : text_width(measure, accessoryFont, L" " + b.accessory));
+            return aw > bw;
         });
     }
 
     Graphics measure(hdcMeasure);
     measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     const float rowH = 25.f * scale * lineSpacing;
-    const int maxFeatureW = features.empty() ? 0 : text_width(measure, itemFont, features.front());
-    const int maxTextW = (std::max)(text_width(measure, titleFont, L"StrikeSense"), maxFeatureW);
+    const auto line_width = [&](const modulenotifications::feature_line& line) {
+        return text_width(measure, itemFont, line.text)
+            + (line.accessory.empty() ? 0 : text_width(measure, accessoryFont, L" " + line.accessory));
+    };
+    const int maxFeatureW = features.empty() ? 0 : line_width(features.front());
+    const int watermarkW = static_cast<int>(44.f * scale) + text_width(measure, titleFont, L"STRIKESENSE");
+    const bool showSlogan = !g_textguiCustomSlogan.empty();
+    const int sloganW = showSlogan ? text_width(measure, sloganFont, g_textguiCustomSlogan) : 0;
+    const int maxTextW = (std::max)({ watermarkW, sloganW, maxFeatureW });
     const float areaWf = (std::max)(185.f * scale, maxTextW + 8.f * scale);
-    const float areaHf = (g_textguiShowWatermark ? 35.f * scale : 0.f)
+    const float areaHf = (g_textguiShowWatermark ? 39.f * scale : 0.f)
+        + (showSlogan ? 22.f * scale : 0.f)
         + static_cast<float>(features.size()) * rowH + 8.f * scale;
     const int areaW = (std::max)(1, static_cast<int>(std::ceil(areaWf + 4.f)));
     const int areaH = (std::max)(1, static_cast<int>(std::ceil(areaHf + 4.f)));
@@ -177,18 +211,40 @@ void redraw()
 
         float cy = 2.f;
         if (g_textguiShowWatermark) {
-            const std::wstring title = L"StrikeSense";
-            const float tx = areaWf - text_width(g, titleFont, title);
-            if (g_textguiRainbow) draw_rainbow_text(g, title, titleFont, tx, cy, alpha, baseHue);
-            else draw_text(g, title, titleFont, tx, cy, fixedColor, alpha);
-            cy += 35.f * scale;
+            const std::wstring title = L"STRIKESENSE";
+            const float groupWidth = 44.f * scale + text_width(g, titleFont, title);
+            const float groupX = areaWf - groupWidth;
+            draw_box_logo(g, groupX + 2.f * scale, cy + 1.f * scale, scale, alpha);
+            draw_text(g, title, titleFont, groupX + 44.f * scale, cy + 3.f * scale,
+                Color(alpha, 255, 255, 255), alpha);
+            cy += 39.f * scale;
+        }
+        if (showSlogan) {
+            const float tx = areaWf - text_width(g, sloganFont, g_textguiCustomSlogan);
+            draw_text(g, g_textguiCustomSlogan, sloganFont, tx, cy,
+                Color(alpha, 255, 255, 255), alpha);
+            cy += 22.f * scale;
         }
 
         for (size_t i = 0; i < features.size(); ++i) {
             const auto& feature = features[i];
-            const float tx = areaWf - text_width(g, itemFont, feature);
-            if (g_textguiRainbow) draw_rainbow_text(g, feature, itemFont, tx, cy, alpha, baseHue + static_cast<float>(i) * 26.f);
-            else draw_text(g, feature, itemFont, tx, cy, fixedColor, alpha);
+            const std::wstring accessory = feature.accessory.empty() ? L"" : L" " + feature.accessory;
+            const float primaryWidth = static_cast<float>(text_width(g, itemFont, feature.text));
+            const float accessoryWidth = static_cast<float>(text_width(g, accessoryFont, accessory));
+            const float tx = areaWf - primaryWidth - accessoryWidth;
+            if (g_textguiBackdrop) {
+                const BYTE backdropAlpha = static_cast<BYTE>(255.f * std::clamp(g_textguiBackdropOpacity, 0.f, 1.f));
+                SolidBrush backdrop(Color(backdropAlpha, 15, 15, 15));
+                const float paddingX = 6.f * scale;
+                g.FillRectangle(&backdrop, tx - paddingX, cy - 2.f * scale,
+                    primaryWidth + accessoryWidth + paddingX * 2.f, rowH);
+            }
+            if (g_textguiRainbow) draw_rainbow_text(g, feature.text, itemFont, tx, cy, alpha, baseHue + static_cast<float>(i) * 26.f);
+            else draw_text(g, feature.text, itemFont, tx, cy, fixedColor, alpha);
+            if (!accessory.empty()) {
+                draw_text(g, accessory, accessoryFont, tx + primaryWidth, cy + 1.f * scale,
+                    Color(alpha, 175, 180, 188), alpha);
+            }
             cy += rowH;
         }
     }
@@ -315,9 +371,10 @@ void Shutdown()
     std::cout << "[Textgui] 已释放覆盖层。" << std::endl;
 }
 
-void RegisterCustomLine(const std::wstring& id, const std::wstring& text)
+void RegisterCustomLine(const std::wstring& id, const std::wstring& text,
+    const std::wstring& accessory)
 {
-    modulenotifications::RegisterCustomLine(id, text);
+    modulenotifications::RegisterCustomLine(id, text, accessory);
     std::wcout << L"[Textgui] 脚本注册文字: " << id << L" => " << text << std::endl;
     Refresh();
 }
@@ -326,6 +383,12 @@ void RemoveCustomLine(const std::wstring& id)
 {
     modulenotifications::RemoveCustomLine(id);
     std::wcout << L"[Textgui] 脚本移除文字: " << id << std::endl;
+    Refresh();
+}
+
+void SetModuleHidden(const std::wstring& id, bool hidden)
+{
+    modulenotifications::SetModuleHidden(id, hidden);
     Refresh();
 }
 
