@@ -472,6 +472,16 @@ void SetQuickStopPause(bool paused)
 }
 bool IsQuickStopPaused() { return pause_jiting; }
 
+bool IsQuickStopRuntimeActive()
+{
+    return IsRageModeEnabled()
+        && s_qsConfig.enabled
+        && !pause_jiting.load()
+        && !IsSilentKeyPressed()
+        && !IsJumpQuickStopDisabled()
+        && is_holding_gun.load();
+}
+
 void ApplyQuickStopConfigChanges()
 {
     SaveQuickStopConfig();

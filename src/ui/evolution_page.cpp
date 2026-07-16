@@ -1150,7 +1150,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 5; ++i) {
             if (!Hit(notificationsStyleRects[i], mx, my)) continue;
             g_notificationsStyle = i;
             SaveEvolutionParams();

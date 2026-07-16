@@ -105,13 +105,21 @@ void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float pr
 
 void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 {
+    for (int i = 2; i >= 1; --i) {
+        const float grow = static_cast<float>(i * 3);
+        Gdiplus::RectF glow(box.X - grow, box.Y - grow, box.Width + grow * 2.f, box.Height + grow * 2.f);
+        Gdiplus::GraphicsPath glowPath;
+        add_rounded_rect(glowPath, glow, 15.f + grow);
+        Gdiplus::SolidBrush glowBrush(Gdiplus::Color(static_cast<BYTE>(8 * i), 0, 188, 212));
+        g.FillPath(&glowBrush, &glowPath);
+    }
     fill_card(g, box, Gdiplus::Color(245, 18, 18, 18), 15.f);
     Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
     Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
     draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, Gdiplus::Color(255, 255, 255, 255));
     draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 224, 235, 235));
-    draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 0, 188, 212) : Gdiplus::Color(255, 176, 176, 176), true);
+        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 255, 255, 255));
+    draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 0, 188, 212) : Gdiplus::Color(255, 0, 172, 193), true);
 }
 
 void draw_gpt(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
@@ -190,6 +198,9 @@ void draw()
     const int style = std::clamp(g_notificationsStyle, 0, 4);
     const int width = style == 4 ? 460 : (style == 3 ? 330 : 310);
     const int height = style == 4 ? 68 : 72;
+    const int pad = style == 1 ? 8 : 4;
+    const int renderWidth = width + pad * 2;
+    const int renderHeight = height + pad * 2;
     const int sw = GetSystemMetrics(SM_CXSCREEN);
     const int sh = GetSystemMetrics(SM_CYSCREEN);
     const float progress = std::clamp(1.f - elapsed / durationMs, 0.f, 1.f);
@@ -209,8 +220,8 @@ void draw()
     HDC hdcMem = CreateCompatibleDC(hdcScreen);
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = width;
-    bmi.bmiHeader.biHeight = -height;
+    bmi.bmiHeader.biWidth = renderWidth;
+    bmi.bmiHeader.biHeight = -renderHeight;
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
@@ -223,7 +234,7 @@ void draw()
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     g.Clear(Color(0, 0, 0, 0));
-    RectF box(0.f, 0.f, static_cast<REAL>(width), static_cast<REAL>(height));
+    RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
 
     if (style == 0) draw_liquidbounce(g, box, progress);
     else if (style == 1) draw_vape(g, box, progress);
@@ -231,8 +242,8 @@ void draw()
     else if (style == 3) draw_gemini(g, box);
     else draw_deepseek(g, box);
 
-    POINT dst{ x, y };
-    SIZE size{ width, height };
+    POINT dst{ x - pad, y - pad };
+    SIZE size{ renderWidth, renderHeight };
     POINT src{ 0, 0 };
     BLENDFUNCTION blend{};
     blend.BlendOp = AC_SRC_OVER;

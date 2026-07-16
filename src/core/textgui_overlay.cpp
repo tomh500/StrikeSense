@@ -79,7 +79,7 @@ std::vector<std::wstring> collect_enabled_features()
     if (g_crosshairEnabled) features.push_back(L"狙击准星");
     if (itemhelper_overlay::IsOverlayVisible()) features.push_back(L"道具助手");
     if (IsRageModeEnabled()) features.push_back(L"超频配置");
-    if (IsRageModeEnabled() && IsQuickStopEnabled()) features.push_back(L"自动急停");
+    if (IsQuickStopRuntimeActive()) features.push_back(L"自动急停");
     if (mousejitter::IsEnabled()) features.push_back(L"多绑定脚本");
     if (consolelog::IsEnabled()) features.push_back(L"控制台日志");
 
@@ -320,6 +320,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
     case WM_TIMER:
         if (wp == kRefreshTimer) {
+            if (g_textguiEnabled) sync_notifications_for_features();
             update_visibility();
             return 0;
         }
