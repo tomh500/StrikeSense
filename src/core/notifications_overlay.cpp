@@ -148,15 +148,37 @@ void draw_progress(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progre
     g.FillRectangle(&barBrush, Gdiplus::RectF(back.X, back.Y, back.Width * progress, back.Height));
 }
 
-void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
+void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float toggleProgress)
 {
-    fill_card(g, box, Gdiplus::Color(200, 30, 30, 30), 10.f, Gdiplus::Color(100, 80, 80, 80));
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
+    fill_card(g, box, Gdiplus::Color(245, 33, 33, 33), 8.f);
+
+    const Gdiplus::RectF stateBox(box.X + 14.f, box.Y + 13.f, 46.f, 46.f);
+    fill_card(g, stateBox,
+        s_enabledState ? Gdiplus::Color(255, 76, 175, 80) : Gdiplus::Color(255, 255, 71, 58),
+        6.f);
+
+    const float trackWidth = stateBox.Width * 0.58f;
+    const float trackX = stateBox.X + (stateBox.Width - trackWidth) * 0.5f;
+    const float trackY = stateBox.Y + stateBox.Height * 0.5f;
+    Gdiplus::Pen trackPen(Gdiplus::Color(255, 255, 255, 255), 2.f);
+    trackPen.SetStartCap(Gdiplus::LineCapRound);
+    trackPen.SetEndCap(Gdiplus::LineCapRound);
+    g.DrawLine(&trackPen, Gdiplus::PointF(trackX, trackY), Gdiplus::PointF(trackX + trackWidth, trackY));
+
+    const float clamped = std::clamp(toggleProgress, 0.f, 1.f);
+    const float knobProgress = s_enabledState ? clamped : (1.f - clamped);
+    constexpr float knobSize = 9.f;
+    const float knobX = trackX + trackWidth * knobProgress - knobSize * 0.5f;
+    const float knobY = trackY - knobSize * 0.5f;
+    Gdiplus::SolidBrush knobBrush(Gdiplus::Color(255, 255, 255, 255));
+    g.FillEllipse(&knobBrush, knobX, knobY, knobSize, knobSize);
+
+    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 15.f, Gdiplus::FontStyleBold);
     Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, Gdiplus::Color(255, 255, 255, 255));
-    draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 190, 190, 190));
-    draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 0, 122, 255) : Gdiplus::Color(255, 150, 150, 150), false);
+    draw_text(g, s_enabledState ? L"开启" : L"关闭", titleFont, box.X + 74.f, box.Y + 11.f,
+        Gdiplus::Color(255, 255, 255, 255));
+    draw_text(g, s_text, subFont, box.X + 74.f, box.Y + 39.f,
+        Gdiplus::Color(255, 189, 189, 189));
 }
 
 void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
@@ -166,12 +188,12 @@ void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
     fill_card(g, box, Gdiplus::Color(252, 18, 18, 18), cardRadius,
         Gdiplus::Color(255, 34, 34, 34));
 
-    Gdiplus::Font titleFont(L"Segoe UI", 15.5f, Gdiplus::FontStyleBold);
+    Gdiplus::Font titleFont(L"Segoe UI Semibold", 14.5f, Gdiplus::FontStyleRegular);
     Gdiplus::Font subFont(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f,
+    draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 11.f,
         Gdiplus::Color(255, 255, 255, 255));
 
-    draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
+    draw_text(g, s_enabledState ? L"Enable" : L"Disable", subFont,
         box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 205, 205, 205));
 
     const Gdiplus::RectF track(box.X, box.Y + box.Height - barHeight,
@@ -280,12 +302,15 @@ void draw()
     const float out = elapsed > outStart ? ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)) : 0.f;
     const int baseX = sw - width - 26;
     const int baseY = sh - height - 42;
-    const int x = style == 4
-        ? baseX + static_cast<int>(out * 360.f)
-        : baseX + static_cast<int>((1.f - in + out) * 360.f);
-    const int y = style == 4
-        ? baseY - static_cast<int>((1.f - in) * 80.f)
-        : baseY;
+    int x = baseX + static_cast<int>((1.f - in + out) * 360.f);
+    int y = baseY;
+    if (style == 1) {
+        constexpr float vapeSlideY = 48.f;
+        y = baseY - static_cast<int>((1.f - in + out) * vapeSlideY);
+    } else if (style == 4) {
+        x = baseX + static_cast<int>(out * 360.f);
+        y = baseY - static_cast<int>((1.f - in) * 80.f);
+    }
 
     HDC hdcScreen = GetDC(nullptr);
     if (!ensure_back_buffer(hdcScreen, renderWidth, renderHeight)) {
@@ -300,7 +325,7 @@ void draw()
     g.Clear(Color(0, 0, 0, 0));
     RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
 
-    if (style == 0) draw_liquidbounce(g, box, progress);
+    if (style == 0) draw_liquidbounce(g, box, in);
     else if (style == 1) draw_vape(g, box, progress);
     else if (style == 2) draw_gpt(g, box, progress);
     else if (style == 3) draw_gemini(g, box);

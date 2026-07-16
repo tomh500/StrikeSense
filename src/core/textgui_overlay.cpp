@@ -320,7 +320,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
     case WM_TIMER:
         if (wp == kRefreshTimer) {
-            if (g_textguiEnabled) sync_notifications_for_features();
+            sync_notifications_for_features();
             update_visibility();
             return 0;
         }
@@ -394,10 +394,10 @@ void ApplyEnabled(bool enabled)
 
 void Refresh()
 {
-    if (!g_textguiEnabled) return;
     update_console_reader_need();
-    if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
     sync_notifications_for_features();
+    if (!g_textguiEnabled) return;
+    if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
     update_visibility();
 }
 
