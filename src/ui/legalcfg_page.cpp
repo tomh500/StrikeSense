@@ -210,14 +210,47 @@ bool HasLegalCfgSOCD()
     return g_autoexecContent.find(L"//--StrikeSense SOCD--") != std::wstring::npos;
 }
 
+bool SetLegalCfgSOCD(bool enabled)
+{
+    if (g_autoexecContent.empty()) LoadCfg();
+    if (enabled) {
+        if (!HasLegalCfgSOCD()) Append(SOCD_BLOCK);
+        return HasLegalCfgSOCD();
+    }
+    RemoveSave(L"//--StrikeSense SOCD--", L"//--StrikeSense SOCD END--");
+    return !HasLegalCfgSOCD();
+}
+
 bool HasLegalCfgMwheelJump()
 {
     return g_autoexecContent.find(L"//--StrikeSense MwheelJump--") != std::wstring::npos;
 }
 
+bool SetLegalCfgMwheelJump(bool enabled)
+{
+    if (g_autoexecContent.empty()) LoadCfg();
+    if (enabled) {
+        if (!HasLegalCfgMwheelJump()) Append(MWHEELJUMP_BLOCK);
+        return HasLegalCfgMwheelJump();
+    }
+    RemoveSave(L"//--StrikeSense MwheelJump--", L"//--StrikeSense MwheelJump END--");
+    return !HasLegalCfgMwheelJump();
+}
+
 bool HasLegalCfgMixedSensitivity()
 {
     return g_autoexecContent.find(L"//--StrikeSense MS--") != std::wstring::npos;
+}
+
+bool SetLegalCfgMixedSensitivity(bool enabled)
+{
+    if (g_autoexecContent.empty()) LoadCfg();
+    if (enabled) {
+        if (!HasLegalCfgMixedSensitivity()) Append(BuildMS());
+        return HasLegalCfgMixedSensitivity();
+    }
+    RemoveSave(L"//--StrikeSense MS--", L"//--StrikeSense MS END--");
+    return !HasLegalCfgMixedSensitivity();
 }
 
 std::pair<std::wstring, std::wstring> GetLegalCfgMixedSensitivityValues()
@@ -230,9 +263,31 @@ bool HasLegalCfgCrosshairSwitch()
     return g_autoexecContent.find(L"//--StrikeSense CrosshairSW--") != std::wstring::npos;
 }
 
+bool SetLegalCfgCrosshairSwitch(bool enabled)
+{
+    if (g_autoexecContent.empty()) LoadCfg();
+    if (enabled) {
+        if (!HasLegalCfgCrosshairSwitch()) Append(BuildCHSW());
+        return HasLegalCfgCrosshairSwitch();
+    }
+    RemoveSave(L"//--StrikeSense CrosshairSW--", L"//--StrikeSense CrosshairSW END--");
+    return !HasLegalCfgCrosshairSwitch();
+}
+
 bool HasLegalCfgSoundReplace()
 {
     return g_autoexecContent.find(L"//--StrikeSense SRP--") != std::wstring::npos;
+}
+
+bool SetLegalCfgSoundReplace(bool enabled)
+{
+    if (g_autoexecContent.empty()) LoadCfg();
+    if (enabled) {
+        if (!HasLegalCfgSoundReplace()) Append(BuildSRP());
+        return HasLegalCfgSoundReplace();
+    }
+    RemoveSave(L"//--StrikeSense SRP--", L"//--StrikeSense SRP END--");
+    return !HasLegalCfgSoundReplace();
 }
 
 static void EnsureVis(const std::vector<std::wstring>& l) {

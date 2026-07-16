@@ -112,11 +112,16 @@ bool IsRageModeEnabled();
 void EnableRageModeFromLaunch(HWND hw);
 bool IsLegalCfgManaged();
 bool HasLegalCfgSOCD();
+bool SetLegalCfgSOCD(bool enabled);
 bool HasLegalCfgMwheelJump();
+bool SetLegalCfgMwheelJump(bool enabled);
 bool HasLegalCfgMixedSensitivity();
+bool SetLegalCfgMixedSensitivity(bool enabled);
 std::pair<std::wstring, std::wstring> GetLegalCfgMixedSensitivityValues();
 bool HasLegalCfgCrosshairSwitch();
+bool SetLegalCfgCrosshairSwitch(bool enabled);
 bool HasLegalCfgSoundReplace();
+bool SetLegalCfgSoundReplace(bool enabled);
 
 // ===== 合法配置键盘输入 =====
 void InitLegalCfgPage();

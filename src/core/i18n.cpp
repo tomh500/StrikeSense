@@ -71,6 +71,30 @@ void i18n::Init() {
     cn["EVO_NOTIFICATIONS"] = L"\u901a\u77e5\u63d0\u793a"; en["EVO_NOTIFICATIONS"] = L"Notifications";
     cn["EVO_NOTIFICATIONS_DURATION"] = L"\u6301\u7eed\u65f6\u95f4"; en["EVO_NOTIFICATIONS_DURATION"] = L"Duration";
 
+    cn["TEXTGUI_CUSTOM_MUSICKIT"] = L"\u81ea\u5b9a\u4e49\u97f3\u4e50\u5305"; en["TEXTGUI_CUSTOM_MUSICKIT"] = L"Custom Music Kit";
+    cn["TEXTGUI_KILL_SOUND"] = L"\u51fb\u6740\u97f3\u6548\u66ff\u6362"; en["TEXTGUI_KILL_SOUND"] = L"Kill Sound";
+    cn["TEXTGUI_FORCE_INTERRUPT"] = L"\u5f3a\u5236\u6253\u65ad\u97f3\u6548"; en["TEXTGUI_FORCE_INTERRUPT"] = L"Force Interrupt";
+    cn["TEXTGUI_FLASH_OVERLAY"] = L"\u95ea\u5149\u8986\u76d6\u56fe"; en["TEXTGUI_FLASH_OVERLAY"] = L"Flash Overlay";
+    cn["TEXTGUI_LOW_MEMORY"] = L"\u4f4e\u5185\u5b58\u6a21\u5f0f"; en["TEXTGUI_LOW_MEMORY"] = L"Low Memory";
+    cn["TEXTGUI_MVP_INFO"] = L"MVP\u4fe1\u606f"; en["TEXTGUI_MVP_INFO"] = L"MVP Info";
+    cn["TEXTGUI_SOCD"] = L"\u540e\u8986\u76d6\u79fb\u52a8"; en["TEXTGUI_SOCD"] = L"SOCD";
+    cn["TEXTGUI_MWHEEL_JUMP"] = L"\u6eda\u8f6e\u8df3"; en["TEXTGUI_MWHEEL_JUMP"] = L"Mouse Wheel Jump";
+    cn["TEXTGUI_MIXED_SENSITIVITY"] = L"\u6df7\u5408\u7075\u654f\u5ea6"; en["TEXTGUI_MIXED_SENSITIVITY"] = L"Mixed Sensitivity";
+    cn["TEXTGUI_RECOIL_CROSSHAIR"] = L"\u51c6\u661f\u8ddf\u968f\u540e\u5750\u529b"; en["TEXTGUI_RECOIL_CROSSHAIR"] = L"Recoil Crosshair";
+    cn["TEXTGUI_KNIFE_SOUND"] = L"\u5207\u5200\u97f3\u6548\u66ff\u6362"; en["TEXTGUI_KNIFE_SOUND"] = L"Knife Sound";
+    cn["TEXTGUI_DEATH_VOLUME"] = L"\u6b7b\u4ea1\u97f3\u91cf\u63a7\u5236"; en["TEXTGUI_DEATH_VOLUME"] = L"Death Volume";
+    cn["TEXTGUI_SNIPER_CROSSHAIR"] = L"\u72d9\u51fb\u51c6\u661f"; en["TEXTGUI_SNIPER_CROSSHAIR"] = L"Sniper Crosshair";
+    cn["TEXTGUI_ITEM_HELPER"] = L"\u9053\u5177\u52a9\u624b"; en["TEXTGUI_ITEM_HELPER"] = L"Item Helper";
+    cn["TEXTGUI_QUICK_STOP"] = L"\u81ea\u52a8\u6025\u505c"; en["TEXTGUI_QUICK_STOP"] = L"Quick Stop";
+    cn["TEXTGUI_MOUSE_JITTER"] = L"\u591a\u7ed1\u5b9a\u811a\u672c"; en["TEXTGUI_MOUSE_JITTER"] = L"Multi-Bind Script";
+    cn["TEXTGUI_CONSOLE_LOG"] = L"\u63a7\u5236\u53f0\u65e5\u5fd7"; en["TEXTGUI_CONSOLE_LOG"] = L"Console Log";
+    cn["TEXTGUI_STYLE_HOLLOW"] = L"\u7a7a\u5fc3\u5706"; en["TEXTGUI_STYLE_HOLLOW"] = L"Hollow Circle";
+    cn["TEXTGUI_STYLE_CROSS"] = L"\u5341\u5b57"; en["TEXTGUI_STYLE_CROSS"] = L"Cross";
+    cn["TEXTGUI_STYLE_DOT"] = L"\u5706\u70b9"; en["TEXTGUI_STYLE_DOT"] = L"Dot";
+    cn["TEXTGUI_STYLE_CORNERS"] = L"\u56db\u89d2"; en["TEXTGUI_STYLE_CORNERS"] = L"Corners";
+    cn["TEXTGUI_STYLE_T"] = L"T\u5f62"; en["TEXTGUI_STYLE_T"] = L"T Shape";
+    cn["TEXTGUI_STYLE_X"] = L"X\u5f62"; en["TEXTGUI_STYLE_X"] = L"X Shape";
+
     cn[Keys::LEGAL_TITLE] = L"合法配置"; en[Keys::LEGAL_TITLE] = L"Legit Config";
     cn[Keys::LEGAL_SAVE] = L"保存"; en[Keys::LEGAL_SAVE] = L"Save";
     cn[Keys::LEGAL_REFRESH] = L"刷新"; en[Keys::LEGAL_REFRESH] = L"Refresh";

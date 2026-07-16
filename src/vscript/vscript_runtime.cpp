@@ -746,6 +746,25 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         textgui_overlay::SetModuleHidden(ToText(args[0]), !Truthy(args[1]));
         return BoolValue(true);
     }
+    if (name == L"GetModuleEnabled" && args.size() >= 1) {
+        return BoolValue(modulenotifications::GetModuleEnabled(ToText(args[0])));
+    }
+    if (name == L"SetModuleEnabled" && args.size() >= 2) {
+        const bool ok = modulenotifications::SetModuleEnabled(ToText(args[0]), Truthy(args[1]));
+        RefreshTextguiOverlay();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(ok);
+    }
+    if (name == L"ToggleModuleEnabled" && args.size() >= 1) {
+        const bool ok = modulenotifications::ToggleModuleEnabled(ToText(args[0]));
+        RefreshTextguiOverlay();
+        if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
+        return BoolValue(ok);
+    }
+    if (name == L"GetModuleValue" && args.size() >= 1) {
+        const std::wstring field = args.size() >= 2 ? ToText(args[1]) : L"";
+        return TextValue(modulenotifications::GetModuleValue(ToText(args[0]), field));
+    }
     if (name == L"Delta" && args.size() >= 1) {
         const std::wstring varName = ToText(args[0]);
         return NumberValue(ToNumber(GetVar(varName)) - ToNumber(GetVarFromMap(s_prevVars, varName)));

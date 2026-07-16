@@ -104,8 +104,11 @@ namespace {
             return;
         }
 
-        vscript::UpdateFromConsoleLog(Utf8ToWide(raw), Utf8ToWide(clean));
-        std::wcout << L"[控制台日志] " << Utf8ToWide(clean) << std::endl;
+        const std::wstring rawWide = Utf8ToWide(raw);
+        const std::wstring cleanWide = Utf8ToWide(clean);
+        modulenotifications::ProcessConsoleCommand(cleanWide);
+        vscript::UpdateFromConsoleLog(rawWide, cleanWide);
+        std::wcout << L"[控制台日志] " << cleanWide << std::endl;
     }
 
     void PublishLatestCrosshairSignal()

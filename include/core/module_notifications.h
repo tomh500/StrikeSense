@@ -20,4 +20,9 @@ void SetModuleHidden(const std::wstring& id, bool hidden);
 bool IsModuleHidden(const std::wstring& id);
 std::vector<std::wstring> NativeModuleIds();
 void UpdateCrosshairRecoilSignal(const std::wstring& text);
+bool ProcessConsoleCommand(const std::wstring& text);
+bool GetModuleEnabled(const std::wstring& id);
+bool SetModuleEnabled(const std::wstring& id, bool enabled);
+bool ToggleModuleEnabled(const std::wstring& id);
+std::wstring GetModuleValue(const std::wstring& id, const std::wstring& field = L"");
 }

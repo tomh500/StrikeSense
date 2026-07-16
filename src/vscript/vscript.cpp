@@ -770,6 +770,30 @@ namespace {
         detail::s_vars[name] = v;
     }
 
+    void SetModuleScriptVars(bool persistent)
+    {
+        const auto setVar = [&](const std::wstring& name, const detail::value& v) {
+            if (persistent) SetPersistentScriptVar(name, v);
+            else detail::SetStateVar(name, v);
+        };
+
+        for (const auto& id : modulenotifications::NativeModuleIds()) {
+            const std::wstring prefix = L"module_" + detail::SanitizeName(id);
+            setVar(prefix, detail::BoolValue(modulenotifications::GetModuleEnabled(id)));
+
+            const std::wstring value = modulenotifications::GetModuleValue(id);
+            if (!value.empty()) setVar(prefix + L"_value", detail::TextValue(value));
+        }
+
+        setVar(L"module_custom_musickit_format", detail::TextValue(modulenotifications::GetModuleValue(L"custom_musickit", L"format")));
+        setVar(L"module_mwheel_jump_mode", detail::TextValue(modulenotifications::GetModuleValue(L"mwheel_jump", L"mode")));
+        setVar(L"module_socd_mode", detail::TextValue(modulenotifications::GetModuleValue(L"socd", L"mode")));
+        setVar(L"module_mixed_sensitivity_normal", detail::TextValue(modulenotifications::GetModuleValue(L"mixed_sensitivity", L"normal")));
+        setVar(L"module_mixed_sensitivity_attack", detail::TextValue(modulenotifications::GetModuleValue(L"mixed_sensitivity", L"attack")));
+        setVar(L"module_sniper_crosshair_style", detail::TextValue(modulenotifications::GetModuleValue(L"sniper_crosshair", L"style")));
+        setVar(L"module_item_helper_map", detail::TextValue(modulenotifications::GetModuleValue(L"item_helper", L"map")));
+    }
+
     std::wstring AfterPrefixTrimmed(const std::wstring& text, size_t prefixSize)
     {
         if (text.size() <= prefixSize) return L"";
@@ -834,6 +858,7 @@ void UpdateFromConsoleLog(const std::wstring& raw, const std::wstring& text)
     SetPersistentScriptVar(L"console_log_location", TextValue(location));
     SetPersistentScriptVar(L"console_log_message", TextValue(message));
     SetPersistentScriptVar(L"console_log_queue_size", NumberValue((double)s_consoleLogQueue.size()));
+    SetModuleScriptVars(true);
     modulenotifications::UpdateCrosshairRecoilSignal(clean);
 
     std::wcout << L"[脚本] 已更新控制台日志变量，第 " << consoleLogCount
@@ -849,6 +874,7 @@ void UpdateFromGsi(const nlohmann::json& state)
     s_stateKeys.clear();
     FlattenJsonState(L"gsi", state);
     SetStateVar(L"gsi_field_count", NumberValue((double)gsi::state::flat.size()));
+    SetModuleScriptVars(false);
     SetPrevAlias(L"prev_round_phase", L"round_phase");
     SetPrevAlias(L"prev_kills", L"kills");
     SetPrevAlias(L"prev_health", L"health");
