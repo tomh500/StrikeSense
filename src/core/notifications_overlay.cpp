@@ -196,7 +196,7 @@ void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
     fill_card(g, box, Gdiplus::Color(252, 18, 18, 18), cardRadius,
         Gdiplus::Color(255, 34, 34, 34));
 
-    Gdiplus::Font titleFont(L"Segoe UI Semibold", 14.5f, Gdiplus::FontStyleRegular);
+    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 14.5f, Gdiplus::FontStyleBold);
     Gdiplus::Font subFont(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
     draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 11.f,
         Gdiplus::Color(255, 255, 255, 255));
