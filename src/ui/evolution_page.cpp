@@ -50,7 +50,7 @@ std::array<Gdiplus::RectF, 3> textguiColorRects;
 Gdiplus::RectF notificationsEnableRect;
 Gdiplus::RectF notificationsFoldRect;
 Gdiplus::RectF notificationsDurationRect;
-std::array<Gdiplus::RectF, 3> notificationsStyleRects;
+std::array<Gdiplus::RectF, 5> notificationsStyleRects;
 Gdiplus::RectF crosshairFoldRect;
 bool textguiCollapsed = true;
 bool notificationsCollapsed = true;
@@ -221,7 +221,7 @@ void LoadEvolutionParams() {
         gv("notifications_duration", g_notificationsDuration);
         gv("notifications_style", g_notificationsStyle);
         g_notificationsDuration = std::clamp(g_notificationsDuration, 1.f, 5.f);
-        g_notificationsStyle = std::clamp(g_notificationsStyle, 0, 2);
+        g_notificationsStyle = std::clamp(g_notificationsStyle, 0, 4);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -872,16 +872,16 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             PointF(notificationsDurationRect.X + notificationsDurationRect.Width + 6.f,
                 static_cast<REAL>(notifyBodyY)), &dim);
 
-        const wchar_t* styleNames[] = { L"LiquidBounce", L"VAPE", L"GPT" };
-        for (int i = 0; i < 3; ++i) {
-            notificationsStyleRects[i] = RectF(static_cast<REAL>(sectionX + 14 + i * 126),
-                static_cast<REAL>(notifyBodyY + 32), 112.f, 25.f);
+        const wchar_t* styleNames[] = { L"LiquidBounce", L"VAPE", L"GPT", L"Gemini", L"DeepSeek" };
+        for (int i = 0; i < 5; ++i) {
+            notificationsStyleRects[i] = RectF(static_cast<REAL>(sectionX + 14 + (i % 3) * 126),
+                static_cast<REAL>(notifyBodyY + 32 + (i / 3) * 31), 112.f, 25.f);
             g.FillRectangle(i == g_notificationsStyle ? &selectedBackground : &buttonBackground, notificationsStyleRects[i]);
             g.DrawRectangle(i == g_notificationsStyle ? &selectedBorder : &buttonBorder, notificationsStyleRects[i]);
             g.DrawString(styleNames[i], -1, &sF,
                 PointF(notificationsStyleRects[i].X + 8.f, notificationsStyleRects[i].Y + 3.f), &text);
         }
-        crosshairY = notifyBodyY + 76;
+        crosshairY = notifyBodyY + 107;
     }
 
     g.DrawString(_(i18n::Keys::EVO_CROSSHAIR), -1, &rF,
@@ -1094,7 +1094,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         }
 
         int* colorValues[] = { &g_textguiR, &g_textguiG, &g_textguiB };
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 5; ++i) {
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiColorRects[i].X),
                 static_cast<int>(textguiColorRects[i].Y + 8.f),
                 static_cast<int>(textguiColorRects[i].Width), value)) continue;

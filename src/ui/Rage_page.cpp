@@ -258,6 +258,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         mousejitter::SetEnabled(!mousejitter::IsEnabled());
         std::cout << "[多绑定脚本] UI 请求切换支持开关，实际状态: "
                   << (mousejitter::IsEnabled() ? "开启" : "关闭") << std::endl;
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
@@ -268,6 +269,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         consolelog::SetEnabled(!consolelog::IsEnabled());
         std::cout << "[控制台日志] UI 请求切换读控制台支持开关，实际状态: "
                   << (consolelog::IsEnabled() ? "开启" : "关闭") << std::endl;
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
@@ -280,6 +282,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         const bool actualEnabled = IsQuickStopEnabled();
         std::cout << "[急停] UI 请求切换开关，实际状态: "
                   << (actualEnabled ? "开启" : "关闭") << std::endl;
+        RefreshTextguiOverlay();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }

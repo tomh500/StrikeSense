@@ -11,5 +11,6 @@ namespace notifications_overlay {
 void Initialize(HINSTANCE hInst);
 void Shutdown();
 void Push(const std::wstring& text, bool enabled);
+void Show(const std::wstring& text, bool enabled);
 void Refresh();
 }

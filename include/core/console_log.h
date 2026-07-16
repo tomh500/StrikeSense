@@ -5,6 +5,7 @@ namespace consolelog {
     void SaveConfig();
     void SetEnabled(bool enabled);
     bool IsEnabled();
+    void SetRuntimeReaderNeeded(bool needed);
     void StopForRageDisabled();
     void Shutdown();
 }

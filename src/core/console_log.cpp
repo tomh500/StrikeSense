@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "pages.h"
+#include "textgui_overlay.h"
 #include "vscript.h"
 
 #include <Windows.h>
@@ -20,6 +21,7 @@ namespace {
     std::atomic<bool> g_enabled{ false };
     std::atomic<bool> g_running{ false };
     std::atomic<bool> g_workerActive{ false };
+    std::atomic<bool> g_runtimeReaderNeeded{ false };
     std::atomic<bool> g_skipToEndRequested{ false };
     std::wstring g_logPath;
 
@@ -96,8 +98,32 @@ namespace {
         const std::string clean = CleanConsoleLine(raw);
         if (clean.empty()) return;
 
+        if (!g_enabled.load() && g_runtimeReaderNeeded.load()) {
+            if (clean.find("/cr1") != std::string::npos || clean.find("/cr0") != std::string::npos)
+                textgui_overlay::UpdateCrosshairRecoilSignal(Utf8ToWide(clean));
+            return;
+        }
+
         vscript::UpdateFromConsoleLog(Utf8ToWide(raw), Utf8ToWide(clean));
         std::wcout << L"[控制台日志] " << Utf8ToWide(clean) << std::endl;
+    }
+
+    void PublishLatestCrosshairSignal()
+    {
+        if (g_logPath.empty() || !std::filesystem::exists(g_logPath)) return;
+
+        std::ifstream file(g_logPath, std::ios::binary);
+        if (!file.is_open()) return;
+
+        std::string latest;
+        std::string line;
+        while (std::getline(file, line)) {
+            const std::string clean = CleanConsoleLine(StripBomAndCr(line));
+            if (clean.find("/cr1") != std::string::npos || clean.find("/cr0") != std::string::npos)
+                latest = clean;
+        }
+        if (!latest.empty())
+            textgui_overlay::UpdateCrosshairRecoilSignal(Utf8ToWide(latest));
     }
 
     void WorkerLoop()
@@ -122,6 +148,8 @@ namespace {
 
                 const std::uintmax_t currentSize = std::filesystem::file_size(g_logPath);
                 if (g_skipToEndRequested.exchange(false) || !initializedAtEnd) {
+                    if (g_runtimeReaderNeeded.load() && !g_enabled.load())
+                        PublishLatestCrosshairSignal();
                     lastSize = currentSize;
                     initializedAtEnd = true;
                     std::cout << "[控制台日志] 已跳过既有日志，只监听新增内容。" << std::endl;
@@ -222,7 +250,7 @@ void SetEnabled(bool enabled)
               << (enabled ? "开启" : "关闭") << std::endl;
 
     if (enabled) EnsureWorker();
-    else StopWorker();
+    else if (!g_runtimeReaderNeeded.load()) StopWorker();
 
     SaveConfig();
 }
@@ -232,15 +260,26 @@ bool IsEnabled()
     return g_enabled.load();
 }
 
+void SetRuntimeReaderNeeded(bool needed)
+{
+    g_runtimeReaderNeeded.store(needed);
+    if (needed) {
+        EnsureWorker();
+        return;
+    }
+    if (!g_enabled.load()) StopWorker();
+}
+
 void StopForRageDisabled()
 {
-    StopWorker();
+    if (!g_runtimeReaderNeeded.load()) StopWorker();
     std::cout << "[控制台日志] 超频配置关闭，已停止读取 console.log，但保留开关偏好。" << std::endl;
 }
 
 void Shutdown()
 {
     g_enabled.store(false);
+    g_runtimeReaderNeeded.store(false);
     StopWorker();
 }
 }

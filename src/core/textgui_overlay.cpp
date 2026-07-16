@@ -32,6 +32,7 @@ bool s_crosshairRecoilFollow = false;
 std::map<std::wstring, std::wstring> s_customLines;
 std::set<std::wstring> s_lastFeatureSet;
 bool s_hasFeatureSnapshot = false;
+bool s_consoleReaderNeeded = false;
 constexpr UINT_PTR kRefreshTimer = 3011;
 
 bool has_window()
@@ -175,14 +176,24 @@ void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::
     Gdiplus::SolidBrush shadow(Gdiplus::Color(static_cast<BYTE>(alpha * shadowStrength), 0, 0, 0));
     Gdiplus::StringFormat fmt(Gdiplus::StringFormat::GenericTypographic());
     fmt.SetFormatFlags(fmt.GetFormatFlags() | Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
+    float cursor = x;
     for (size_t i = 0; i < text.size(); ++i) {
         const std::wstring ch(1, text[i]);
-        const float cursor = x + text_width_f(g, font, text.substr(0, i));
         const float hue = baseHue + static_cast<float>(i) * hueStep;
         Gdiplus::SolidBrush brush(color_from_hue(hue, alpha, saturation, brightness));
         if (shadowStrength > 0.01f) g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor + 1.f, y + 1.f), &fmt, &shadow);
         g.DrawString(ch.c_str(), 1, &font, Gdiplus::PointF(cursor, y), &fmt, &brush);
+        cursor += text_width_f(g, font, ch);
     }
+}
+
+void update_console_reader_need()
+{
+    const bool needed = g_textguiEnabled && HasLegalCfgCrosshairSwitch();
+    if (needed == s_consoleReaderNeeded) return;
+    s_consoleReaderNeeded = needed;
+    consolelog::SetRuntimeReaderNeeded(needed);
+    std::cout << "[Textgui] 准星跟随控制台读取已" << (needed ? "启用" : "停用") << "。" << std::endl;
 }
 
 void redraw()
@@ -192,16 +203,55 @@ void redraw()
     const int sw = GetSystemMetrics(SM_CXSCREEN);
     const int sh = GetSystemMetrics(SM_CYSCREEN);
     HDC hdcScreen = GetDC(nullptr);
-    HDC hdcMem = CreateCompatibleDC(hdcScreen);
+    HDC hdcMeasure = CreateCompatibleDC(hdcScreen);
+    HBITMAP measureBitmap = CreateCompatibleBitmap(hdcScreen, 1, 1);
+    HBITMAP oldMeasureBitmap = static_cast<HBITMAP>(SelectObject(hdcMeasure, measureBitmap));
 
+    using namespace Gdiplus;
+    const float scale = std::clamp(g_textguiScale, 0.75f, 1.8f);
+    const float opacity = std::clamp(g_textguiOpacity, 0.2f, 1.0f);
+    const BYTE alpha = static_cast<BYTE>(255.f * opacity);
+    const Color fixedColor(alpha,
+        static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
+        static_cast<BYTE>(std::clamp(g_textguiG, 0, 255)),
+        static_cast<BYTE>(std::clamp(g_textguiB, 0, 255)));
+    Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
+    Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
+    const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
+    const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
+    const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
+
+    auto features = collect_enabled_features();
+    {
+        Graphics measure(hdcMeasure);
+        measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+        std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
+            return text_width(measure, itemFont, a) > text_width(measure, itemFont, b);
+        });
+    }
+
+    Graphics measure(hdcMeasure);
+    measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+    const float rowH = 25.f * scale * lineSpacing;
+    const int maxFeatureW = features.empty() ? 0 : text_width(measure, itemFont, features.front());
+    const int maxTextW = (std::max)(text_width(measure, titleFont, L"StrikeSense"), maxFeatureW);
+    const float areaWf = (std::max)(185.f * scale, maxTextW + 8.f * scale);
+    const float areaHf = (g_textguiShowWatermark ? 35.f * scale : 0.f)
+        + static_cast<float>(features.size()) * rowH + 8.f * scale;
+    const int areaW = (std::max)(1, static_cast<int>(std::ceil(areaWf + 4.f)));
+    const int areaH = (std::max)(1, static_cast<int>(std::ceil(areaHf + 4.f)));
+    const float margin = 18.f * scale;
+    const int dstX = static_cast<int>(std::clamp((sw - areaWf - margin) * std::clamp(g_textguiX, 0.f, 1.f), margin, sw - areaWf - margin));
+    const int dstY = static_cast<int>(std::clamp((sh - areaHf - margin) * std::clamp(g_textguiY, 0.f, 1.f), margin, sh - areaHf - margin));
+
+    HDC hdcMem = CreateCompatibleDC(hdcScreen);
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = sw;
-    bmi.bmiHeader.biHeight = -sh;
+    bmi.bmiHeader.biWidth = areaW;
+    bmi.bmiHeader.biHeight = -areaH;
     bmi.bmiHeader.biPlanes = 1;
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
-
     void* bits = nullptr;
     HBITMAP bitmap = CreateDIBSection(hdcMem, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
     HBITMAP oldBitmap = static_cast<HBITMAP>(SelectObject(hdcMem, bitmap));
@@ -213,39 +263,10 @@ void redraw()
         g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
         g.Clear(Color(0, 0, 0, 0));
 
-        const float scale = std::clamp(g_textguiScale, 0.75f, 1.8f);
-        const float opacity = std::clamp(g_textguiOpacity, 0.2f, 1.0f);
-        const BYTE alpha = static_cast<BYTE>(255.f * opacity);
-        const Color fixedColor(alpha,
-            static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
-            static_cast<BYTE>(std::clamp(g_textguiG, 0, 255)),
-            static_cast<BYTE>(std::clamp(g_textguiB, 0, 255)));
-
-        Font titleFont(L"Microsoft YaHei UI", 20.f * scale, FontStyleBold);
-        Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
-        const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
-        const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
-        const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
-
-        auto features = collect_enabled_features();
-        std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
-            return text_width(g, itemFont, a) > text_width(g, itemFont, b);
-        });
-
-        const float margin = 18.f * scale;
-        const float rowH = 25.f * scale * lineSpacing;
-        const int maxFeatureW = features.empty() ? 0 : text_width(g, itemFont, features.front());
-        const int maxTextW = (std::max)(text_width(g, titleFont, L"StrikeSense"), maxFeatureW);
-        const float areaW = (std::max)(185.f * scale, maxTextW + 4.f * scale);
-        const float areaH = (g_textguiShowWatermark ? 35.f * scale : 0.f)
-            + static_cast<float>(features.size()) * rowH + 6.f * scale;
-        const float x = std::clamp((sw - areaW - margin) * std::clamp(g_textguiX, 0.f, 1.f), margin, sw - areaW - margin);
-        const float y = std::clamp((sh - areaH - margin) * std::clamp(g_textguiY, 0.f, 1.f), margin, sh - areaH - margin);
-
-        float cy = y;
+        float cy = 2.f;
         if (g_textguiShowWatermark) {
             const std::wstring title = L"StrikeSense";
-            const float tx = x + areaW - text_width(g, titleFont, title);
+            const float tx = areaWf - text_width(g, titleFont, title);
             if (g_textguiRainbow) draw_rainbow_text(g, title, titleFont, tx, cy, alpha, baseHue);
             else draw_text(g, title, titleFont, tx, cy, fixedColor, alpha);
             cy += 35.f * scale;
@@ -253,15 +274,15 @@ void redraw()
 
         for (size_t i = 0; i < features.size(); ++i) {
             const auto& feature = features[i];
-            const float tx = x + areaW - text_width(g, itemFont, feature);
+            const float tx = areaWf - text_width(g, itemFont, feature);
             if (g_textguiRainbow) draw_rainbow_text(g, feature, itemFont, tx, cy, alpha, baseHue + static_cast<float>(i) * 26.f);
             else draw_text(g, feature, itemFont, tx, cy, fixedColor, alpha);
             cy += rowH;
         }
     }
 
-    POINT dst{ 0, 0 };
-    SIZE size{ sw, sh };
+    POINT dst{ dstX, dstY };
+    SIZE size{ areaW, areaH };
     POINT src{ 0, 0 };
     BLENDFUNCTION blend{};
     blend.BlendOp = AC_SRC_OVER;
@@ -272,6 +293,9 @@ void redraw()
     SelectObject(hdcMem, oldBitmap);
     DeleteObject(bitmap);
     DeleteDC(hdcMem);
+    SelectObject(hdcMeasure, oldMeasureBitmap);
+    DeleteObject(measureBitmap);
+    DeleteDC(hdcMeasure);
     ReleaseDC(nullptr, hdcScreen);
 }
 
@@ -339,7 +363,7 @@ void Initialize(HINSTANCE hInst)
         return;
     }
 
-    SetTimer(s_hwnd, kRefreshTimer, 16, nullptr);
+    SetTimer(s_hwnd, kRefreshTimer, 33, nullptr);
     ShowWindow(s_hwnd, SW_HIDE);
     std::cout << "[Textgui] 覆盖层窗口已创建。" << std::endl;
 }
@@ -347,6 +371,7 @@ void Initialize(HINSTANCE hInst)
 void ApplyEnabled(bool enabled)
 {
     g_textguiEnabled = enabled;
+    update_console_reader_need();
     if (enabled) {
         if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
         if (!s_hasFeatureSnapshot) {
@@ -362,12 +387,14 @@ void ApplyEnabled(bool enabled)
 
     if (has_window()) ShowWindow(s_hwnd, SW_HIDE);
     s_visible = false;
+    update_console_reader_need();
     std::cout << "[Textgui] 已关闭。" << std::endl;
 }
 
 void Refresh()
 {
     if (!g_textguiEnabled) return;
+    update_console_reader_need();
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
     sync_notifications_for_features();
     update_visibility();
@@ -375,6 +402,8 @@ void Refresh()
 
 void Shutdown()
 {
+    consolelog::SetRuntimeReaderNeeded(false);
+    s_consoleReaderNeeded = false;
     if (has_window()) DestroyWindow(s_hwnd);
     s_hwnd = nullptr;
     s_visible = false;
@@ -400,10 +429,12 @@ void RemoveCustomLine(const std::wstring& id)
 void UpdateCrosshairRecoilSignal(const std::wstring& text)
 {
     if (text.find(L"/cr1") != std::wstring::npos) {
+        if (s_crosshairRecoilFollow) return;
         s_crosshairRecoilFollow = true;
         std::cout << "[Textgui] 已读取准星跟随后坐力状态: 开启" << std::endl;
         Refresh();
     } else if (text.find(L"/cr0") != std::wstring::npos) {
+        if (!s_crosshairRecoilFollow) return;
         s_crosshairRecoilFollow = false;
         std::cout << "[Textgui] 已读取准星跟随后坐力状态: 关闭" << std::endl;
         Refresh();

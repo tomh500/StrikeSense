@@ -180,6 +180,7 @@ namespace {
     std::atomic<bool> pause_jiting{ false };
     std::atomic<bool> space_key_down{ false };
     std::atomic<std::int64_t> jump_disable_until_ms{ 0 };
+    constexpr bool kVerboseQuickStopInputLog = false;
 
     int MoveKeyIndex(char key)
     {
@@ -229,15 +230,19 @@ namespace {
         if (disable_ms <= 0)
         {
             jump_disable_until_ms.store(0);
-            std::cout << "[急停] 检测到跳跃输入(" << source
-                      << ")，但跳跃临时禁用时长为 0ms，已跳过。" << std::endl;
+            if constexpr (kVerboseQuickStopInputLog) {
+                std::cout << "[急停] 检测到跳跃输入(" << source
+                          << ")，但跳跃临时禁用时长为 0ms，已跳过。" << std::endl;
+            }
             return;
         }
 
         jump_disable_until_ms.store(NowMs() + disable_ms);
         StopAllPulses();
-        std::cout << "[急停] 检测到跳跃输入(" << source
-                  << ")，未来 3 秒临时禁用自动急停。" << std::endl;
+        if constexpr (kVerboseQuickStopInputLog) {
+            std::cout << "[急停] 检测到跳跃输入(" << source
+                      << ")，未来 3 秒临时禁用自动急停。" << std::endl;
+        }
     }
 
     void SendHardwareKey(WORD vKey, bool down)
@@ -389,8 +394,10 @@ namespace {
         }
         axis->request_cv.notify_one();
 
-        std::cout << "[急停] 移动 " << move_duration_ms
-                  << "ms，反向脉冲 " << stop_pulse << "ms" << std::endl;
+        if constexpr (kVerboseQuickStopInputLog) {
+            std::cout << "[急停] 移动 " << move_duration_ms
+                      << "ms，反向脉冲 " << stop_pulse << "ms" << std::endl;
+        }
     }
 
     void CancelAxis(AxisControl& axis)
@@ -622,8 +629,10 @@ void ProcessQuickStopCommand(const std::string& cmd)
         physical_key_down[key_index] = true;
         start_times[key_index] = now;
         CancelAxis(*axis); // 新的真实移动输入立即结束同轴反向脉冲
-        if (is_lenient_manual_stop)
+        if constexpr (kVerboseQuickStopInputLog) {
+            if (is_lenient_manual_stop)
             std::cout << "[急停] 检测到人工反向补停，已进入宽容判定: " << key << std::endl;
+        }
         return;
     }
 
@@ -660,13 +669,17 @@ void ProcessQuickStopCommand(const std::string& cmd)
 
         if (lenient_candidate && lenient_duration <= lenient_tap_max_ms)
         {
-            std::cout << "[急停] 宽容手动急停已接管 " << key
-                      << "，补停 " << lenient_duration << "ms，跳过二次反向脉冲。" << std::endl;
+            if constexpr (kVerboseQuickStopInputLog) {
+                std::cout << "[急停] 宽容手动急停已接管 " << key
+                          << "，补停 " << lenient_duration << "ms，跳过二次反向脉冲。" << std::endl;
+            }
             return;
         }
-        if (lenient_candidate)
+        if constexpr (kVerboseQuickStopInputLog) {
+            if (lenient_candidate)
             std::cout << "[急停] 人工反向键补停后继续按住 " << lenient_duration
                       << "ms，超过宽容上限，按正常换向处理。" << std::endl;
+        }
 
         if (pause_jiting) return;           // pause键控制的全局急停开关
         if (!s_qsConfig.enabled) return;    // 总开关
@@ -693,8 +706,10 @@ void ProcessQuickStopCommand(const std::string& cmd)
                 lenient_manual_stop_max_ms[counter_index] = CalculateLenientTapMaxMs(stop_pulse);
                 lenient_manual_stop_times[counter_index] = Clock::now();
                 CancelAxis(*axis);
-                std::cout << "[急停] 检测到提前按住的人工反向补停: "
-                          << static_cast<char>(counterKey) << std::endl;
+                if constexpr (kVerboseQuickStopInputLog) {
+                    std::cout << "[急停] 检测到提前按住的人工反向补停: "
+                              << static_cast<char>(counterKey) << std::endl;
+                }
                 return;
             }
         }
