@@ -64,6 +64,7 @@ extern bool  g_textguiShowWatermark;
 extern bool  g_textguiRainbow;
 extern bool  g_textguiBackdrop;
 extern float g_textguiBackdropOpacity;
+extern float g_textguiLogoDetailThickness;
 extern std::wstring g_textguiCustomSlogan;
 extern bool  g_notificationsEnabled;
 extern float g_notificationsDuration;

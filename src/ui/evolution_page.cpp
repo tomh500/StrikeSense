@@ -54,6 +54,8 @@ Gdiplus::RectF textguiRainbowRect;
 Gdiplus::RectF textguiBackdropRect;
 Gdiplus::RectF textguiBackdropOpacityRect;
 Gdiplus::RectF textguiBackdropOpacityValueRect;
+Gdiplus::RectF textguiLogoDetailRect;
+Gdiplus::RectF textguiLogoDetailValueRect;
 Gdiplus::RectF textguiSloganRect;
 std::array<Gdiplus::RectF, 10> textguiSliderRects;
 std::array<Gdiplus::RectF, 10> textguiSliderValueRects;
@@ -254,6 +256,7 @@ void SaveEvolutionParams() {
     j["textgui_rainbow"] = g_textguiRainbow;
     j["textgui_backdrop"] = g_textguiBackdrop;
     j["textgui_backdrop_opacity"] = g_textguiBackdropOpacity;
+    j["textgui_logo_detail_thickness"] = g_textguiLogoDetailThickness;
     j["textgui_custom_slogan"] = evolutionui::wide_to_utf8(g_textguiCustomSlogan);
     j["notifications_enabled"] = g_notificationsEnabled;
     j["notifications_duration"] = g_notificationsDuration;
@@ -325,6 +328,7 @@ void LoadEvolutionParams() {
         gb("textgui_rainbow", g_textguiRainbow);
         gb("textgui_backdrop", g_textguiBackdrop);
         gv("textgui_backdrop_opacity", g_textguiBackdropOpacity);
+        gv("textgui_logo_detail_thickness", g_textguiLogoDetailThickness);
         if (j.contains("textgui_custom_slogan") && j["textgui_custom_slogan"].is_string()) {
             g_textguiCustomSlogan = evolutionui::utf8_to_wide(j["textgui_custom_slogan"].get<std::string>());
         }
@@ -848,6 +852,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         textguiBackdropRect = RectF{};
         textguiBackdropOpacityRect = RectF{};
         textguiBackdropOpacityValueRect = RectF{};
+        textguiLogoDetailRect = RectF{};
+        textguiLogoDetailValueRect = RectF{};
         textguiSloganRect = RectF{};
     }
     else {
@@ -866,7 +872,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             i18n::T("EVO_TEXTGUI_RAINBOW_SATURATION"), i18n::T("EVO_TEXTGUI_RAINBOW_BRIGHTNESS")
         };
         const float values[] = {
-            g_textguiX, g_textguiY, (g_textguiScale - 0.75f) / 1.05f,
+            (g_textguiX + 0.75f) / 2.5f, (g_textguiY + 0.75f) / 2.5f,
+            (g_textguiScale - 0.75f) / 1.05f,
             (g_textguiOpacity - 0.2f) / 0.8f,
             (g_textguiLineSpacing - 0.75f) / 1.05f,
             g_textguiShadowStrength,
@@ -928,13 +935,11 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
                 static_cast<REAL>(colorY - 3), 42.f, 20.f);
         }
 
-        g.DrawString(L"附属", -1, &sF,
-            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 34)), &text);
         const int accessoryValues[] = {
             g_textguiAccessoryR, g_textguiAccessoryG, g_textguiAccessoryB
         };
         for (int i = 0; i < 3; ++i) {
-            const int x = sectionX + 55 + i * (colorWidth + 70);
+            const int x = sectionX + 14 + i * (colorWidth + 70);
             g.DrawString(colorLabels[i], -1, &sF,
                 PointF(static_cast<REAL>(x), static_cast<REAL>(colorY + 34)), &text);
             textguiAccessoryColorRects[i] = RectF(static_cast<REAL>(x + 18),
@@ -992,7 +997,22 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         textguiBackdropOpacityValueRect = RectF(
             textguiBackdropOpacityRect.X + textguiBackdropOpacityRect.Width + 3.f,
             static_cast<REAL>(colorY + 141), 50.f, 20.f);
-        crosshairY = colorY + 188;
+
+        g.DrawString(L"Logo内线", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 180)), &text);
+        textguiLogoDetailRect = RectF(static_cast<REAL>(sectionX + 105),
+            static_cast<REAL>(colorY + 173), static_cast<REAL>((std::max)(120, sectionWidth - 220)), 24.f);
+        const float logoDetailValue = std::clamp((g_textguiLogoDetailThickness - 0.5f) / 2.5f, 0.f, 1.f);
+        drawSliderWithKnob(textguiLogoDetailRect, logoDetailValue);
+        wchar_t logoDetailText[16]{};
+        swprintf_s(logoDetailText, L"%.1f", g_textguiLogoDetailThickness);
+        g.DrawString(logoDetailText, -1, &sF,
+            PointF(textguiLogoDetailRect.X + textguiLogoDetailRect.Width + 5.f,
+                static_cast<REAL>(colorY + 180)), &dim);
+        textguiLogoDetailValueRect = RectF(
+            textguiLogoDetailRect.X + textguiLogoDetailRect.Width + 3.f,
+            static_cast<REAL>(colorY + 177), 48.f, 20.f);
+        crosshairY = colorY + 224;
     }
 
     const int notificationsSectionY = crosshairY;
@@ -1302,8 +1322,8 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
                 static_cast<int>(textguiSliderRects[i].Y + 8.f),
                 static_cast<int>(textguiSliderRects[i].Width), value)) continue;
-            if (i == 0) g_textguiX = value;
-            else if (i == 1) g_textguiY = value;
+            if (i == 0) g_textguiX = -0.75f + value * 2.5f;
+            else if (i == 1) g_textguiY = -0.75f + value * 2.5f;
             else if (i == 2) g_textguiScale = 0.75f + value * 1.05f;
             else if (i == 3) g_textguiOpacity = 0.2f + value * 0.8f;
             else if (i == 4) g_textguiLineSpacing = 0.75f + value * 1.05f;
@@ -1415,6 +1435,30 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             static_cast<int>(textguiBackdropOpacityRect.Y + 8.f),
             static_cast<int>(textguiBackdropOpacityRect.Width), value)) {
             g_textguiBackdropOpacity = value;
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        if (Hit(textguiLogoDetailValueRect, mx, my)) {
+            std::wstring input = std::to_wstring(g_textguiLogoDetailThickness);
+            if (!prompt_input(hw, L"输入 Logo 内部构图线条粗细", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            g_textguiLogoDetailThickness = static_cast<float>(entered);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+        if (ui::CheckSliderClick(mx, my, static_cast<int>(textguiLogoDetailRect.X),
+            static_cast<int>(textguiLogoDetailRect.Y + 8.f),
+            static_cast<int>(textguiLogoDetailRect.Width), value)) {
+            g_textguiLogoDetailThickness = 0.5f + value * 2.5f;
             SaveEvolutionParams();
             RefreshTextguiOverlay();
             InvalidateRect(hw, nullptr, FALSE);

@@ -106,6 +106,7 @@ bool  g_textguiShowWatermark = true;
 bool  g_textguiRainbow = false;
 bool  g_textguiBackdrop = false;
 float g_textguiBackdropOpacity = 0.58f;
+float g_textguiLogoDetailThickness = 1.1f;
 std::wstring g_textguiCustomSlogan;
 bool  g_notificationsEnabled = true;
 float g_notificationsDuration = 3.0f;

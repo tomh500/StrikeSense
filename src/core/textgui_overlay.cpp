@@ -108,24 +108,43 @@ void draw_rainbow_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::
     }
 }
 
-void draw_box_logo(Gdiplus::Graphics& g, float x, float y, float scale, BYTE alpha)
+void draw_box_logo(Gdiplus::Graphics& g, float x, float y, float scale,
+    const Gdiplus::Color& color)
 {
     using namespace Gdiplus;
-    Pen pen(Color(alpha, 255, 255, 255), (std::max)(1.f, 1.6f * scale));
-    pen.SetLineJoin(LineJoinRound);
+    Pen outerPen(color, (std::max)(1.f, 2.4f * scale));
+    outerPen.SetLineJoin(LineJoinRound);
+    outerPen.SetStartCap(LineCapRound);
+    outerPen.SetEndCap(LineCapRound);
+    Pen detailPen(color, std::clamp(g_textguiLogoDetailThickness, 0.2f, 8.f) * scale);
+    detailPen.SetLineJoin(LineJoinRound);
+    detailPen.SetStartCap(LineCapRound);
+    detailPen.SetEndCap(LineCapRound);
     const auto point = [&](float px, float py) { return PointF(x + px * scale, y + py * scale); };
-    const PointF base[] = {
-        point(4.f, 12.f), point(16.f, 18.f), point(28.f, 12.f), point(28.f, 25.f),
-        point(16.f, 31.f), point(4.f, 25.f), point(4.f, 12.f), point(16.f, 18.f),
-        point(16.f, 31.f), point(28.f, 25.f)
+
+    const PointF box[] = {
+        point(3.f, 16.f), point(18.f, 22.f), point(34.f, 15.f), point(19.f, 9.f),
+        point(3.f, 16.f), point(3.f, 29.f), point(18.f, 36.f), point(34.f, 29.f),
+        point(34.f, 15.f), point(18.f, 22.f), point(18.f, 36.f)
     };
-    g.DrawLines(&pen, base, static_cast<INT>(std::size(base)));
-    const PointF backFlap[] = { point(4.f, 12.f), point(8.f, 3.f), point(20.f, 9.f), point(16.f, 18.f) };
-    const PointF rightFlap[] = { point(16.f, 18.f), point(24.f, 5.f), point(36.f, 10.f), point(28.f, 12.f) };
-    const PointF frontFlap[] = { point(4.f, 12.f), point(16.f, 18.f), point(10.f, 28.f), point(-2.f, 22.f) };
-    g.DrawPolygon(&pen, backFlap, static_cast<INT>(std::size(backFlap)));
-    g.DrawPolygon(&pen, rightFlap, static_cast<INT>(std::size(rightFlap)));
-    g.DrawPolygon(&pen, frontFlap, static_cast<INT>(std::size(frontFlap)));
+    g.DrawLines(&outerPen, box, static_cast<INT>(std::size(box)));
+
+    // AK 枪管朝右上，枪身落在箱口内。
+    const PointF receiver[] = {
+        point(10.f, 22.f), point(15.f, 17.f), point(23.f, 14.f), point(27.f, 17.f),
+        point(20.f, 22.f), point(14.f, 24.f), point(10.f, 22.f)
+    };
+    g.DrawLines(&detailPen, receiver, static_cast<INT>(std::size(receiver)));
+    g.DrawLine(&detailPen, point(23.f, 14.f), point(30.f, 3.f));
+    g.DrawLine(&detailPen, point(26.f, 16.f), point(33.f, 5.f));
+    g.DrawLine(&detailPen, point(29.f, 3.f), point(34.f, 5.f));
+    g.DrawLine(&detailPen, point(9.f, 22.f), point(5.f, 27.f));
+    g.DrawLine(&detailPen, point(5.f, 27.f), point(11.f, 25.f));
+    const PointF magazine[] = {
+        point(18.f, 22.f), point(21.f, 25.f), point(19.f, 30.f), point(15.f, 27.f)
+    };
+    g.DrawLines(&detailPen, magazine, static_cast<INT>(std::size(magazine)));
+    g.DrawLine(&detailPen, point(14.f, 23.f), point(16.f, 28.f));
 }
 
 void redraw()
@@ -187,8 +206,10 @@ void redraw()
     const int areaW = (std::max)(1, static_cast<int>(std::ceil(areaWf + 4.f)));
     const int areaH = (std::max)(1, static_cast<int>(std::ceil(areaHf + 4.f)));
     const float margin = 18.f * scale;
-    const int dstX = static_cast<int>(std::clamp((sw - areaWf - margin) * std::clamp(g_textguiX, 0.f, 1.f), margin, sw - areaWf - margin));
-    const int dstY = static_cast<int>(std::clamp((sh - areaHf - margin) * std::clamp(g_textguiY, 0.f, 1.f), margin, sh - areaHf - margin));
+    const float travelX = (std::max)(0.f, sw - areaWf - margin * 2.f);
+    const float travelY = (std::max)(0.f, sh - areaHf - margin * 2.f);
+    const int dstX = static_cast<int>(std::lround(margin + travelX * g_textguiX));
+    const int dstY = static_cast<int>(std::lround(margin + travelY * g_textguiY));
 
     HDC hdcMem = CreateCompatibleDC(hdcScreen);
     BITMAPINFO bmi{};
@@ -209,20 +230,32 @@ void redraw()
         g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
         g.Clear(Color(0, 0, 0, 0));
 
-        float cy = 2.f;
+        float cy = 4.f * scale;
         if (g_textguiShowWatermark) {
             const std::wstring title = L"STRIKESENSE";
             const float groupWidth = 44.f * scale + text_width(g, titleFont, title);
             const float groupX = areaWf - groupWidth;
-            draw_box_logo(g, groupX + 2.f * scale, cy + 1.f * scale, scale, alpha);
-            draw_text(g, title, titleFont, groupX + 44.f * scale, cy + 3.f * scale,
-                Color(alpha, 255, 255, 255), alpha);
+            const Color logoColor = g_textguiRainbow
+                ? color_from_hue(baseHue, alpha, g_textguiRainbowSaturation, g_textguiRainbowBrightness)
+                : fixedColor;
+            draw_box_logo(g, groupX + 2.f * scale, cy, scale, logoColor);
+            if (g_textguiRainbow) {
+                draw_rainbow_text(g, title, titleFont, groupX + 44.f * scale,
+                    cy - 4.f * scale, alpha, baseHue);
+            } else {
+                draw_text(g, title, titleFont, groupX + 44.f * scale, cy - 4.f * scale,
+                    fixedColor, alpha);
+            }
             cy += 39.f * scale;
         }
         if (showSlogan) {
             const float tx = areaWf - text_width(g, sloganFont, g_textguiCustomSlogan);
-            draw_text(g, g_textguiCustomSlogan, sloganFont, tx, cy,
-                Color(alpha, 255, 255, 255), alpha);
+            if (g_textguiRainbow) {
+                draw_rainbow_text(g, g_textguiCustomSlogan, sloganFont, tx, cy,
+                    alpha, baseHue + 38.f);
+            } else {
+                draw_text(g, g_textguiCustomSlogan, sloganFont, tx, cy, fixedColor, alpha);
+            }
             cy += 22.f * scale;
         }
 
