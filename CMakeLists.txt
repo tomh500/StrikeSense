@@ -51,6 +51,7 @@ set(SOURCES
     src/app/ui_common.cpp
     src/core/antistupid.cpp
     src/core/config.cpp
+    src/core/cscript.cpp
     src/core/console_log.cpp
     src/core/flashoverlay.cpp
     src/core/gsi_server.cpp
@@ -69,6 +70,7 @@ set(SOURCES
     src/core/textgui_overlay.cpp
     src/core/volume_mixer.cpp
     src/ui/Rage_page.cpp
+    src/ui/cscript_panel.cpp
     src/ui/evolution_page.cpp
     src/ui/itemhelper_page.cpp
     src/ui/legalcfg_page.cpp
@@ -87,6 +89,7 @@ set(HEADERS
     include/app/console.h
     include/core/antistupid.h
     include/core/config.h
+    include/core/cscript.h
     include/core/console_log.h
     include/core/flashoverlay.h
     include/core/gsi_server.h
@@ -105,6 +108,7 @@ set(HEADERS
     include/core/textgui_overlay.h
     include/core/volume_mixer.h
     include/ui/itemhelper_page.h
+    include/ui/cscript_panel.h
     include/ui/sound_ui.h
     include/vscript/vscript.h
     pages.h framework.h targetver.h Resource.h SteamHelper.h

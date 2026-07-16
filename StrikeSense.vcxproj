@@ -335,6 +335,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\app\ui_common.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\antistupid.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\config.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\cscript.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\console_log.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\flashoverlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\gsi_server.cpp" />
@@ -353,6 +354,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\textgui_overlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\volume_mixer.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\Rage_page.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\cscript_panel.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\evolution_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\itemhelper_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\legalcfg_page.cpp" />
@@ -368,6 +370,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\app\console.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\antistupid.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\config.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\cscript.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\console_log.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\flashoverlay.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\gsi_server.h" />
@@ -386,6 +389,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\textgui_overlay.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\volume_mixer.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\itemhelper_page.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\cscript_panel.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\sound_ui.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\vscript\vscript.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\pages.h" />

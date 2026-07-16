@@ -6,6 +6,8 @@
 #include "gsi_server.h"
 #include "config.h"
 #include "console_log.h"
+#include "cscript.h"
+#include "cscript_panel.h"
 #include "sound_player.h"
 #include "antistupid.h"
 #include "i18n.h"
@@ -22,7 +24,6 @@
 #include <exception>
 #include "flashoverlay.h"
 #include "normalgen.h"
-#include "mouse_jitter.h"
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "textgui_overlay.h"
@@ -208,7 +209,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     notifications_overlay::Initialize(hI);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607151952" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607162017" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -221,7 +222,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     std::cout << "============================================" << std::endl;
     config::EnsureDirectoriesExist(); config::Load();
     LoadQuickStopConfig();
-    mousejitter::LoadConfig();
+    cscript::LoadConfig();
     consolelog::LoadConfig();
     sound::Init(); sound::PreloadSounds();
     if (gsi::Initialize()) gsi::StartServer();
@@ -275,7 +276,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
-    mousejitter::Shutdown();
+    cscript::Shutdown();
     consolelog::Shutdown();
     StopQuickStopHook();
     gsi::StopServer(); gsi::Cleanup(); vscript::Shutdown(); sound::Quit();
@@ -517,10 +518,14 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         }
         return 0;
     }
+case WM_SYSKEYDOWN:
 case WM_KEYDOWN: {
         // 1. 如果当前在合法配置页面，优先处理该页面的输入逻辑
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
             break;
+
+        if (g_currentPage == PAGE_Rage && cscriptui::ProcessBindingKey(hw, wp, lp))
+            return 0;
 
         // 2. 如果正在 Evolution 页面录入热键，处理录入逻辑
         extern bool g_isBindingHotkey;

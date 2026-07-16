@@ -5,7 +5,7 @@
 #include "gsi_server.h"
 #include "i18n.h"
 #include "itemhelper_overlay.h"
-#include "mouse_jitter.h"
+#include "cscript.h"
 #include "notifications_overlay.h"
 #include "pages.h"
 #include "quickstop.h"
@@ -157,7 +157,7 @@ std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
         add(L"item_helper", tr("TEXTGUI_ITEM_HELPER"), mapName);
     }
     if (IsQuickStopRuntimeActive()) add(L"quick_stop", tr("TEXTGUI_QUICK_STOP"));
-    if (mousejitter::IsEnabled()) add(L"mouse_jitter", tr("TEXTGUI_MOUSE_JITTER"));
+    if (cscript::IsEnabled()) add(L"mouse_jitter", tr("TEXTGUI_MOUSE_JITTER"));
     if (consolelog::IsEnabled()) add(L"console_log", tr("TEXTGUI_CONSOLE_LOG"));
 
     for (const auto& script : vscript::MountedScripts()) {
@@ -313,7 +313,7 @@ bool GetModuleEnabled(const std::wstring& id)
     if (id == L"sniper_crosshair") return g_crosshairEnabled;
     if (id == L"item_helper") return g_itemHelperEnabled;
     if (id == L"quick_stop") return IsQuickStopEnabled();
-    if (id == L"mouse_jitter") return mousejitter::IsEnabled();
+    if (id == L"mouse_jitter") return cscript::IsEnabled();
     if (id == L"console_log") return consolelog::IsEnabled();
     if (id == L"textgui") return g_textguiEnabled;
     if (id == L"notifications") return g_notificationsEnabled;
@@ -363,7 +363,7 @@ bool SetModuleEnabled(const std::wstring& id, bool enabled)
         return true;
     }
     if (id == L"mouse_jitter") {
-        mousejitter::SetEnabled(enabled);
+        cscript::SetEnabled(enabled);
         Refresh();
         return true;
     }

@@ -1,0 +1,12 @@
+// StrikeSense CScript 示例：请在超频配置页为本脚本绑定一个单按键。
+@OnPressed {
+    "+forward":0;
+    "alias a b;+jump":1;
+}
+
+@OnReleased {
+    "-forward":0;
+    "-jump":1;
+    "+lookatweapon":2;
+    "-lookatweapon":3;
+}

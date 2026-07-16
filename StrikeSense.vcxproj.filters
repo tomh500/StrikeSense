@@ -19,6 +19,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\cscript.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\console_log.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -73,6 +76,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\Rage_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\cscript_panel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\evolution_page.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -118,6 +124,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\cscript.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\console_log.h">
@@ -172,6 +181,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\itemhelper_page.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\cscript_panel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\sound_ui.h">

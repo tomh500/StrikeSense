@@ -1,6 +1,7 @@
 #include "console_log.h"
 
 #include "config.h"
+#include "cscript.h"
 #include "module_notifications.h"
 #include "pages.h"
 #include "vscript.h"
@@ -22,6 +23,7 @@ namespace {
     std::atomic<bool> g_running{ false };
     std::atomic<bool> g_workerActive{ false };
     std::atomic<bool> g_runtimeReaderNeeded{ false };
+    std::atomic<bool> g_cscriptReaderNeeded{ false };
     std::atomic<bool> g_skipToEndRequested{ false };
     std::wstring g_logPath;
 
@@ -98,7 +100,9 @@ namespace {
         const std::string clean = CleanConsoleLine(raw);
         if (clean.empty()) return;
 
-        if (!g_enabled.load() && g_runtimeReaderNeeded.load()) {
+        cscript::ProcessConsoleLine(Utf8ToWide(clean));
+
+        if (!g_enabled.load() && (g_runtimeReaderNeeded.load() || g_cscriptReaderNeeded.load())) {
             const std::wstring cleanWide = Utf8ToWide(clean);
             if (clean.find("/cr1") != std::string::npos || clean.find("/cr0") != std::string::npos)
                 modulenotifications::UpdateCrosshairRecoilSignal(cleanWide);
@@ -255,7 +259,7 @@ void SetEnabled(bool enabled)
               << (enabled ? "开启" : "关闭") << std::endl;
 
     if (enabled) EnsureWorker();
-    else if (!g_runtimeReaderNeeded.load()) StopWorker();
+    else if (!g_runtimeReaderNeeded.load() && !g_cscriptReaderNeeded.load()) StopWorker();
 
     SaveConfig();
 }
@@ -272,12 +276,22 @@ void SetRuntimeReaderNeeded(bool needed)
         EnsureWorker();
         return;
     }
-    if (!g_enabled.load()) StopWorker();
+    if (!g_enabled.load() && !g_cscriptReaderNeeded.load()) StopWorker();
+}
+
+void SetCscriptReaderNeeded(bool needed)
+{
+    g_cscriptReaderNeeded.store(needed);
+    if (needed) {
+        EnsureWorker();
+        return;
+    }
+    if (!g_enabled.load() && !g_runtimeReaderNeeded.load()) StopWorker();
 }
 
 void StopForRageDisabled()
 {
-    if (!g_runtimeReaderNeeded.load()) StopWorker();
+    if (!g_runtimeReaderNeeded.load() && !g_cscriptReaderNeeded.load()) StopWorker();
     std::cout << "[控制台日志] 超频配置关闭，已停止读取 console.log，但保留开关偏好。" << std::endl;
 }
 
@@ -285,6 +299,7 @@ void Shutdown()
 {
     g_enabled.store(false);
     g_runtimeReaderNeeded.store(false);
+    g_cscriptReaderNeeded.store(false);
     StopWorker();
 }
 }

@@ -1,3 +1,6 @@
+#if 0
+// 旧版“为多绑定脚本提供支持”实现。
+// 2026-07-16 起 V 社封禁多动作绑定，此处鼠标抖动逻辑整体停用并保留，仅供回溯。
 #include "mouse_jitter.h"
 
 #include "config.h"
@@ -162,3 +165,4 @@ void StopForRageDisabled()
     std::cout << "[多绑定脚本] 超频配置关闭，已停止鼠标抖动运行，但保留开关偏好。" << std::endl;
 }
 }
+#endif

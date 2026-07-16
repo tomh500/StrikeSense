@@ -1,7 +1,7 @@
 ﻿#include "vscript_internal.h"
 
 #include "console_log.h"
-#include "mouse_jitter.h"
+#include "cscript.h"
 #include "module_notifications.h"
 #include "quickstop.h"
 #include "textgui_overlay.h"
@@ -923,13 +923,13 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"SetMouseJitterSupportEnabled" && args.size() >= 1) {
         const bool enabled = Truthy(args[0]);
         std::wcout << L"[脚本] 请求设置多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
-        mousejitter::SetEnabled(enabled);
+        cscript::SetEnabled(enabled);
         RefreshTextguiOverlay();
         if (s_owner) InvalidateRect(s_owner, nullptr, FALSE);
-        return BoolValue(mousejitter::IsEnabled() == enabled);
+        return BoolValue(cscript::IsEnabled() == enabled);
     }
     if (name == L"GetMouseJitterSupportEnabled") {
-        const bool enabled = mousejitter::IsEnabled();
+        const bool enabled = cscript::IsEnabled();
         std::wcout << L"[脚本] 读取多绑定脚本支持: " << (enabled ? L"开启" : L"关闭") << std::endl;
         return BoolValue(enabled);
     }

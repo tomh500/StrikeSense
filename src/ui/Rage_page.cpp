@@ -1,7 +1,8 @@
 #include "pages.h"
 #include "console_log.h"
+#include "cscript.h"
+#include "cscript_panel.h"
 #include "i18n.h"
-#include "mouse_jitter.h"
 #include "quickstop.h"
 #include "resource.h"
 #include "textgui_overlay.h"
@@ -20,8 +21,9 @@ static Gdiplus::RectF g_RageToggleRect;
 
 static Gdiplus::RectF g_QSToggleRect;
 static Gdiplus::RectF g_LenientManualStopToggleRect;
-static Gdiplus::RectF g_MouseJitterToggleRect;
 static Gdiplus::RectF g_ConsoleLogToggleRect;
+static Gdiplus::RectF g_QuickStopExpandRect;
+static bool g_quickStopExpanded = false;
 
 // 滑块区域（仅用于点击检测，值直接读写 cfg）
 static constexpr int kQSSliderCount = 11;
@@ -106,18 +108,29 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
     const bool quickStopEnabled = IsQuickStopEnabled();
     ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
+    g_QuickStopExpandRect = RectF((REAL)(cx + 282), (REAL)(yBase - 5), 70.f, 26.f);
+    {
+        SolidBrush buttonBg(Color(255, 180, 220, 245));
+        SolidBrush buttonText(Color(255, 20, 80, 140));
+        Pen buttonBorder(Color(255, 130, 190, 230), 1.0f);
+        StringFormat centered;
+        centered.SetAlignment(StringAlignmentCenter);
+        centered.SetLineAlignment(StringAlignmentCenter);
+        g.FillRectangle(&buttonBg, g_QuickStopExpandRect);
+        g.DrawRectangle(&buttonBorder, g_QuickStopExpandRect);
+        g.DrawString(g_quickStopExpanded ? L"收起" : L"展开", -1, &xsF,
+            g_QuickStopExpandRect, &centered, &buttonText);
+    }
 
     const int jitterY = yBase + 34;
-    g.DrawString(_(i18n::Keys::Rage_MOUSE_JITTER), -1, &rF, PointF((REAL)(cx + 10), (REAL)jitterY), &tdCol);
-    g_MouseJitterToggleRect = RectF((REAL)(cx + 220), (REAL)(jitterY - 4), 50.f, 24.f);
-    ui::DrawToggle(g, cx + 220, jitterY - 4, mousejitter::IsEnabled());
+    cscriptui::PaintSection(g, cx, cw, jitterY, nullptr);
 
     const int consoleLogY = yBase + 68;
     g.DrawString(_(i18n::Keys::Rage_CONSOLE_LOG), -1, &rF, PointF((REAL)(cx + 10), (REAL)consoleLogY), &tdCol);
     g_ConsoleLogToggleRect = RectF((REAL)(cx + 220), (REAL)(consoleLogY - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, consoleLogY - 4, consolelog::IsEnabled());
 
-    if (!quickStopEnabled) {
+    if (cscriptui::IsExpanded() || !quickStopEnabled || !g_quickStopExpanded) {
         g_LenientManualStopToggleRect = RectF{};
         return;
     }
@@ -235,13 +248,13 @@ void CheckRageClick(HWND hw, int mx, int my) {
         if (g_rageEnabled)
         {
             if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
-            if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
+            if (cscript::IsEnabled()) cscript::SetEnabled(true);
             if (consolelog::IsEnabled()) consolelog::SetEnabled(true);
         }
         else
         {
             StopQuickStopForRageDisabled();
-            mousejitter::StopForRageDisabled();
+            cscript::StopForRageDisabled();
             consolelog::StopForRageDisabled();
         }
         RefreshTextguiOverlay();
@@ -251,14 +264,16 @@ void CheckRageClick(HWND hw, int mx, int my) {
 
     if (!g_rageEnabled) return;
 
-    // 急停开关
-    RectF* mjr = &g_MouseJitterToggleRect;
-    if (mx >= mjr->X && mx <= mjr->X + mjr->Width &&
-        my >= mjr->Y && my <= mjr->Y + mjr->Height) {
-        mousejitter::SetEnabled(!mousejitter::IsEnabled());
-        std::cout << "[多绑定脚本] UI 请求切换支持开关，实际状态: "
-                  << (mousejitter::IsEnabled() ? "开启" : "关闭") << std::endl;
-        RefreshTextguiOverlay();
+    if (cscriptui::CheckClick(hw, mx, my)) {
+        if (cscriptui::IsExpanded()) g_quickStopExpanded = false;
+        return;
+    }
+
+    if (mx >= g_QuickStopExpandRect.X && mx <= g_QuickStopExpandRect.X + g_QuickStopExpandRect.Width &&
+        my >= g_QuickStopExpandRect.Y && my <= g_QuickStopExpandRect.Y + g_QuickStopExpandRect.Height) {
+        g_quickStopExpanded = !g_quickStopExpanded;
+        if (g_quickStopExpanded) cscriptui::SetExpanded(false);
+        std::cout << "[急停界面] 子控件已" << (g_quickStopExpanded ? "展开" : "折叠") << "。" << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }
@@ -287,7 +302,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         return;
     }
 
-    if (!IsQuickStopEnabled()) return;
+    if (!IsQuickStopEnabled() || !g_quickStopExpanded || cscriptui::IsExpanded()) return;
 
     RectF* lmsr = &g_LenientManualStopToggleRect;
     if (mx >= lmsr->X && mx <= lmsr->X + lmsr->Width &&
@@ -355,7 +370,7 @@ void EnableRageModeFromLaunch(HWND hw)
     g_rageEnabled = true;
     std::cout << "[超频配置] 检测到 -semirage 启动参数，已直接启用超频配置总开关。" << std::endl;
     if (IsQuickStopEnabled()) SetQuickStopEnabled(true);
-    if (mousejitter::IsEnabled()) mousejitter::SetEnabled(true);
+    if (cscript::IsEnabled()) cscript::SetEnabled(true);
     if (consolelog::IsEnabled()) consolelog::SetEnabled(true);
     RefreshTextguiOverlay();
     if (hw) InvalidateRect(hw, nullptr, FALSE);
