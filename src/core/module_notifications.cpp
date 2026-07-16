@@ -116,6 +116,14 @@ void update_console_reader_need()
               << (needed ? "启用" : "停用") << "。" << std::endl;
 }
 
+void sync_feature_snapshot()
+{
+    const auto features = CollectEnabledFeatures(true);
+    s_lastFeatureSet.clear();
+    for (const auto& feature : features) s_lastFeatureSet[feature.id] = feature.text;
+    s_hasFeatureSnapshot = true;
+}
+
 } // namespace
 
 std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
@@ -197,18 +205,20 @@ void Shutdown()
 }
 
 void RegisterCustomLine(const std::wstring& id, const std::wstring& text,
-    const std::wstring& accessory)
+    const std::wstring& accessory, bool notify)
 {
     if (id.empty()) return;
     s_customLines[id] = { id, text, accessory };
-    Refresh();
+    if (notify) Refresh();
+    else sync_feature_snapshot();
 }
 
-void RemoveCustomLine(const std::wstring& id)
+void RemoveCustomLine(const std::wstring& id, bool notify)
 {
     if (id.empty()) return;
     s_customLines.erase(id);
-    Refresh();
+    if (notify) Refresh();
+    else sync_feature_snapshot();
 }
 
 void SetModuleHidden(const std::wstring& id, bool hidden)
@@ -260,14 +270,14 @@ bool ProcessConsoleCommand(const std::wstring& text)
     if (tokens.empty()) return false;
     if (tokens[0] == L"/textgui" && tokens.size() >= 3) {
         if (tokens[1] == L"del") {
-            RemoveCustomLine(tokens[2]);
+            RemoveCustomLine(tokens[2], false);
             RefreshTextguiOverlay();
             return true;
         }
         if (tokens[1] == L"reg" && tokens.size() >= 5) {
             const std::wstring id = tokens.back();
             if (!is_integer_text(id)) return false;
-            RegisterCustomLine(id, tokens[2], join_tokens(tokens, 3, tokens.size() - 1));
+            RegisterCustomLine(id, tokens[2], join_tokens(tokens, 3, tokens.size() - 1), false);
             RefreshTextguiOverlay();
             return true;
         }
