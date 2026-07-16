@@ -32,7 +32,7 @@ using clock_type = std::chrono::steady_clock;
 
 constexpr int kTickerHz = 64;
 constexpr auto kTickerInterval = std::chrono::microseconds(1'000'000 / kTickerHz);
-constexpr UINT kDefaultTickerVirtualKey = VK_NUMPAD9;
+constexpr UINT kDefaultTickerVirtualKey = VK_OEM_6;
 constexpr char kManagedBlockStart[] = "//--StrikeSense CScript Ticker--";
 constexpr char kManagedBlockEnd[] = "//--StrikeSense CScript Ticker END--";
 
@@ -76,7 +76,7 @@ std::uint64_t g_next_script_id = 1;
 bool g_clear_pending = false;
 UINT g_ticker_virtual_key = kDefaultTickerVirtualKey;
 bool g_ticker_extended_key = false;
-std::wstring g_ticker_source_key = L"kp_9";
+std::wstring g_ticker_source_key = L"]";
 std::wstring g_previous_ticker_source_key;
 
 std::filesystem::path ConfigPath()
@@ -807,7 +807,7 @@ void LoadConfig()
     g_next_script_id = 1;
     g_ticker_virtual_key = kDefaultTickerVirtualKey;
     g_ticker_extended_key = false;
-    g_ticker_source_key = L"kp_9";
+    g_ticker_source_key = L"]";
     g_previous_ticker_source_key.clear();
 
     const std::filesystem::path path = ConfigPath();
@@ -829,7 +829,7 @@ void LoadConfig()
         if (g_ticker_source_key.empty()) {
             g_ticker_virtual_key = kDefaultTickerVirtualKey;
             g_ticker_extended_key = false;
-            g_ticker_source_key = L"kp_9";
+            g_ticker_source_key = L"]";
         }
         if (json.contains("scripts") && json["scripts"].is_array()) {
             for (const auto& item : json["scripts"]) {
@@ -1132,6 +1132,7 @@ std::wstring VirtualKeyToSourceName(UINT virtual_key, bool extended_key)
     case VK_RIGHT: return L"rightarrow";
     case VK_OEM_MINUS: return L"-";
     case VK_OEM_PLUS: return L"=";
+    case VK_OEM_6: return L"]";
     case VK_ADD: return L"kp_plus";
     case VK_SUBTRACT: return L"kp_minus";
     case VK_MULTIPLY: return L"kp_multiply";
