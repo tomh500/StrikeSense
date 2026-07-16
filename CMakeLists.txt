@@ -128,7 +128,7 @@ target_link_libraries(StrikeSense PRIVATE
     simdjson::simdjson
     # Win32 基础系统库
     kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib
-    advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comctl32.lib
+    advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comctl32.lib winmm.lib
     # GDI+ 所需的系统库（看你项目里有用 GDI+ 渲染，MT下必须手动带上它）
     gdiplus.lib
 )

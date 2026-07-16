@@ -7,6 +7,7 @@
 #include <cmath>
 #include <gdiplus.h>
 #include <iostream>
+#include <mmsystem.h>
 
 namespace notifications_overlay {
 namespace {
@@ -17,7 +18,15 @@ std::wstring s_text;
 bool s_enabledState = true;
 ULONGLONG s_startTick = 0;
 bool s_visible = false;
+bool s_timerResolutionRaised = false;
+HDC s_hdcMem = nullptr;
+HBITMAP s_bitmap = nullptr;
+HBITMAP s_oldBitmap = nullptr;
+void* s_bits = nullptr;
+int s_bufferWidth = 0;
+int s_bufferHeight = 0;
 constexpr UINT_PTR kTimer = 3021;
+constexpr UINT kFrameMs = 1000 / 60;
 constexpr int kAnimMs = 260;
 
 bool has_window()
@@ -53,6 +62,53 @@ void hide()
     if (!has_window() || !s_visible) return;
     ShowWindow(s_hwnd, SW_HIDE);
     s_visible = false;
+}
+
+void release_back_buffer()
+{
+    if (s_hdcMem && s_oldBitmap) {
+        SelectObject(s_hdcMem, s_oldBitmap);
+        s_oldBitmap = nullptr;
+    }
+    if (s_bitmap) {
+        DeleteObject(s_bitmap);
+        s_bitmap = nullptr;
+    }
+    if (s_hdcMem) {
+        DeleteDC(s_hdcMem);
+        s_hdcMem = nullptr;
+    }
+    s_bits = nullptr;
+    s_bufferWidth = 0;
+    s_bufferHeight = 0;
+}
+
+bool ensure_back_buffer(HDC hdcScreen, int width, int height)
+{
+    if (s_hdcMem && s_bitmap && s_bufferWidth == width && s_bufferHeight == height) return true;
+    release_back_buffer();
+
+    s_hdcMem = CreateCompatibleDC(hdcScreen);
+    if (!s_hdcMem) return false;
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+    s_bitmap = CreateDIBSection(s_hdcMem, &bmi, DIB_RGB_COLORS, &s_bits, nullptr, 0);
+    if (!s_bitmap) {
+        release_back_buffer();
+        return false;
+    }
+
+    s_oldBitmap = static_cast<HBITMAP>(SelectObject(s_hdcMem, s_bitmap));
+    s_bufferWidth = width;
+    s_bufferHeight = height;
+    std::cout << "[Notifications] 已创建60FPS后备缓冲: " << width << "x" << height << std::endl;
+    return true;
 }
 
 void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
@@ -106,32 +162,34 @@ void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float pr
 void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 {
     constexpr float cardRadius = 6.f;
-    constexpr float barHeight = 5.f;
+    constexpr float barHeight = 4.f;
     fill_card(g, box, Gdiplus::Color(252, 18, 18, 18), cardRadius,
         Gdiplus::Color(255, 34, 34, 34));
 
     Gdiplus::Font titleFont(L"Segoe UI", 15.5f, Gdiplus::FontStyleBold);
     Gdiplus::Font subFont(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 8.f,
+    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f,
         Gdiplus::Color(255, 255, 255, 255));
 
     draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 35.f, Gdiplus::Color(255, 205, 205, 205));
+        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 205, 205, 205));
 
-    const Gdiplus::RectF track(box.X + 16.f, box.Y + box.Height - 12.f,
-        box.Width - 32.f, barHeight);
-    Gdiplus::GraphicsPath trackPath;
-    add_rounded_rect(trackPath, track, barHeight / 2.f);
+    const Gdiplus::RectF track(box.X, box.Y + box.Height - barHeight,
+        box.Width, barHeight);
     Gdiplus::SolidBrush trackBrush(Gdiplus::Color(255, 38, 38, 38));
-    g.FillPath(&trackBrush, &trackPath);
+    g.FillRectangle(&trackBrush, track);
 
     const float fillWidth = track.Width * std::clamp(progress, 0.f, 1.f);
     if (fillWidth > 0.f) {
         const Gdiplus::RectF fill(track.X, track.Y, fillWidth, track.Height);
-        Gdiplus::GraphicsPath fillPath;
-        add_rounded_rect(fillPath, fill, (std::min)(barHeight / 2.f, fillWidth / 2.f));
         Gdiplus::SolidBrush fillBrush(Gdiplus::Color(255, 0, 121, 107));
-        g.FillPath(&fillBrush, &fillPath);
+        if (fillWidth < barHeight) {
+            g.FillRectangle(&fillBrush, fill);
+        } else {
+            Gdiplus::GraphicsPath fillPath;
+            add_rounded_rect(fillPath, fill, barHeight / 2.f);
+            g.FillPath(&fillBrush, &fillPath);
+        }
     }
 }
 
@@ -230,20 +288,13 @@ void draw()
         : baseY;
 
     HDC hdcScreen = GetDC(nullptr);
-    HDC hdcMem = CreateCompatibleDC(hdcScreen);
-    BITMAPINFO bmi{};
-    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = renderWidth;
-    bmi.bmiHeader.biHeight = -renderHeight;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
-    void* bits = nullptr;
-    HBITMAP bitmap = CreateDIBSection(hdcMem, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
-    HBITMAP oldBitmap = static_cast<HBITMAP>(SelectObject(hdcMem, bitmap));
+    if (!ensure_back_buffer(hdcScreen, renderWidth, renderHeight)) {
+        ReleaseDC(nullptr, hdcScreen);
+        return;
+    }
 
     using namespace Gdiplus;
-    Graphics g(hdcMem);
+    Graphics g(s_hdcMem);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     g.Clear(Color(0, 0, 0, 0));
@@ -262,11 +313,7 @@ void draw()
     blend.BlendOp = AC_SRC_OVER;
     blend.SourceConstantAlpha = 255;
     blend.AlphaFormat = AC_SRC_ALPHA;
-    UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, hdcMem, &src, 0, &blend, ULW_ALPHA);
-
-    SelectObject(hdcMem, oldBitmap);
-    DeleteObject(bitmap);
-    DeleteDC(hdcMem);
+    UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, s_hdcMem, &src, 0, &blend, ULW_ALPHA);
     ReleaseDC(nullptr, hdcScreen);
 
     if (!s_visible) {
@@ -283,6 +330,12 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     }
     if (msg == WM_DESTROY) {
         KillTimer(hwnd, kTimer);
+        release_back_buffer();
+        if (s_timerResolutionRaised) {
+            timeEndPeriod(1);
+            s_timerResolutionRaised = false;
+            std::cout << "[Notifications] 已恢复系统计时精度。" << std::endl;
+        }
         s_hwnd = nullptr;
         s_visible = false;
         return 0;
@@ -316,7 +369,11 @@ void Initialize(HINSTANCE hInst)
         std::cout << "[Notifications] 创建覆盖层失败。" << std::endl;
         return;
     }
-    SetTimer(s_hwnd, kTimer, 16, nullptr);
+    if (timeBeginPeriod(1) == TIMERR_NOERROR) {
+        s_timerResolutionRaised = true;
+        std::cout << "[Notifications] 已启用60FPS计时精度。" << std::endl;
+    }
+    SetTimer(s_hwnd, kTimer, kFrameMs, nullptr);
     ShowWindow(s_hwnd, SW_HIDE);
     std::cout << "[Notifications] 覆盖层已创建。" << std::endl;
 }
