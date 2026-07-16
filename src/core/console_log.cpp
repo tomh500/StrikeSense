@@ -99,8 +99,10 @@ namespace {
         if (clean.empty()) return;
 
         if (!g_enabled.load() && g_runtimeReaderNeeded.load()) {
+            const std::wstring cleanWide = Utf8ToWide(clean);
             if (clean.find("/cr1") != std::string::npos || clean.find("/cr0") != std::string::npos)
-                modulenotifications::UpdateCrosshairRecoilSignal(Utf8ToWide(clean));
+                modulenotifications::UpdateCrosshairRecoilSignal(cleanWide);
+            modulenotifications::ProcessConsoleCommand(cleanWide);
             return;
         }
 

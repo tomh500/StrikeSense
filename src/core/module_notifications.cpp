@@ -108,11 +108,11 @@ void save_settings(config::Settings& settings)
 
 void update_console_reader_need()
 {
-    const bool needed = HasLegalCfgCrosshairSwitch();
+    const bool needed = HasLegalCfgCrosshairSwitch() || g_textguiEnabled || g_notificationsEnabled;
     if (needed == s_consoleReaderNeeded) return;
     s_consoleReaderNeeded = needed;
     consolelog::SetRuntimeReaderNeeded(needed);
-    std::cout << "[模块通知] 准星跟随控制台读取已"
+    std::cout << "[模块通知] 原生控制台指令读取已"
               << (needed ? "启用" : "停用") << "。" << std::endl;
 }
 
