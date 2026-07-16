@@ -28,8 +28,8 @@ LANGUAGE 4, 2
 /////////////////////////////////////////////////////////////////////////////
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 202607160814
- PRODUCTVERSION 202607160814
+ FILEVERSION 202607160833
+ PRODUCTVERSION 202607160833
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -46,12 +46,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "无损平方集团"
             VALUE "FileDescription", "StrikeSense - CS2 GSI客户端"
-            VALUE "FileVersion", "测试发布版 202607160814"
+            VALUE "FileVersion", "测试发布版 202607160833"
             VALUE "InternalName", "StrikeSense"
             VALUE "LegalCopyright", "Copyright (C) 2026 无损平方集团"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "测试发布版 202607160814"
+            VALUE "ProductVersion", "测试发布版 202607160833"
             VALUE "PrivateBuild", "\n本程序承诺：\n永不联网！\n绝对无毒！\n数据安全！\n快速好用！\n\n因供应商要求，无法检查更新。"
         END
     END
@@ -116,7 +116,7 @@ FONT 9, "MS Shell Dlg"
 BEGIN
     ICON            IDI_STRIKESENSE,IDC_STATIC,14,14,21,20
     LTEXT           "StrikeSense",IDC_STATIC,42,8,100,8,SS_NOPREFIX
-    LTEXT           "测试发布版 202607160814",IDC_STATIC,42,20,120,8
+    LTEXT           "测试发布版 202607160833",IDC_STATIC,42,20,120,8
     LTEXT           "Copyright (C) 2026 无损平方集团",IDC_STATIC,42,32,140,8
     LTEXT           "本程序承诺绝不联网！所以无法检查更新",IDC_STATIC,14,50,250,16
     LTEXT           "永不联网 | 绝对无毒 | 数据安全 | 快速好用",IDC_STATIC,14,66,250,12

@@ -105,21 +105,34 @@ void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float pr
 
 void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 {
-    for (int i = 2; i >= 1; --i) {
-        const float grow = static_cast<float>(i * 3);
-        Gdiplus::RectF glow(box.X - grow, box.Y - grow, box.Width + grow * 2.f, box.Height + grow * 2.f);
-        Gdiplus::GraphicsPath glowPath;
-        add_rounded_rect(glowPath, glow, 15.f + grow);
-        Gdiplus::SolidBrush glowBrush(Gdiplus::Color(static_cast<BYTE>(8 * i), 0, 188, 212));
-        g.FillPath(&glowBrush, &glowPath);
-    }
-    fill_card(g, box, Gdiplus::Color(245, 18, 18, 18), 15.f);
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, Gdiplus::Color(255, 255, 255, 255));
+    constexpr float cardRadius = 6.f;
+    constexpr float barHeight = 5.f;
+    fill_card(g, box, Gdiplus::Color(252, 18, 18, 18), cardRadius,
+        Gdiplus::Color(255, 34, 34, 34));
+
+    Gdiplus::Font titleFont(L"Segoe UI", 15.5f, Gdiplus::FontStyleBold);
+    Gdiplus::Font subFont(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
+    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 8.f,
+        Gdiplus::Color(255, 255, 255, 255));
+
     draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 255, 255, 255));
-    draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 0, 188, 212) : Gdiplus::Color(255, 0, 172, 193), true);
+        box.X + 16.f, box.Y + 35.f, Gdiplus::Color(255, 205, 205, 205));
+
+    const Gdiplus::RectF track(box.X + 16.f, box.Y + box.Height - 12.f,
+        box.Width - 32.f, barHeight);
+    Gdiplus::GraphicsPath trackPath;
+    add_rounded_rect(trackPath, track, barHeight / 2.f);
+    Gdiplus::SolidBrush trackBrush(Gdiplus::Color(255, 38, 38, 38));
+    g.FillPath(&trackBrush, &trackPath);
+
+    const float fillWidth = track.Width * std::clamp(progress, 0.f, 1.f);
+    if (fillWidth > 0.f) {
+        const Gdiplus::RectF fill(track.X, track.Y, fillWidth, track.Height);
+        Gdiplus::GraphicsPath fillPath;
+        add_rounded_rect(fillPath, fill, (std::min)(barHeight / 2.f, fillWidth / 2.f));
+        Gdiplus::SolidBrush fillBrush(Gdiplus::Color(255, 0, 121, 107));
+        g.FillPath(&fillBrush, &fillPath);
+    }
 }
 
 void draw_gpt(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
