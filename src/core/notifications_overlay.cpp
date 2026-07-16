@@ -288,7 +288,7 @@ void draw()
     }
 
     const ULONGLONG now = GetTickCount64();
-    const float durationMs = std::clamp(g_notificationsDuration, 1.f, 5.f) * 1000.f;
+    const float durationMs = std::clamp(g_notificationsDuration, 0.05f, 86400.f) * 1000.f;
     const float elapsed = static_cast<float>(now - s_startTick);
     if (durationMs <= 1.f || elapsed >= durationMs) {
         s_text.clear();

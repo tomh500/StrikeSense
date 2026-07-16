@@ -28,8 +28,8 @@ LANGUAGE 4, 2
 /////////////////////////////////////////////////////////////////////////////
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 202607161734
- PRODUCTVERSION 202607161734
+ FILEVERSION 202607161743
+ PRODUCTVERSION 202607161743
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -46,12 +46,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "无损平方集团"
             VALUE "FileDescription", "StrikeSense - CS2 GSI客户端"
-            VALUE "FileVersion", "测试发布版 202607161734"
+            VALUE "FileVersion", "测试发布版 202607161743"
             VALUE "InternalName", "StrikeSense"
             VALUE "LegalCopyright", "Copyright (C) 2026 无损平方集团"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "测试发布版 202607161734"
+            VALUE "ProductVersion", "测试发布版 202607161743"
             VALUE "PrivateBuild", "\n本程序承诺：\n永不联网！\n绝对无毒！\n数据安全！\n快速好用！\n\n因供应商要求，无法检查更新。"
         END
     END
@@ -116,7 +116,7 @@ FONT 9, "MS Shell Dlg"
 BEGIN
     ICON            IDI_STRIKESENSE,IDC_STATIC,14,14,21,20
     LTEXT           "StrikeSense",IDC_STATIC,42,8,100,8,SS_NOPREFIX
-    LTEXT           "测试发布版 202607161734",IDC_STATIC,42,20,120,8
+    LTEXT           "测试发布版 202607161743",IDC_STATIC,42,20,120,8
     LTEXT           "Copyright (C) 2026 无损平方集团",IDC_STATIC,42,32,140,8
     LTEXT           "本程序承诺绝不联网！所以无法检查更新",IDC_STATIC,14,50,250,16
     LTEXT           "永不联网 | 绝对无毒 | 数据安全 | 快速好用",IDC_STATIC,14,66,250,12
@@ -183,6 +183,17 @@ BEGIN
     EDITTEXT        IDC_QUICKSTOP_VALUE_EDIT,12,30,216,20,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "确定",IDOK,68,62,50,20
     PUSHBUTTON      "取消",IDCANCEL,124,62,50,20
+END
+
+IDD_EVOLUTION_INPUT DIALOGEX 0, 0, 280, 92
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "编辑进化参数"
+FONT 9, "Microsoft YaHei", 400, 0, 0x86
+BEGIN
+    LTEXT           "参数",IDC_EVOLUTION_INPUT_LABEL,12,12,256,12
+    EDITTEXT        IDC_EVOLUTION_INPUT_EDIT,12,30,256,20,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "确定",IDOK,88,62,50,20
+    PUSHBUTTON      "取消",IDCANCEL,144,62,50,20
 END
 
 /////////////////////////////////////////////////////////////////////////////

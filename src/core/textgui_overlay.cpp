@@ -140,8 +140,8 @@ void redraw()
     HBITMAP oldMeasureBitmap = static_cast<HBITMAP>(SelectObject(hdcMeasure, measureBitmap));
 
     using namespace Gdiplus;
-    const float scale = std::clamp(g_textguiScale, 0.75f, 1.8f);
-    const float opacity = std::clamp(g_textguiOpacity, 0.2f, 1.0f);
+    const float scale = std::clamp(g_textguiScale, 0.05f, 5.f);
+    const float opacity = std::clamp(g_textguiOpacity, 0.f, 1.0f);
     const BYTE alpha = static_cast<BYTE>(255.f * opacity);
     const Color fixedColor(alpha,
         static_cast<BYTE>(std::clamp(g_textguiR, 0, 255)),
@@ -151,9 +151,9 @@ void redraw()
     Font sloganFont(L"Microsoft YaHei UI", 11.f * scale, FontStyleRegular);
     Font itemFont(L"Microsoft YaHei UI", 13.5f * scale, FontStyleBold);
     Font accessoryFont(L"Microsoft YaHei UI", 12.5f * scale, FontStyleRegular);
-    const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, 0.1f, 5.0f);
+    const float rainbowSpeed = std::clamp(g_textguiRainbowSpeed, -1000.f, 1000.f);
     const float baseHue = std::fmod(static_cast<float>(GetTickCount64()) * 0.12f * rainbowSpeed, 360.f);
-    const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
+    const float lineSpacing = std::clamp(g_textguiLineSpacing, 0.05f, 20.f);
 
     auto features = modulenotifications::CollectEnabledFeatures();
     {
@@ -242,8 +242,17 @@ void redraw()
             if (g_textguiRainbow) draw_rainbow_text(g, feature.text, itemFont, tx, cy, alpha, baseHue + static_cast<float>(i) * 26.f);
             else draw_text(g, feature.text, itemFont, tx, cy, fixedColor, alpha);
             if (!accessory.empty()) {
-                draw_text(g, accessory, accessoryFont, tx + primaryWidth, cy + 1.f * scale,
-                    Color(alpha, 175, 180, 188), alpha);
+                if (g_textguiRainbow) {
+                    const float accessoryHue = baseHue + static_cast<float>(i) * 26.f
+                        + static_cast<float>(feature.text.size()) * g_textguiRainbowSpread;
+                    draw_rainbow_text(g, accessory, accessoryFont, tx + primaryWidth,
+                        cy + 1.f * scale, alpha, accessoryHue);
+                } else {
+                    draw_text(g, accessory, accessoryFont, tx + primaryWidth, cy + 1.f * scale,
+                        Color(alpha, static_cast<BYTE>(std::clamp(g_textguiAccessoryR, 0, 255)),
+                            static_cast<BYTE>(std::clamp(g_textguiAccessoryG, 0, 255)),
+                            static_cast<BYTE>(std::clamp(g_textguiAccessoryB, 0, 255))), alpha);
+                }
             }
             cy += rowH;
         }

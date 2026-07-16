@@ -7,13 +7,16 @@
 #include <atomic>
 #include <array>
 #include <cmath>
+#include <cerrno>
 #include <iostream>
+#include <limits>
 #include "normalgen.h"
 #include "StrikeSense.h"
 #include "Hotkey.h"
 #include "itemhelper_overlay.h"
 #include "textgui_overlay.h"
 #include "notifications_overlay.h"
+#include "resource.h"
 
 namespace fs = std::filesystem;
 
@@ -38,23 +41,113 @@ Gdiplus::RectF crosshairEnableRect;
 Gdiplus::RectF hotkeyRect;
 Gdiplus::RectF centerDotRect;
 Gdiplus::RectF volumeSliderRect;
+Gdiplus::RectF volumeValueRect;
 std::array<Gdiplus::RectF, kCrosshairStyleCount> styleRects;
 std::array<Gdiplus::RectF, 3> rgbSliderRects;
+std::array<Gdiplus::RectF, 3> rgbValueRects;
 std::array<Gdiplus::RectF, 4> parameterSliderRects;
+std::array<Gdiplus::RectF, 4> parameterValueRects;
 Gdiplus::RectF textguiEnableRect;
 Gdiplus::RectF textguiFoldRect;
 Gdiplus::RectF textguiWatermarkRect;
 Gdiplus::RectF textguiRainbowRect;
+Gdiplus::RectF textguiBackdropRect;
+Gdiplus::RectF textguiBackdropOpacityRect;
+Gdiplus::RectF textguiBackdropOpacityValueRect;
+Gdiplus::RectF textguiSloganRect;
 std::array<Gdiplus::RectF, 10> textguiSliderRects;
+std::array<Gdiplus::RectF, 10> textguiSliderValueRects;
 std::array<Gdiplus::RectF, 3> textguiColorRects;
+std::array<Gdiplus::RectF, 3> textguiColorValueRects;
+std::array<Gdiplus::RectF, 3> textguiAccessoryColorRects;
+std::array<Gdiplus::RectF, 3> textguiAccessoryColorValueRects;
 Gdiplus::RectF notificationsEnableRect;
 Gdiplus::RectF notificationsFoldRect;
 Gdiplus::RectF notificationsDurationRect;
+Gdiplus::RectF notificationsDurationValueRect;
 std::array<Gdiplus::RectF, 5> notificationsStyleRects;
 Gdiplus::RectF crosshairFoldRect;
 bool textguiCollapsed = true;
 bool notificationsCollapsed = true;
 bool crosshairCollapsed = true;
+
+struct input_context {
+    std::wstring label;
+    std::wstring value;
+    bool accepted = false;
+};
+
+INT_PTR CALLBACK input_dialog_proc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    auto* context = reinterpret_cast<input_context*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_INITDIALOG) {
+        context = reinterpret_cast<input_context*>(lParam);
+        SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
+        SetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_LABEL, context->label.c_str());
+        SetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_EDIT, context->value.c_str());
+        SendDlgItemMessageW(dialog, IDC_EVOLUTION_INPUT_EDIT, EM_SETSEL, 0, -1);
+        SetFocus(GetDlgItem(dialog, IDC_EVOLUTION_INPUT_EDIT));
+        return FALSE;
+    }
+    if (message != WM_COMMAND || !context) return FALSE;
+    if (LOWORD(wParam) == IDOK) {
+        const int length = GetWindowTextLengthW(GetDlgItem(dialog, IDC_EVOLUTION_INPUT_EDIT));
+        std::wstring value(static_cast<size_t>(length) + 1, L'\0');
+        GetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_EDIT, value.data(), length + 1);
+        value.resize(static_cast<size_t>(length));
+        context->value = value;
+        context->accepted = true;
+        EndDialog(dialog, IDOK);
+        return TRUE;
+    }
+    if (LOWORD(wParam) == IDCANCEL) {
+        EndDialog(dialog, IDCANCEL);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+bool prompt_input(HWND owner, const std::wstring& label, std::wstring& value)
+{
+    input_context context{ label, value, false };
+    DialogBoxParamW(hInst, MAKEINTRESOURCEW(IDD_EVOLUTION_INPUT), owner,
+        input_dialog_proc, reinterpret_cast<LPARAM>(&context));
+    if (!context.accepted) return false;
+    value = context.value;
+    return true;
+}
+
+bool parse_number_in_int_range(const std::wstring& text, double& value)
+{
+    if (text.empty()) return false;
+    wchar_t* end = nullptr;
+    errno = 0;
+    value = std::wcstod(text.c_str(), &end);
+    while (end && iswspace(*end) != 0) ++end;
+    return errno != ERANGE && end && *end == L'\0' && std::isfinite(value)
+        && value >= static_cast<double>((std::numeric_limits<int>::min)())
+        && value <= static_cast<double>((std::numeric_limits<int>::max)());
+}
+
+std::string wide_to_utf8(const std::wstring& value)
+{
+    if (value.empty()) return {};
+    const int size = WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
+        nullptr, 0, nullptr, nullptr);
+    std::string result(static_cast<size_t>((std::max)(0, size)), '\0');
+    if (size > 0) WideCharToMultiByte(CP_UTF8, 0, value.data(), static_cast<int>(value.size()),
+        result.data(), size, nullptr, nullptr);
+    return result;
+}
+
+std::wstring utf8_to_wide(const std::string& value)
+{
+    if (value.empty()) return {};
+    const int size = MultiByteToWideChar(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), nullptr, 0);
+    std::wstring result(static_cast<size_t>((std::max)(0, size)), L'\0');
+    if (size > 0) MultiByteToWideChar(CP_UTF8, 0, value.data(), static_cast<int>(value.size()), result.data(), size);
+    return result;
+}
 
 bool Hit(const Gdiplus::RectF& rect, int x, int y)
 {
@@ -67,6 +160,10 @@ void DrawCrosshairShape(Gdiplus::Graphics& g, float centerX, float centerY,
     int gap, int length, bool centerDot)
 {
     using namespace Gdiplus;
+    thickness = std::clamp(thickness, 0.1f, 1000.f);
+    scale = std::clamp(scale, 0.001f, 100.f);
+    gap = std::clamp(gap, -100000, 100000);
+    length = std::clamp(length, -100000, 100000);
     Pen pen(color, thickness);
     pen.SetStartCap(LineCapRound);
     pen.SetEndCap(LineCapRound);
@@ -150,8 +247,14 @@ void SaveEvolutionParams() {
     j["textgui_rainbow_saturation"] = g_textguiRainbowSaturation;
     j["textgui_rainbow_brightness"] = g_textguiRainbowBrightness;
     j["textgui_r"] = g_textguiR; j["textgui_g"] = g_textguiG; j["textgui_b"] = g_textguiB;
+    j["textgui_accessory_r"] = g_textguiAccessoryR;
+    j["textgui_accessory_g"] = g_textguiAccessoryG;
+    j["textgui_accessory_b"] = g_textguiAccessoryB;
     j["textgui_show_watermark"] = g_textguiShowWatermark;
     j["textgui_rainbow"] = g_textguiRainbow;
+    j["textgui_backdrop"] = g_textguiBackdrop;
+    j["textgui_backdrop_opacity"] = g_textguiBackdropOpacity;
+    j["textgui_custom_slogan"] = evolutionui::wide_to_utf8(g_textguiCustomSlogan);
     j["notifications_enabled"] = g_notificationsEnabled;
     j["notifications_duration"] = g_notificationsDuration;
     j["notifications_style"] = g_notificationsStyle;
@@ -215,12 +318,19 @@ void LoadEvolutionParams() {
         gv("textgui_rainbow_saturation", g_textguiRainbowSaturation);
         gv("textgui_rainbow_brightness", g_textguiRainbowBrightness);
         gv("textgui_r", g_textguiR); gv("textgui_g", g_textguiG); gv("textgui_b", g_textguiB);
+        gv("textgui_accessory_r", g_textguiAccessoryR);
+        gv("textgui_accessory_g", g_textguiAccessoryG);
+        gv("textgui_accessory_b", g_textguiAccessoryB);
         gb("textgui_show_watermark", g_textguiShowWatermark);
         gb("textgui_rainbow", g_textguiRainbow);
+        gb("textgui_backdrop", g_textguiBackdrop);
+        gv("textgui_backdrop_opacity", g_textguiBackdropOpacity);
+        if (j.contains("textgui_custom_slogan") && j["textgui_custom_slogan"].is_string()) {
+            g_textguiCustomSlogan = evolutionui::utf8_to_wide(j["textgui_custom_slogan"].get<std::string>());
+        }
         gb("notifications_enabled", g_notificationsEnabled);
         gv("notifications_duration", g_notificationsDuration);
         gv("notifications_style", g_notificationsStyle);
-        g_notificationsDuration = std::clamp(g_notificationsDuration, 1.f, 5.f);
         g_notificationsStyle = std::clamp(g_notificationsStyle, 0, 4);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
@@ -297,7 +407,9 @@ static LRESULT CALLBACK CrosshairWndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) 
         using namespace Gdiplus;
         Graphics gx(md); gx.SetSmoothingMode(SmoothingModeAntiAlias);
         int cx = W / 2, cy = H / 2;
-        Color crCol(255, (BYTE)g_crosshairR, (BYTE)g_crosshairG, (BYTE)g_crosshairB);
+        Color crCol(255, static_cast<BYTE>(std::clamp(g_crosshairR, 0, 255)),
+            static_cast<BYTE>(std::clamp(g_crosshairG, 0, 255)),
+            static_cast<BYTE>(std::clamp(g_crosshairB, 0, 255)));
         evolutionui::DrawCrosshairShape(gx, static_cast<float>(cx), static_cast<float>(cy), crCol,
             g_crosshairStyle, static_cast<float>(g_crosshairThickness), g_crosshairScale,
             g_crosshairGap, g_crosshairLength, g_crosshairCenterDot);
@@ -360,10 +472,10 @@ void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float s
     g_crosshairG = std::clamp(g, 0, 255);
     g_crosshairB = std::clamp(b, 0, 255);
     g_crosshairStyle = std::clamp(style, 0, evolutionui::kCrosshairStyleCount - 1);
-    g_crosshairThickness = std::clamp(thickness, 1, 10);
-    g_crosshairScale = std::clamp(scale, 0.02f, 0.6f);
-    g_crosshairGap = std::clamp(gap, 0, 16);
-    g_crosshairLength = std::clamp(length, 4, 30);
+    g_crosshairThickness = thickness;
+    g_crosshairScale = std::isfinite(scale) ? scale : 0.2f;
+    g_crosshairGap = gap;
+    g_crosshairLength = length;
     g_crosshairCenterDot = centerDot;
     RefreshCrosshairOverlay();
 }
@@ -382,21 +494,6 @@ void ApplyCrosshairEnabled(bool enabled)
 void ApplyTextguiEnabled(bool enabled)
 {
     g_textguiEnabled = enabled;
-    g_textguiX = std::clamp(g_textguiX, 0.f, 1.f);
-    g_textguiY = std::clamp(g_textguiY, 0.f, 1.f);
-    g_textguiScale = std::clamp(g_textguiScale, 0.75f, 1.8f);
-    g_textguiOpacity = std::clamp(g_textguiOpacity, 0.2f, 1.f);
-    g_textguiLineSpacing = std::clamp(g_textguiLineSpacing, 0.75f, 1.8f);
-    g_textguiShadowStrength = std::clamp(g_textguiShadowStrength, 0.f, 1.f);
-    g_textguiRainbowSpeed = std::clamp(g_textguiRainbowSpeed,
-        evolutionui::kTextguiRainbowSpeedMin, evolutionui::kTextguiRainbowSpeedMax);
-    g_textguiRainbowSpread = std::clamp(g_textguiRainbowSpread,
-        evolutionui::kTextguiRainbowSpreadMin, evolutionui::kTextguiRainbowSpreadMax);
-    g_textguiRainbowSaturation = std::clamp(g_textguiRainbowSaturation, 0.f, 1.f);
-    g_textguiRainbowBrightness = std::clamp(g_textguiRainbowBrightness, 0.2f, 1.f);
-    g_textguiR = std::clamp(g_textguiR, 0, 255);
-    g_textguiG = std::clamp(g_textguiG, 0, 255);
-    g_textguiB = std::clamp(g_textguiB, 0, 255);
     textgui_overlay::ApplyEnabled(g_textguiEnabled);
 }
 
@@ -680,16 +777,19 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 39)), &text);
         volumeSliderRect = RectF(static_cast<REAL>(sectionX + 105), static_cast<REAL>(volumeY + 31),
             static_cast<REAL>((std::max)(140, sectionWidth - 250)), 24.f);
+        const float volumeSliderValue = std::clamp(g_death_vol, 0.f, 1.f);
         ui::DrawSlider(g, static_cast<int>(volumeSliderRect.X), volumeY + 39,
-            static_cast<int>(volumeSliderRect.Width), g_death_vol);
+            static_cast<int>(volumeSliderRect.Width), volumeSliderValue);
         g.FillEllipse(&knobBrush,
-            volumeSliderRect.X + volumeSliderRect.Width * g_death_vol - 8.f,
+            volumeSliderRect.X + volumeSliderRect.Width * volumeSliderValue - 8.f,
             static_cast<REAL>(volumeY + 33), 16.f, 16.f);
         wchar_t volumeText[32]{};
         swprintf_s(volumeText, L"%.0f%%", g_death_vol * 100.f);
         g.DrawString(volumeText, -1, &sF,
             PointF(volumeSliderRect.X + volumeSliderRect.Width + 10.f,
                 static_cast<REAL>(volumeY + 31)), &dim);
+        volumeValueRect = RectF(volumeSliderRect.X + volumeSliderRect.Width + 7.f,
+            static_cast<REAL>(volumeY + 28), 55.f, 21.f);
 
         std::wstring keyName;
         if (g_hotkeyVk == 0) keyName = L"None";
@@ -738,9 +838,17 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     int crosshairY = textguiSectionY + 42;
     if (!g_textguiEnabled || textguiCollapsed) {
         for (auto& rect : textguiSliderRects) rect = RectF{};
+        for (auto& rect : textguiSliderValueRects) rect = RectF{};
         for (auto& rect : textguiColorRects) rect = RectF{};
+        for (auto& rect : textguiColorValueRects) rect = RectF{};
+        for (auto& rect : textguiAccessoryColorRects) rect = RectF{};
+        for (auto& rect : textguiAccessoryColorValueRects) rect = RectF{};
         textguiWatermarkRect = RectF{};
         textguiRainbowRect = RectF{};
+        textguiBackdropRect = RectF{};
+        textguiBackdropOpacityRect = RectF{};
+        textguiBackdropOpacityValueRect = RectF{};
+        textguiSloganRect = RectF{};
     }
     else {
         auto drawSliderWithKnob = [&](const Gdiplus::RectF& rect, float value) {
@@ -795,6 +903,9 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             g.DrawString(shown[i].c_str(), -1, &sF,
                 PointF(textguiSliderRects[i].X + textguiSliderRects[i].Width + 5.f,
                     static_cast<REAL>(y)), &dim);
+            textguiSliderValueRects[i] = RectF(
+                textguiSliderRects[i].X + textguiSliderRects[i].Width + 3.f,
+                static_cast<REAL>(y - 3), 58.f, 20.f);
         }
 
         const wchar_t* colorLabels[] = { L"R", L"G", L"B" };
@@ -812,22 +923,76 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             g.DrawString(colorText, -1, &sF,
                 PointF(textguiColorRects[i].X + textguiColorRects[i].Width + 4.f,
                     static_cast<REAL>(colorY)), &dim);
+            textguiColorValueRects[i] = RectF(
+                textguiColorRects[i].X + textguiColorRects[i].Width + 2.f,
+                static_cast<REAL>(colorY - 3), 42.f, 20.f);
+        }
+
+        g.DrawString(L"附属", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 34)), &text);
+        const int accessoryValues[] = {
+            g_textguiAccessoryR, g_textguiAccessoryG, g_textguiAccessoryB
+        };
+        for (int i = 0; i < 3; ++i) {
+            const int x = sectionX + 55 + i * (colorWidth + 70);
+            g.DrawString(colorLabels[i], -1, &sF,
+                PointF(static_cast<REAL>(x), static_cast<REAL>(colorY + 34)), &text);
+            textguiAccessoryColorRects[i] = RectF(static_cast<REAL>(x + 18),
+                static_cast<REAL>(colorY + 28), static_cast<REAL>(colorWidth), 24.f);
+            drawSliderWithKnob(textguiAccessoryColorRects[i], accessoryValues[i] / 255.f);
+            const std::wstring shownValue = std::to_wstring(accessoryValues[i]);
+            g.DrawString(shownValue.c_str(), -1, &sF,
+                PointF(textguiAccessoryColorRects[i].X + textguiAccessoryColorRects[i].Width + 4.f,
+                    static_cast<REAL>(colorY + 34)), &dim);
+            textguiAccessoryColorValueRects[i] = RectF(
+                textguiAccessoryColorRects[i].X + textguiAccessoryColorRects[i].Width + 2.f,
+                static_cast<REAL>(colorY + 31), 42.f, 20.f);
         }
 
         g.DrawString(i18n::T("EVO_TEXTGUI_MARK"), -1, &sF,
-            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 38)), &text);
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 72)), &text);
         textguiWatermarkRect = RectF(static_cast<REAL>(sectionX + 150),
-            static_cast<REAL>(colorY + 31), 50.f, 24.f);
+            static_cast<REAL>(colorY + 65), 50.f, 24.f);
         ui::DrawToggle(g, static_cast<int>(textguiWatermarkRect.X),
             static_cast<int>(textguiWatermarkRect.Y), g_textguiShowWatermark);
 
         g.DrawString(i18n::T("EVO_TEXTGUI_RAINBOW"), -1, &sF,
-            PointF(static_cast<REAL>(sectionX + 230), static_cast<REAL>(colorY + 38)), &text);
+            PointF(static_cast<REAL>(sectionX + 230), static_cast<REAL>(colorY + 72)), &text);
         textguiRainbowRect = RectF(static_cast<REAL>(sectionX + 350),
-            static_cast<REAL>(colorY + 31), 50.f, 24.f);
+            static_cast<REAL>(colorY + 65), 50.f, 24.f);
         ui::DrawToggle(g, static_cast<int>(textguiRainbowRect.X),
             static_cast<int>(textguiRainbowRect.Y), g_textguiRainbow);
-        crosshairY = colorY + 82;
+        g.DrawString(L"自定义标语", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 108)), &text);
+        textguiSloganRect = RectF(static_cast<REAL>(sectionX + 105),
+            static_cast<REAL>(colorY + 101), static_cast<REAL>((std::max)(180, sectionWidth - 120)), 25.f);
+        g.FillRectangle(&buttonBackground, textguiSloganRect);
+        g.DrawRectangle(&buttonBorder, textguiSloganRect);
+        const std::wstring sloganShown = g_textguiCustomSlogan.empty() ? L"（留空）" : g_textguiCustomSlogan;
+        g.DrawString(sloganShown.c_str(), -1, &sF,
+            PointF(textguiSloganRect.X + 7.f, textguiSloganRect.Y + 3.f),
+            g_textguiCustomSlogan.empty() ? &dim : &text);
+
+        g.DrawString(L"阶梯遮罩", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 144)), &text);
+        textguiBackdropRect = RectF(static_cast<REAL>(sectionX + 105),
+            static_cast<REAL>(colorY + 137), 50.f, 24.f);
+        ui::DrawToggle(g, static_cast<int>(textguiBackdropRect.X),
+            static_cast<int>(textguiBackdropRect.Y), g_textguiBackdrop);
+        g.DrawString(L"透明度", -1, &sF,
+            PointF(static_cast<REAL>(sectionX + 185), static_cast<REAL>(colorY + 144)), &text);
+        textguiBackdropOpacityRect = RectF(static_cast<REAL>(sectionX + 245),
+            static_cast<REAL>(colorY + 137), static_cast<REAL>((std::max)(90, sectionWidth - 350)), 24.f);
+        drawSliderWithKnob(textguiBackdropOpacityRect, std::clamp(g_textguiBackdropOpacity, 0.f, 1.f));
+        const std::wstring backdropShown = std::to_wstring(
+            static_cast<int>(std::lround(g_textguiBackdropOpacity * 100.f))) + L"%";
+        g.DrawString(backdropShown.c_str(), -1, &sF,
+            PointF(textguiBackdropOpacityRect.X + textguiBackdropOpacityRect.Width + 5.f,
+                static_cast<REAL>(colorY + 144)), &dim);
+        textguiBackdropOpacityValueRect = RectF(
+            textguiBackdropOpacityRect.X + textguiBackdropOpacityRect.Width + 3.f,
+            static_cast<REAL>(colorY + 141), 50.f, 20.f);
+        crosshairY = colorY + 188;
     }
 
     const int notificationsSectionY = crosshairY;
@@ -851,6 +1016,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     crosshairY = notificationsSectionY + 42;
     if (!g_notificationsEnabled || notificationsCollapsed) {
         notificationsDurationRect = RectF{};
+        notificationsDurationValueRect = RectF{};
         for (auto& rect : notificationsStyleRects) rect = RectF{};
     } else {
         const int notifyBodyY = notificationsSectionY + 34;
@@ -871,6 +1037,9 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         g.DrawString(durationShown.c_str(), -1, &sF,
             PointF(notificationsDurationRect.X + notificationsDurationRect.Width + 6.f,
                 static_cast<REAL>(notifyBodyY)), &dim);
+        notificationsDurationValueRect = RectF(
+            notificationsDurationRect.X + notificationsDurationRect.Width + 3.f,
+            static_cast<REAL>(notifyBodyY - 3), 48.f, 20.f);
 
         const wchar_t* styleNames[] = { L"LiquidBounce", L"VAPE", L"GPT", L"Gemini", L"DeepSeek" };
         for (int i = 0; i < 5; ++i) {
@@ -904,7 +1073,9 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     if (!g_crosshairEnabled || crosshairCollapsed) {
         for (auto& rect : styleRects) rect = RectF{};
         for (auto& rect : rgbSliderRects) rect = RectF{};
+        for (auto& rect : rgbValueRects) rect = RectF{};
         for (auto& rect : parameterSliderRects) rect = RectF{};
+        for (auto& rect : parameterValueRects) rect = RectF{};
         centerDotRect = RectF{};
         return;
     }
@@ -953,6 +1124,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         swprintf_s(value, L"%d", rgbValues[i]);
         g.DrawString(value, -1, &sF,
             PointF(rgbSliderRects[i].X + rgbSliderRects[i].Width + 4.f, static_cast<REAL>(rgbY)), &dim);
+        rgbValueRects[i] = RectF(rgbSliderRects[i].X + rgbSliderRects[i].Width + 2.f,
+            static_cast<REAL>(rgbY - 3), 42.f, 20.f);
     }
 
     const wchar_t* parameterLabels[] = {
@@ -978,10 +1151,13 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         parameterSliderRects[i] = RectF(static_cast<REAL>(x + 72), static_cast<REAL>(y - 6),
             static_cast<REAL>(parameterBarWidth), 24.f);
         ui::DrawSlider(g, static_cast<int>(parameterSliderRects[i].X), y + 2,
-            static_cast<int>(parameterSliderRects[i].Width), parameterValues[i]);
+            static_cast<int>(parameterSliderRects[i].Width), std::clamp(parameterValues[i], 0.f, 1.f));
         g.DrawString(displayValues[i].c_str(), -1, &sF,
             PointF(parameterSliderRects[i].X + parameterSliderRects[i].Width + 5.f,
                 static_cast<REAL>(y)), &dim);
+        parameterValueRects[i] = RectF(
+            parameterSliderRects[i].X + parameterSliderRects[i].Width + 3.f,
+            static_cast<REAL>(y - 3), 58.f, 20.f);
     }
 
     g.DrawString(L"显示中心点", -1, &sF,
@@ -1035,6 +1211,21 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
     if (g_isBindingHotkey && !Hit(hotkeyRect, mx, my)) g_isBindingHotkey = false;
 
+    if (Hit(volumeValueRect, mx, my)) {
+        std::wstring input = std::to_wstring(g_death_vol * 100.f);
+        if (!prompt_input(hw, L"输入 CS2 音量百分比", input)) return;
+        double entered = 0.0;
+        if (!parse_number_in_int_range(input, entered)) {
+            MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+            return;
+        }
+        g_death_vol = static_cast<float>(entered / 100.0);
+        if (g_deathMute) SetCS2VolumeReduction(std::clamp(g_death_vol, 0.f, 1.f));
+        SaveEvolutionParams();
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
     if (ui::CheckSliderClick(mx, my,
         static_cast<int>(volumeSliderRect.X), static_cast<int>(volumeSliderRect.Y + 8.f),
         static_cast<int>(volumeSliderRect.Width), value)) {
@@ -1071,6 +1262,43 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
 
     if (g_textguiEnabled && !textguiCollapsed) {
         for (int i = 0; i < 10; ++i) {
+            if (!Hit(textguiSliderValueRects[i], mx, my)) continue;
+            double current = 0.0;
+            if (i == 0) current = g_textguiX * 100.0;
+            else if (i == 1) current = g_textguiY * 100.0;
+            else if (i == 2) current = g_textguiScale * 100.0;
+            else if (i == 3) current = g_textguiOpacity * 100.0;
+            else if (i == 4) current = g_textguiLineSpacing * 100.0;
+            else if (i == 5) current = g_textguiShadowStrength * 100.0;
+            else if (i == 6) current = g_textguiRainbowSpeed * 100.0;
+            else if (i == 7) current = g_textguiRainbowSpread;
+            else if (i == 8) current = g_textguiRainbowSaturation * 100.0;
+            else current = g_textguiRainbowBrightness * 100.0;
+            std::wstring input = std::to_wstring(current);
+            if (!prompt_input(hw, L"输入精确数值（允许超出滑块范围）", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            if (i == 0) g_textguiX = static_cast<float>(entered / 100.0);
+            else if (i == 1) g_textguiY = static_cast<float>(entered / 100.0);
+            else if (i == 2) g_textguiScale = static_cast<float>(entered / 100.0);
+            else if (i == 3) g_textguiOpacity = static_cast<float>(entered / 100.0);
+            else if (i == 4) g_textguiLineSpacing = static_cast<float>(entered / 100.0);
+            else if (i == 5) g_textguiShadowStrength = static_cast<float>(entered / 100.0);
+            else if (i == 6) g_textguiRainbowSpeed = static_cast<float>(entered / 100.0);
+            else if (i == 7) g_textguiRainbowSpread = static_cast<float>(entered);
+            else if (i == 8) g_textguiRainbowSaturation = static_cast<float>(entered / 100.0);
+            else g_textguiRainbowBrightness = static_cast<float>(entered / 100.0);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            std::cout << "[Textgui] 已精确输入参数 " << i << " = " << entered << std::endl;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        for (int i = 0; i < 10; ++i) {
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiSliderRects[i].X),
                 static_cast<int>(textguiSliderRects[i].Y + 8.f),
                 static_cast<int>(textguiSliderRects[i].Width), value)) continue;
@@ -1094,12 +1322,99 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         }
 
         int* colorValues[] = { &g_textguiR, &g_textguiG, &g_textguiB };
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < 3; ++i) {
+            if (Hit(textguiColorValueRects[i], mx, my)) {
+                std::wstring input = std::to_wstring(*colorValues[i]);
+                if (!prompt_input(hw, L"输入主文字颜色通道值", input)) return;
+                double entered = 0.0;
+                if (!parse_number_in_int_range(input, entered)) {
+                    MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                    return;
+                }
+                *colorValues[i] = static_cast<int>(entered);
+                SaveEvolutionParams();
+                RefreshTextguiOverlay();
+                InvalidateRect(hw, nullptr, FALSE);
+                return;
+            }
             if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiColorRects[i].X),
                 static_cast<int>(textguiColorRects[i].Y + 8.f),
                 static_cast<int>(textguiColorRects[i].Width), value)) continue;
             *colorValues[i] = static_cast<int>(std::lround(value * 255.f));
             ApplyTextguiEnabled(g_textguiEnabled);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        int* accessoryValues[] = {
+            &g_textguiAccessoryR, &g_textguiAccessoryG, &g_textguiAccessoryB
+        };
+        for (int i = 0; i < 3; ++i) {
+            if (Hit(textguiAccessoryColorValueRects[i], mx, my)) {
+                std::wstring input = std::to_wstring(*accessoryValues[i]);
+                if (!prompt_input(hw, L"输入附属参数颜色通道值", input)) return;
+                double entered = 0.0;
+                if (!parse_number_in_int_range(input, entered)) {
+                    MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                    return;
+                }
+                *accessoryValues[i] = static_cast<int>(entered);
+                SaveEvolutionParams();
+                RefreshTextguiOverlay();
+                InvalidateRect(hw, nullptr, FALSE);
+                return;
+            }
+            if (!ui::CheckSliderClick(mx, my, static_cast<int>(textguiAccessoryColorRects[i].X),
+                static_cast<int>(textguiAccessoryColorRects[i].Y + 8.f),
+                static_cast<int>(textguiAccessoryColorRects[i].Width), value)) continue;
+            *accessoryValues[i] = static_cast<int>(std::lround(value * 255.f));
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        if (Hit(textguiSloganRect, mx, my)) {
+            std::wstring slogan = g_textguiCustomSlogan;
+            if (!prompt_input(hw, L"自定义标语（留空则不显示）", slogan)) return;
+            g_textguiCustomSlogan = slogan;
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            std::wcout << L"[Textgui] 自定义标语已更新。" << std::endl;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        if (Hit(textguiBackdropRect, mx, my)) {
+            g_textguiBackdrop = !g_textguiBackdrop;
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            std::cout << "[Textgui] 阶梯遮罩已切换为: "
+                      << (g_textguiBackdrop ? "开启" : "关闭") << std::endl;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+
+        if (Hit(textguiBackdropOpacityValueRect, mx, my)) {
+            std::wstring input = std::to_wstring(g_textguiBackdropOpacity * 100.f);
+            if (!prompt_input(hw, L"输入遮罩透明度百分比", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            g_textguiBackdropOpacity = static_cast<float>(entered / 100.0);
+            SaveEvolutionParams();
+            RefreshTextguiOverlay();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
+        if (ui::CheckSliderClick(mx, my, static_cast<int>(textguiBackdropOpacityRect.X),
+            static_cast<int>(textguiBackdropOpacityRect.Y + 8.f),
+            static_cast<int>(textguiBackdropOpacityRect.Width), value)) {
+            g_textguiBackdropOpacity = value;
             SaveEvolutionParams();
             RefreshTextguiOverlay();
             InvalidateRect(hw, nullptr, FALSE);
@@ -1141,6 +1456,19 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         return;
     }
     if (g_notificationsEnabled && !notificationsCollapsed) {
+        if (Hit(notificationsDurationValueRect, mx, my)) {
+            std::wstring input = std::to_wstring(g_notificationsDuration);
+            if (!prompt_input(hw, L"输入通知持续秒数", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            g_notificationsDuration = static_cast<float>(entered);
+            SaveEvolutionParams();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
         if (ui::CheckSliderClick(mx, my, static_cast<int>(notificationsDurationRect.X),
             static_cast<int>(notificationsDurationRect.Y + 8.f),
             static_cast<int>(notificationsDurationRect.Width), value)) {
@@ -1191,6 +1519,20 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
 
     int* rgbValues[] = { &g_crosshairR, &g_crosshairG, &g_crosshairB };
     for (int i = 0; i < 3; ++i) {
+        if (Hit(rgbValueRects[i], mx, my)) {
+            std::wstring input = std::to_wstring(*rgbValues[i]);
+            if (!prompt_input(hw, L"输入准星颜色通道值", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            *rgbValues[i] = static_cast<int>(entered);
+            RefreshCrosshairOverlay();
+            SaveEvolutionParams();
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
         if (!ui::CheckSliderClick(mx, my, static_cast<int>(rgbSliderRects[i].X),
             static_cast<int>(rgbSliderRects[i].Y + 8.f), static_cast<int>(rgbSliderRects[i].Width), value)) continue;
         *rgbValues[i] = static_cast<int>(std::lround(value * 255.f));
@@ -1203,6 +1545,28 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
     }
 
     for (int i = 0; i < 4; ++i) {
+        if (Hit(parameterValueRects[i], mx, my)) {
+            double current = i == 0 ? static_cast<double>(g_crosshairThickness)
+                : i == 1 ? static_cast<double>(g_crosshairScale * 100.f)
+                : i == 2 ? static_cast<double>(g_crosshairGap)
+                : static_cast<double>(g_crosshairLength);
+            std::wstring input = std::to_wstring(current);
+            if (!prompt_input(hw, L"输入精确准星参数（允许超出滑块范围）", input)) return;
+            double entered = 0.0;
+            if (!parse_number_in_int_range(input, entered)) {
+                MessageBoxW(hw, L"请输入 int 范围内的有效数字。", L"数值无效", MB_OK | MB_ICONWARNING);
+                return;
+            }
+            if (i == 0) g_crosshairThickness = static_cast<int>(entered);
+            else if (i == 1) g_crosshairScale = static_cast<float>(entered / 100.0);
+            else if (i == 2) g_crosshairGap = static_cast<int>(entered);
+            else g_crosshairLength = static_cast<int>(entered);
+            RefreshCrosshairOverlay();
+            SaveEvolutionParams();
+            std::cout << "[狙击准星] 已精确输入参数 " << i << " = " << entered << std::endl;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
         if (!ui::CheckSliderClick(mx, my, static_cast<int>(parameterSliderRects[i].X),
             static_cast<int>(parameterSliderRects[i].Y + 8.f),
             static_cast<int>(parameterSliderRects[i].Width), value)) continue;

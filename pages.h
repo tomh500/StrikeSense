@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <gdiplus.h>
 #include <string>
+#include <utility>
 #include <vector>
 #include "config.h"
 
@@ -58,6 +59,7 @@ extern float g_textguiLineSpacing, g_textguiShadowStrength;
 extern float g_textguiRainbowSpeed;
 extern float g_textguiRainbowSpread, g_textguiRainbowSaturation, g_textguiRainbowBrightness;
 extern int   g_textguiR, g_textguiG, g_textguiB;
+extern int   g_textguiAccessoryR, g_textguiAccessoryG, g_textguiAccessoryB;
 extern bool  g_textguiShowWatermark;
 extern bool  g_textguiRainbow;
 extern bool  g_textguiBackdrop;
