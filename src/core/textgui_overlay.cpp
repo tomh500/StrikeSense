@@ -238,7 +238,7 @@ void redraw()
             const Color logoColor = g_textguiRainbow
                 ? color_from_hue(baseHue, alpha, g_textguiRainbowSaturation, g_textguiRainbowBrightness)
                 : fixedColor;
-            draw_box_logo(g, groupX + 2.f * scale, cy, scale, logoColor);
+            draw_box_logo(g, groupX + 2.f * scale, cy - 1.5f * scale, scale, logoColor);
             if (g_textguiRainbow) {
                 draw_rainbow_text(g, title, titleFont, groupX + 44.f * scale,
                     cy - 4.f * scale, alpha, baseHue);
