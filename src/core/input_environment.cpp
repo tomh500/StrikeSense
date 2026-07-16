@@ -3,8 +3,11 @@
 #include <Windows.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <iostream>
+#include <mutex>
 #include <string_view>
+#include <thread>
 
 namespace inputenvironment {
 namespace {
@@ -12,6 +15,13 @@ namespace {
 std::atomic<bool> g_enabled{ false };
 std::atomic<bool> g_input_active{ false };
 HHOOK g_keyboard_hook = nullptr;
+std::thread g_hook_thread;
+std::mutex g_hook_lifecycle_mutex;
+std::mutex g_hook_ready_mutex;
+std::condition_variable g_hook_ready_cv;
+DWORD g_hook_thread_id = 0;
+bool g_hook_ready = false;
+bool g_hook_installed = false;
 
 bool IsStrictCs2Foreground()
 {
@@ -47,21 +57,58 @@ LRESULT CALLBACK KeyboardProc(int code, WPARAM w_param, LPARAM l_param)
     return CallNextHookEx(nullptr, code, w_param, l_param);
 }
 
+void HookThreadMain()
+{
+    g_hook_thread_id = GetCurrentThreadId();
+    MSG message{};
+    PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    g_keyboard_hook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandleW(nullptr), 0);
+    {
+        std::lock_guard ready_lock(g_hook_ready_mutex);
+        g_hook_installed = g_keyboard_hook != nullptr;
+        g_hook_ready = true;
+    }
+    g_hook_ready_cv.notify_one();
+
+    if (g_keyboard_hook) {
+        while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        UnhookWindowsHookEx(g_keyboard_hook);
+        g_keyboard_hook = nullptr;
+    }
+    g_hook_thread_id = 0;
+}
+
 void InstallHook()
 {
+    std::lock_guard lifecycle_lock(g_hook_lifecycle_mutex);
     if (g_keyboard_hook) return;
-    g_keyboard_hook = SetWindowsHookExW(WH_KEYBOARD_LL, KeyboardProc, GetModuleHandleW(nullptr), 0);
-    if (g_keyboard_hook)
-        std::cout << "[输入环境] 键盘状态钩子已安装。" << std::endl;
-    else
-        std::cout << "[输入环境] 键盘状态钩子安装失败，错误码: " << GetLastError() << std::endl;
+    if (g_hook_thread.joinable()) g_hook_thread.join();
+    {
+        std::lock_guard ready_lock(g_hook_ready_mutex);
+        g_hook_ready = false;
+        g_hook_installed = false;
+    }
+    g_hook_thread = std::thread(HookThreadMain);
+    {
+        std::unique_lock ready_lock(g_hook_ready_mutex);
+        g_hook_ready_cv.wait(ready_lock, [] { return g_hook_ready; });
+    }
+    if (g_hook_installed)
+        std::cout << "[输入环境] 键盘状态钩子已安装到独立输入线程。" << std::endl;
+    else {
+        if (g_hook_thread.joinable()) g_hook_thread.join();
+        std::cout << "[输入环境] 键盘状态钩子安装失败。" << std::endl;
+    }
 }
 
 void UninstallHook()
 {
-    if (!g_keyboard_hook) return;
-    UnhookWindowsHookEx(g_keyboard_hook);
-    g_keyboard_hook = nullptr;
+    std::lock_guard lifecycle_lock(g_hook_lifecycle_mutex);
+    if (g_hook_thread_id != 0) PostThreadMessageW(g_hook_thread_id, WM_QUIT, 0, 0);
+    if (g_hook_thread.joinable()) g_hook_thread.join();
     std::cout << "[输入环境] 键盘状态钩子已卸载。" << std::endl;
 }
 

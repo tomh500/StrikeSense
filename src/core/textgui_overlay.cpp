@@ -6,6 +6,7 @@
 #include "volume_mixer.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <gdiplus.h>
 #include <iostream>
@@ -19,10 +20,80 @@ HWND s_hwnd = nullptr;
 HINSTANCE s_hInst = nullptr;
 bool s_visible = false;
 constexpr UINT_PTR kRefreshTimer = 3011;
+constexpr UINT kRefreshMessage = WM_APP + 3011;
+constexpr UINT kAnimationFrameMs = 50;
+constexpr unsigned int kStateRefreshFrames = 5;
+std::atomic<bool> s_redrawPending{ true };
+unsigned int s_stateRefreshCountdown = 0;
+std::uint64_t s_lastModuleRevision = 0;
+HDC s_measureDc = nullptr;
+HBITMAP s_measureBitmap = nullptr;
+HBITMAP s_oldMeasureBitmap = nullptr;
+HDC s_bufferDc = nullptr;
+HBITMAP s_bufferBitmap = nullptr;
+HBITMAP s_oldBufferBitmap = nullptr;
+int s_bufferWidth = 0;
+int s_bufferHeight = 0;
 
 bool has_window()
 {
     return s_hwnd && IsWindow(s_hwnd);
+}
+
+void release_render_resources()
+{
+    if (s_bufferDc && s_oldBufferBitmap) SelectObject(s_bufferDc, s_oldBufferBitmap);
+    if (s_bufferBitmap) DeleteObject(s_bufferBitmap);
+    if (s_bufferDc) DeleteDC(s_bufferDc);
+    if (s_measureDc && s_oldMeasureBitmap) SelectObject(s_measureDc, s_oldMeasureBitmap);
+    if (s_measureBitmap) DeleteObject(s_measureBitmap);
+    if (s_measureDc) DeleteDC(s_measureDc);
+    s_bufferDc = nullptr;
+    s_bufferBitmap = nullptr;
+    s_oldBufferBitmap = nullptr;
+    s_measureDc = nullptr;
+    s_measureBitmap = nullptr;
+    s_oldMeasureBitmap = nullptr;
+    s_bufferWidth = 0;
+    s_bufferHeight = 0;
+}
+
+bool ensure_measure_dc(HDC screenDc)
+{
+    if (s_measureDc && s_measureBitmap) return true;
+    s_measureDc = CreateCompatibleDC(screenDc);
+    s_measureBitmap = CreateCompatibleBitmap(screenDc, 1, 1);
+    if (!s_measureDc || !s_measureBitmap) {
+        release_render_resources();
+        return false;
+    }
+    s_oldMeasureBitmap = static_cast<HBITMAP>(SelectObject(s_measureDc, s_measureBitmap));
+    return true;
+}
+
+bool ensure_back_buffer(HDC screenDc, int width, int height)
+{
+    if (s_bufferDc && s_bufferBitmap && s_bufferWidth == width && s_bufferHeight == height)
+        return true;
+    if (s_bufferDc && s_oldBufferBitmap) SelectObject(s_bufferDc, s_oldBufferBitmap);
+    if (s_bufferBitmap) DeleteObject(s_bufferBitmap);
+    if (!s_bufferDc) s_bufferDc = CreateCompatibleDC(screenDc);
+    if (!s_bufferDc) return false;
+
+    BITMAPINFO bitmapInfo{};
+    bitmapInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bitmapInfo.bmiHeader.biWidth = width;
+    bitmapInfo.bmiHeader.biHeight = -height;
+    bitmapInfo.bmiHeader.biPlanes = 1;
+    bitmapInfo.bmiHeader.biBitCount = 32;
+    bitmapInfo.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    s_bufferBitmap = CreateDIBSection(s_bufferDc, &bitmapInfo, DIB_RGB_COLORS, &bits, nullptr, 0);
+    if (!s_bufferBitmap) return false;
+    s_oldBufferBitmap = static_cast<HBITMAP>(SelectObject(s_bufferDc, s_bufferBitmap));
+    s_bufferWidth = width;
+    s_bufferHeight = height;
+    return true;
 }
 
 void hide_overlay()
@@ -154,9 +225,10 @@ void redraw()
     const int sw = GetSystemMetrics(SM_CXSCREEN);
     const int sh = GetSystemMetrics(SM_CYSCREEN);
     HDC hdcScreen = GetDC(nullptr);
-    HDC hdcMeasure = CreateCompatibleDC(hdcScreen);
-    HBITMAP measureBitmap = CreateCompatibleBitmap(hdcScreen, 1, 1);
-    HBITMAP oldMeasureBitmap = static_cast<HBITMAP>(SelectObject(hdcMeasure, measureBitmap));
+    if (!hdcScreen || !ensure_measure_dc(hdcScreen)) {
+        if (hdcScreen) ReleaseDC(nullptr, hdcScreen);
+        return;
+    }
 
     using namespace Gdiplus;
     const float scale = std::clamp(g_textguiScale, 0.05f, 5.f);
@@ -176,7 +248,7 @@ void redraw()
 
     auto features = modulenotifications::CollectEnabledFeatures();
     {
-        Graphics measure(hdcMeasure);
+        Graphics measure(s_measureDc);
         measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
         std::sort(features.begin(), features.end(), [&](const auto& a, const auto& b) {
             const int aw = text_width(measure, itemFont, a.text)
@@ -187,7 +259,7 @@ void redraw()
         });
     }
 
-    Graphics measure(hdcMeasure);
+    Graphics measure(s_measureDc);
     measure.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
     const float rowH = 25.f * scale * lineSpacing;
     const auto line_width = [&](const modulenotifications::feature_line& line) {
@@ -211,21 +283,14 @@ void redraw()
     const int dstX = static_cast<int>(std::lround(margin + travelX * g_textguiX));
     const int dstY = static_cast<int>(std::lround(margin + travelY * g_textguiY));
 
-    HDC hdcMem = CreateCompatibleDC(hdcScreen);
-    BITMAPINFO bmi{};
-    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmi.bmiHeader.biWidth = areaW;
-    bmi.bmiHeader.biHeight = -areaH;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biCompression = BI_RGB;
-    void* bits = nullptr;
-    HBITMAP bitmap = CreateDIBSection(hdcMem, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
-    HBITMAP oldBitmap = static_cast<HBITMAP>(SelectObject(hdcMem, bitmap));
+    if (!ensure_back_buffer(hdcScreen, areaW, areaH)) {
+        ReleaseDC(nullptr, hdcScreen);
+        return;
+    }
 
     {
         using namespace Gdiplus;
-        Graphics g(hdcMem);
+        Graphics g(s_bufferDc);
         g.SetSmoothingMode(SmoothingModeAntiAlias);
         g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
         g.Clear(Color(0, 0, 0, 0));
@@ -298,14 +363,7 @@ void redraw()
     blend.BlendOp = AC_SRC_OVER;
     blend.SourceConstantAlpha = 255;
     blend.AlphaFormat = AC_SRC_ALPHA;
-    UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, hdcMem, &src, 0, &blend, ULW_ALPHA);
-
-    SelectObject(hdcMem, oldBitmap);
-    DeleteObject(bitmap);
-    DeleteDC(hdcMem);
-    SelectObject(hdcMeasure, oldMeasureBitmap);
-    DeleteObject(measureBitmap);
-    DeleteDC(hdcMeasure);
+    UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, s_bufferDc, &src, 0, &blend, ULW_ALPHA);
     ReleaseDC(nullptr, hdcScreen);
 }
 
@@ -320,17 +378,36 @@ void update_visibility()
     if (!s_visible) {
         ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
         s_visible = true;
+        s_redrawPending = true;
         std::cout << "[Textgui] 覆盖层已显示。" << std::endl;
     }
-    redraw();
+    const bool redrawPending = s_redrawPending.exchange(false);
+    if (redrawPending || g_textguiRainbow) {
+        redraw();
+    }
 }
 
 LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg) {
+    case kRefreshMessage:
+        modulenotifications::Refresh();
+        s_lastModuleRevision = modulenotifications::Revision();
+        s_redrawPending.store(true);
+        update_visibility();
+        return 0;
     case WM_TIMER:
         if (wp == kRefreshTimer) {
-            modulenotifications::Refresh();
+            if (s_stateRefreshCountdown == 0) {
+                s_stateRefreshCountdown = kStateRefreshFrames;
+                modulenotifications::Refresh();
+                const std::uint64_t revision = modulenotifications::Revision();
+                if (revision != s_lastModuleRevision) {
+                    s_lastModuleRevision = revision;
+                    s_redrawPending = true;
+                }
+            }
+            --s_stateRefreshCountdown;
             update_visibility();
             return 0;
         }
@@ -340,6 +417,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
         return 0;
     case WM_DESTROY:
         KillTimer(hwnd, kRefreshTimer);
+        release_render_resources();
         s_hwnd = nullptr;
         s_visible = false;
         return 0;
@@ -374,7 +452,6 @@ void Initialize(HINSTANCE hInst)
         return;
     }
 
-    SetTimer(s_hwnd, kRefreshTimer, 33, nullptr);
     ShowWindow(s_hwnd, SW_HIDE);
     std::cout << "[Textgui] 覆盖层窗口已创建。" << std::endl;
 }
@@ -383,25 +460,29 @@ void ApplyEnabled(bool enabled)
 {
     g_textguiEnabled = enabled;
     modulenotifications::Refresh();
+    s_lastModuleRevision = modulenotifications::Revision();
+    s_redrawPending = true;
     if (enabled) {
         if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
+        SetTimer(s_hwnd, kRefreshTimer, kAnimationFrameMs, nullptr);
         SetWindowPos(s_hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
         update_visibility();
         std::cout << "[Textgui] 已开启。" << std::endl;
         return;
     }
 
-    if (has_window()) ShowWindow(s_hwnd, SW_HIDE);
+    if (has_window()) {
+        KillTimer(s_hwnd, kRefreshTimer);
+        ShowWindow(s_hwnd, SW_HIDE);
+    }
     s_visible = false;
     std::cout << "[Textgui] 已关闭。" << std::endl;
 }
 
 void Refresh()
 {
-    modulenotifications::Refresh();
-    if (!g_textguiEnabled) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
-    update_visibility();
+    PostMessageW(s_hwnd, kRefreshMessage, 0, 0);
 }
 
 void Shutdown()

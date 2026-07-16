@@ -22,6 +22,12 @@ static QuickStopConfig s_qsConfig;
 static HHOOK g_quickStopHook = nullptr;
 static HHOOK g_quickStopMouseHook = nullptr;
 static std::atomic<bool> g_hookRunning{ false };
+static std::thread g_hookThread;
+static std::mutex g_hookLifecycleMutex;
+static std::mutex g_hookReadyMutex;
+static std::condition_variable g_hookReadyCv;
+static DWORD g_hookThreadId = 0;
+static bool g_hookReady = false;
 
 static std::wstring GetQuickStopPath()
 {
@@ -505,13 +511,16 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
         // SendInput 产生的按键不参与真实移动计时，也不会反过来触发急停。
         if (kb && !(kb->flags & LLKHF_INJECTED))
         {
+            const WORD vk = static_cast<WORD>(kb->vkCode);
+            if (vk != VK_SPACE && vk != 'W' && vk != 'A' && vk != 'S' && vk != 'D')
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
+
             if (!IsCS2WindowActive())
             {
                 ResetPhysicalKeys();
                 return CallNextHookEx(nullptr, nCode, wParam, lParam);
             }
 
-            WORD vk = (WORD)kb->vkCode;
             if (vk == VK_SPACE)
             {
                 if (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)
@@ -550,7 +559,7 @@ static LRESULT CALLBACK QuickStopLowLevelKeyboardProc(int nCode, WPARAM wParam, 
 
 static LRESULT CALLBACK QuickStopLowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-    if (nCode == HC_ACTION)
+    if (nCode == HC_ACTION && (wParam == WM_MOUSEWHEEL || wParam == WM_MOUSEHWHEEL))
     {
         auto* ms = reinterpret_cast<MSLLHOOKSTRUCT*>(lParam);
         if (ms && !(ms->flags & LLMHF_INJECTED))
@@ -558,48 +567,86 @@ static LRESULT CALLBACK QuickStopLowLevelMouseProc(int nCode, WPARAM wParam, LPA
             if (!IsCS2WindowActive())
                 return CallNextHookEx(nullptr, nCode, wParam, lParam);
 
-            if (wParam == WM_MOUSEWHEEL || wParam == WM_MOUSEHWHEEL)
-                RefreshJumpQuickStopDisable("滚轮");
+            RefreshJumpQuickStopDisable("滚轮");
         }
     }
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
-void StartQuickStopHook()
+static void QuickStopHookThreadMain()
 {
-    if (g_hookRunning) return;
+    g_hookThreadId = GetCurrentThreadId();
+    MSG message{};
+    PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+
     g_quickStopHook = SetWindowsHookExW(WH_KEYBOARD_LL, QuickStopLowLevelKeyboardProc,
         GetModuleHandleW(nullptr), 0);
-    if (g_quickStopHook)
-    {
+    if (g_quickStopHook) {
         g_quickStopMouseHook = SetWindowsHookExW(WH_MOUSE_LL, QuickStopLowLevelMouseProc,
             GetModuleHandleW(nullptr), 0);
+    }
+
+    {
+        std::lock_guard readyLock(g_hookReadyMutex);
+        g_hookRunning.store(g_quickStopHook != nullptr);
+        g_hookReady = true;
+    }
+    g_hookReadyCv.notify_one();
+
+    if (g_hookRunning.load()) {
+        while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+
+    if (g_quickStopMouseHook) {
+        UnhookWindowsHookEx(g_quickStopMouseHook);
+        g_quickStopMouseHook = nullptr;
+    }
+    if (g_quickStopHook) {
+        UnhookWindowsHookEx(g_quickStopHook);
+        g_quickStopHook = nullptr;
+    }
+    g_hookRunning.store(false);
+    g_hookThreadId = 0;
+}
+
+void StartQuickStopHook()
+{
+    std::lock_guard lifecycleLock(g_hookLifecycleMutex);
+    if (g_hookRunning.load()) return;
+    if (g_hookThread.joinable()) g_hookThread.join();
+    {
+        std::lock_guard readyLock(g_hookReadyMutex);
+        g_hookReady = false;
+    }
+    g_hookThread = std::thread(QuickStopHookThreadMain);
+    {
+        std::unique_lock readyLock(g_hookReadyMutex);
+        g_hookReadyCv.wait(readyLock, [] { return g_hookReady; });
+    }
+
+    if (g_hookRunning.load()) {
         StartAxisWorker(ws_axis);
         StartAxisWorker(ad_axis);
-        g_hookRunning = true;
         if (g_quickStopMouseHook)
-            std::cout << "[急停] 鼠标滚轮钩子已安装。" << std::endl;
+            std::cout << "[急停] 鼠标滚轮钩子已安装到独立输入线程。" << std::endl;
         else
             std::cout << "[急停] 鼠标滚轮钩子安装失败，错误码: " << GetLastError() << std::endl;
-        std::cout << "[急停] 键盘钩子已安装" << std::endl;
+        std::cout << "[急停] 键盘钩子已安装到独立输入线程。" << std::endl;
     }
-    else
+    else {
+        if (g_hookThread.joinable()) g_hookThread.join();
         std::cout << "[急停] 键盘钩子安装失败，错误码: " << GetLastError() << std::endl;
+    }
 }
 
 void StopQuickStopHook()
 {
-    if (g_quickStopMouseHook)
-    {
-        UnhookWindowsHookEx(g_quickStopMouseHook);
-        g_quickStopMouseHook = nullptr;
-    }
-    if (g_quickStopHook)
-    {
-        UnhookWindowsHookEx(g_quickStopHook);
-        g_quickStopHook = nullptr;
-    }
-    g_hookRunning = false;
+    std::lock_guard lifecycleLock(g_hookLifecycleMutex);
+    if (g_hookThreadId != 0) PostThreadMessageW(g_hookThreadId, WM_QUIT, 0, 0);
+    if (g_hookThread.joinable()) g_hookThread.join();
     ResetPhysicalKeys();
     StopAllPulses();
     StopAxisWorker(ws_axis);

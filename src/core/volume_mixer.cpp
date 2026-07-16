@@ -14,6 +14,8 @@
 #pragma comment(lib, "ole32.lib")
 
 static std::atomic<bool> g_lenientCs2WindowDetection{ false };
+static std::atomic<HWND> g_cachedForegroundWindow{ nullptr };
+static std::atomic<bool> g_cachedForegroundIsCs2{ false };
 
 bool IsCS2WindowActive()
     {
@@ -21,20 +23,27 @@ bool IsCS2WindowActive()
         HWND fg = GetForegroundWindow();
         if (!fg) return false;
 
+        if (fg == g_cachedForegroundWindow.load(std::memory_order_acquire))
+            return g_cachedForegroundIsCs2.load(std::memory_order_relaxed);
+
         DWORD foregroundProcessId = 0;
         GetWindowThreadProcessId(fg, &foregroundProcessId);
         if (foregroundProcessId == GetCurrentProcessId()) return false;
 
-        wchar_t title[256];
+        wchar_t title[256]{};
         GetWindowTextW(fg, title, 256);
         std::wstring wt(title);
-        return (wt.find(L"Counter-Strike 2") != std::string::npos ||
-                wt.find(L"反恐精英：全球攻势") != std::string::npos);
+        const bool isCs2 = wt.find(L"Counter-Strike 2") != std::string::npos
+            || wt.find(L"反恐精英：全球攻势") != std::string::npos;
+        g_cachedForegroundIsCs2.store(isCs2, std::memory_order_relaxed);
+        g_cachedForegroundWindow.store(fg, std::memory_order_release);
+        return isCs2;
     }
 
 void SetLenientCS2WindowDetection(bool enabled)
 {
     g_lenientCs2WindowDetection.store(enabled);
+    g_cachedForegroundWindow.store(nullptr, std::memory_order_release);
     std::cout << "[窗口检测] 宽容检测游戏窗口已切换为: "
               << (enabled ? "开启" : "关闭") << std::endl;
 }

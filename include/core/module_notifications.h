@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,7 @@ struct feature_line {
 
 std::vector<feature_line> CollectEnabledFeatures(bool includeHidden = false);
 void Refresh();
+std::uint64_t Revision();
 void Shutdown();
 void RegisterCustomLine(const std::wstring& id, const std::wstring& text,
     const std::wstring& accessory = L"", bool notify = true);

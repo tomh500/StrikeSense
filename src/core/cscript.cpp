@@ -35,6 +35,7 @@ constexpr auto kTickerInterval = std::chrono::microseconds(1'000'000 / kTickerHz
 constexpr UINT kDefaultTickerVirtualKey = VK_OEM_6;
 constexpr char kManagedBlockStart[] = "//--StrikeSense CScript Ticker--";
 constexpr char kManagedBlockEnd[] = "//--StrikeSense CScript Ticker END--";
+constexpr bool kVerboseRuntimeLog = false;
 
 struct parsed_script {
     std::vector<std::string> on_pressed;
@@ -63,6 +64,13 @@ std::atomic<bool> g_enabled{ false };
 std::atomic<bool> g_worker_running{ false };
 std::thread g_worker;
 HHOOK g_keyboard_hook = nullptr;
+std::thread g_keyboard_hook_thread;
+std::mutex g_hook_lifecycle_mutex;
+std::mutex g_hook_ready_mutex;
+std::condition_variable g_hook_ready_cv;
+DWORD g_keyboard_hook_thread_id = 0;
+bool g_hook_ready = false;
+bool g_hook_install_succeeded = false;
 std::mutex g_state_mutex;
 std::condition_variable g_worker_cv;
 std::vector<script_record> g_scripts;
@@ -579,9 +587,11 @@ void QueueSequenceLocked(const script_record& script, bool pressed)
         lane.ready = true;
         g_ready_lanes.push_back(script.public_state.id);
     }
-    std::wcout << L"[CScript] 已入队：" << script.public_state.source_key
-               << (pressed ? L" 按下" : L" 松开")
-               << L"，动作数=" << commands.size() << std::endl;
+    if constexpr (kVerboseRuntimeLog) {
+        std::wcout << L"[CScript] 已入队：" << script.public_state.source_key
+                   << (pressed ? L" 按下" : L" 松开")
+                   << L"，动作数=" << commands.size() << std::endl;
+    }
 }
 
 void HandlePhysicalKey(UINT virtual_key, bool extended_key, bool pressed)
@@ -640,6 +650,59 @@ LRESULT CALLBACK LowLevelKeyboardProc(int code, WPARAM w_param, LPARAM l_param)
         }
     }
     return CallNextHookEx(nullptr, code, w_param, l_param);
+}
+
+void KeyboardHookThreadMain()
+{
+    g_keyboard_hook_thread_id = GetCurrentThreadId();
+    MSG message{};
+    PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+    g_keyboard_hook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc,
+        GetModuleHandleW(nullptr), 0);
+    {
+        std::lock_guard ready_lock(g_hook_ready_mutex);
+        g_hook_install_succeeded = g_keyboard_hook != nullptr;
+        g_hook_ready = true;
+    }
+    g_hook_ready_cv.notify_one();
+
+    if (g_keyboard_hook) {
+        while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+        UnhookWindowsHookEx(g_keyboard_hook);
+        g_keyboard_hook = nullptr;
+    }
+    g_keyboard_hook_thread_id = 0;
+}
+
+bool StartKeyboardHook()
+{
+    std::lock_guard lifecycle_lock(g_hook_lifecycle_mutex);
+    if (g_keyboard_hook) return true;
+    if (g_keyboard_hook_thread.joinable()) g_keyboard_hook_thread.join();
+    {
+        std::lock_guard ready_lock(g_hook_ready_mutex);
+        g_hook_ready = false;
+        g_hook_install_succeeded = false;
+    }
+    g_keyboard_hook_thread = std::thread(KeyboardHookThreadMain);
+    {
+        std::unique_lock ready_lock(g_hook_ready_mutex);
+        g_hook_ready_cv.wait(ready_lock, [] { return g_hook_ready; });
+    }
+    if (!g_hook_install_succeeded && g_keyboard_hook_thread.joinable())
+        g_keyboard_hook_thread.join();
+    return g_hook_install_succeeded;
+}
+
+void StopKeyboardHook()
+{
+    std::lock_guard lifecycle_lock(g_hook_lifecycle_mutex);
+    if (g_keyboard_hook_thread_id != 0)
+        PostThreadMessageW(g_keyboard_hook_thread_id, WM_QUIT, 0, 0);
+    if (g_keyboard_hook_thread.joinable()) g_keyboard_hook_thread.join();
 }
 
 void SendTickerKey()
@@ -762,16 +825,13 @@ void WorkerLoop()
 bool StartRuntime()
 {
     if (!PrepareTickerFiles()) return false;
-    if (!g_keyboard_hook) {
-        g_keyboard_hook = SetWindowsHookExW(WH_KEYBOARD_LL, LowLevelKeyboardProc, GetModuleHandleW(nullptr), 0);
-        if (!g_keyboard_hook) {
-            std::cout << "[CScript] 键盘钩子安装失败，错误码=" << GetLastError() << std::endl;
-            std::lock_guard lock(g_state_mutex);
-            g_runtime_status = L"键盘钩子安装失败";
-            return false;
-        }
-        std::cout << "[CScript] 全局键盘钩子已安装。" << std::endl;
+    if (!StartKeyboardHook()) {
+        std::cout << "[CScript] 键盘钩子安装失败。" << std::endl;
+        std::lock_guard lock(g_state_mutex);
+        g_runtime_status = L"键盘钩子安装失败";
+        return false;
     }
+    std::cout << "[CScript] 全局键盘钩子已安装到独立输入线程。" << std::endl;
     if (!g_worker_running.exchange(true)) g_worker = std::thread(WorkerLoop);
     consolelog::SetCscriptReaderNeeded(true);
     return true;
@@ -780,11 +840,8 @@ bool StartRuntime()
 void StopRuntime()
 {
     consolelog::SetCscriptReaderNeeded(false);
-    if (g_keyboard_hook) {
-        UnhookWindowsHookEx(g_keyboard_hook);
-        g_keyboard_hook = nullptr;
-        std::cout << "[CScript] 全局键盘钩子已卸载。" << std::endl;
-    }
+    StopKeyboardHook();
+    std::cout << "[CScript] 全局键盘钩子已卸载。" << std::endl;
     if (g_worker_running.exchange(false)) {
         g_worker_cv.notify_all();
         if (g_worker.joinable()) g_worker.join();
@@ -1092,7 +1149,8 @@ void ProcessConsoleLine(const std::wstring& line)
         std::lock_guard lock(g_state_mutex);
         g_runtime_status = L"最近确认：" + acknowledgement;
     }
-    std::wcout << L"[CScript] 已从 console.log 收到执行确认：" << acknowledgement << std::endl;
+    if constexpr (kVerboseRuntimeLog)
+        std::wcout << L"[CScript] 已从 console.log 收到执行确认：" << acknowledgement << std::endl;
 }
 
 std::wstring VirtualKeyToSourceName(UINT virtual_key, bool extended_key)

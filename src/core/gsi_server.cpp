@@ -196,10 +196,9 @@ namespace gsi {
 
         flat.clear();
         FlattenStateJson("", full, flat);
-        std::cout << "[GSI] 已同步全部原型字段到命名空间缓存，字段数=" << flat.size() << std::endl;
     }
 
-    int g_debug = 1;
+    int g_debug = 0;
 
     static httplib::Server* s_server = nullptr;
     static std::thread s_serverThread;
@@ -554,13 +553,6 @@ namespace gsi {
             res.status = 200;
             res.set_content("OK", "text/plain");
             return;
-        }
-
-        if (g_debug)
-        {
-            std::cout << "======== GSI 原始 JSON ========" << std::endl;
-            std::cout << rawJson << std::endl;
-            std::cout << "===============================" << std::endl;
         }
 
         try {

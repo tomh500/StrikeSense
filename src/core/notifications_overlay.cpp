@@ -7,7 +7,7 @@
 #include <cmath>
 #include <gdiplus.h>
 #include <iostream>
-#include <mmsystem.h>
+#include <mutex>
 
 namespace notifications_overlay {
 namespace {
@@ -18,7 +18,6 @@ std::wstring s_text;
 bool s_enabledState = true;
 ULONGLONG s_startTick = 0;
 bool s_visible = false;
-bool s_timerResolutionRaised = false;
 HDC s_hdcMem = nullptr;
 HBITMAP s_bitmap = nullptr;
 HBITMAP s_oldBitmap = nullptr;
@@ -33,8 +32,12 @@ int s_cachedWidth = 0;
 int s_cachedHeight = 0;
 bool s_cacheDirty = true;
 constexpr UINT_PTR kTimer = 3021;
-constexpr UINT kFrameMs = 1000 / 60;
+constexpr UINT kPushMessage = WM_APP + 3021;
+constexpr UINT kFrameMs = 1000 / 30;
 constexpr int kAnimMs = 260;
+std::mutex s_pendingMutex;
+std::wstring s_pendingText;
+bool s_pendingEnabledState = true;
 
 bool has_window()
 {
@@ -66,9 +69,12 @@ void add_rounded_rect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, f
 
 void hide()
 {
-    if (!has_window() || !s_visible) return;
-    ShowWindow(s_hwnd, SW_HIDE);
-    s_visible = false;
+    if (!has_window()) return;
+    KillTimer(s_hwnd, kTimer);
+    if (s_visible) {
+        ShowWindow(s_hwnd, SW_HIDE);
+        s_visible = false;
+    }
 }
 
 void release_back_buffer()
@@ -115,7 +121,7 @@ bool ensure_back_buffer(HDC hdcScreen, int width, int height)
     s_oldBitmap = static_cast<HBITMAP>(SelectObject(s_hdcMem, s_bitmap));
     s_bufferWidth = width;
     s_bufferHeight = height;
-    std::cout << "[Notifications] 已创建60FPS后备缓冲: " << width << "x" << height << std::endl;
+    std::cout << "[Notifications] 已创建通知后备缓冲: " << width << "x" << height << std::endl;
     return true;
 }
 
@@ -378,6 +384,18 @@ void draw()
 
 LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
+    if (msg == kPushMessage) {
+        {
+            std::lock_guard lock(s_pendingMutex);
+            s_text = std::move(s_pendingText);
+            s_enabledState = s_pendingEnabledState;
+        }
+        s_startTick = GetTickCount64();
+        s_cacheDirty = true;
+        SetTimer(s_hwnd, kTimer, kFrameMs, nullptr);
+        draw();
+        return 0;
+    }
     if (msg == WM_TIMER && wp == kTimer) {
         draw();
         return 0;
@@ -385,11 +403,6 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     if (msg == WM_DESTROY) {
         KillTimer(hwnd, kTimer);
         release_back_buffer();
-        if (s_timerResolutionRaised) {
-            timeEndPeriod(1);
-            s_timerResolutionRaised = false;
-            std::cout << "[Notifications] 已恢复系统计时精度。" << std::endl;
-        }
         s_hwnd = nullptr;
         s_visible = false;
         return 0;
@@ -423,11 +436,6 @@ void Initialize(HINSTANCE hInst)
         std::cout << "[Notifications] 创建覆盖层失败。" << std::endl;
         return;
     }
-    if (timeBeginPeriod(1) == TIMERR_NOERROR) {
-        s_timerResolutionRaised = true;
-        std::cout << "[Notifications] 已启用60FPS计时精度。" << std::endl;
-    }
-    SetTimer(s_hwnd, kTimer, kFrameMs, nullptr);
     ShowWindow(s_hwnd, SW_HIDE);
     std::cout << "[Notifications] 覆盖层已创建。" << std::endl;
 }
@@ -443,11 +451,12 @@ void Push(const std::wstring& text, bool enabled)
 {
     if (!g_notificationsEnabled || text.empty()) return;
     if (!has_window()) Initialize(s_hInst ? s_hInst : hInst);
-    s_text = text;
-    s_enabledState = enabled;
-    s_startTick = GetTickCount64();
-    s_cacheDirty = true;
-    draw();
+    {
+        std::lock_guard lock(s_pendingMutex);
+        s_pendingText = text;
+        s_pendingEnabledState = enabled;
+    }
+    PostMessageW(s_hwnd, kPushMessage, 0, 0);
 }
 
 void Show(const std::wstring& text, bool enabled)

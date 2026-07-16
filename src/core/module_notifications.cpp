@@ -12,6 +12,7 @@
 #include "vscript.h"
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -25,6 +26,7 @@ namespace {
 bool s_crosshairRecoilFollow = false;
 bool s_hasFeatureSnapshot = false;
 bool s_consoleReaderNeeded = false;
+std::atomic<std::uint64_t> s_revision{ 0 };
 std::map<std::wstring, std::wstring> s_lastFeatureSet;
 std::map<std::wstring, feature_line> s_customLines;
 std::unordered_set<std::wstring> s_hiddenModules;
@@ -122,6 +124,7 @@ void sync_feature_snapshot()
     s_lastFeatureSet.clear();
     for (const auto& feature : features) s_lastFeatureSet[feature.id] = feature.text;
     s_hasFeatureSnapshot = true;
+    s_revision.fetch_add(1, std::memory_order_relaxed);
 }
 
 } // namespace
@@ -184,8 +187,12 @@ void Refresh()
     if (!s_hasFeatureSnapshot) {
         s_lastFeatureSet = current;
         s_hasFeatureSnapshot = true;
+        s_revision.fetch_add(1, std::memory_order_relaxed);
         return;
     }
+
+    if (current != s_lastFeatureSet)
+        s_revision.fetch_add(1, std::memory_order_relaxed);
 
     for (const auto& [id, text] : current) {
         if (s_lastFeatureSet.find(id) == s_lastFeatureSet.end())
@@ -196,6 +203,11 @@ void Refresh()
             notifications_overlay::Push(text, false);
     }
     s_lastFeatureSet = current;
+}
+
+std::uint64_t Revision()
+{
+    return s_revision.load(std::memory_order_relaxed);
 }
 
 void Shutdown()
@@ -226,6 +238,7 @@ void SetModuleHidden(const std::wstring& id, bool hidden)
     if (id.empty()) return;
     if (hidden) s_hiddenModules.insert(id);
     else s_hiddenModules.erase(id);
+    s_revision.fetch_add(1, std::memory_order_relaxed);
     std::wcout << L"[Textgui] 模块 " << id
                << (hidden ? L" 已隐藏。" : L" 已恢复显示。") << std::endl;
 }
