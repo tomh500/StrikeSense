@@ -121,13 +121,13 @@ void EnsureDefaultScripts()
     if (!std::filesystem::exists(jumpthrow)) {
         static constexpr char kJumpthrow[] = R"cscript(// 跳投：请在界面中绑定跳投键。
 @OnPressed {
-    "+jump":0;
+    "echoln \"/notificationE 跳投\";+jump":0;
     "-attack":1;
     "-attack2":2;
 }
 
 @OnReleased {
-    "-jump":0;
+    "echoln \"/notificationD 跳投\";-jump":0;
 }
 )cscript";
         std::ofstream output(jumpthrow, std::ios::binary);
