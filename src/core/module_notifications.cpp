@@ -31,7 +31,7 @@ const std::vector<std::wstring> kNativeModuleIds = {
     L"custom_musickit", L"kill_sound", L"force_interrupt", L"flash_overlay",
     L"low_memory", L"mvp_info", L"socd", L"mwheel_jump", L"mixed_sensitivity",
     L"recoil_crosshair", L"knife_sound", L"death_volume", L"sniper_crosshair",
-    L"item_helper", L"rage", L"quick_stop", L"mouse_jitter", L"console_log"
+    L"item_helper", L"quick_stop", L"mouse_jitter", L"console_log"
 };
 
 std::wstring script_display_name(const vscript::mounted_script& script)
@@ -67,9 +67,12 @@ std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
     if (settings.custom_flashbang) add(L"flash_overlay", L"闪光覆盖图");
     if (settings.low_memory) add(L"low_memory", L"低内存模式");
     if (settings.show_mvp) add(L"mvp_info", L"MVP信息");
-    if (HasLegalCfgSOCD()) add(L"socd", L"SOCD");
-    if (HasLegalCfgMwheelJump()) add(L"mwheel_jump", L"滚轮跳");
-    if (HasLegalCfgMixedSensitivity()) add(L"mixed_sensitivity", L"混合灵敏度");
+    if (HasLegalCfgSOCD()) add(L"socd", L"后覆盖移动", L"Joy");
+    if (HasLegalCfgMwheelJump()) add(L"mwheel_jump", L"滚轮跳", L"Normal");
+    if (HasLegalCfgMixedSensitivity()) {
+        const auto [normal, attack] = GetLegalCfgMixedSensitivityValues();
+        add(L"mixed_sensitivity", L"混合灵敏度", normal + L" " + attack);
+    }
     if (HasLegalCfgCrosshairSwitch() && s_crosshairRecoilFollow) add(L"recoil_crosshair", L"准星跟随后坐力");
     if (HasLegalCfgSoundReplace()) add(L"knife_sound", L"切刀音效替换");
     if (g_deathMute) add(L"death_volume", L"死亡音量控制");
@@ -77,8 +80,10 @@ std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
         static const wchar_t* styles[] = { L"空心圆", L"十字", L"圆点", L"四角", L"T形", L"X形" };
         add(L"sniper_crosshair", L"狙击准星", styles[std::clamp(g_crosshairStyle, 0, 5)]);
     }
-    if (itemhelper_overlay::IsOverlayVisible()) add(L"item_helper", L"道具助手");
-    if (IsRageModeEnabled()) add(L"rage", L"超频配置");
+    if (itemhelper_overlay::IsOverlayVisible()) {
+        const std::wstring mapName = std::filesystem::path(gsi::gamemap).filename().wstring();
+        add(L"item_helper", L"道具助手", mapName);
+    }
     if (IsQuickStopRuntimeActive()) add(L"quick_stop", L"自动急停");
     if (mousejitter::IsEnabled()) add(L"mouse_jitter", L"多绑定脚本");
     if (consolelog::IsEnabled()) add(L"console_log", L"控制台日志");

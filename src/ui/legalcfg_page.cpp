@@ -220,6 +220,11 @@ bool HasLegalCfgMixedSensitivity()
     return g_autoexecContent.find(L"//--StrikeSense MS--") != std::wstring::npos;
 }
 
+std::pair<std::wstring, std::wstring> GetLegalCfgMixedSensitivityValues()
+{
+    return { g_msNormal, g_msAttack };
+}
+
 bool HasLegalCfgCrosshairSwitch()
 {
     return g_autoexecContent.find(L"//--StrikeSense CrosshairSW--") != std::wstring::npos;

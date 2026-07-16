@@ -111,6 +111,7 @@ bool IsLegalCfgManaged();
 bool HasLegalCfgSOCD();
 bool HasLegalCfgMwheelJump();
 bool HasLegalCfgMixedSensitivity();
+std::pair<std::wstring, std::wstring> GetLegalCfgMixedSensitivityValues();
 bool HasLegalCfgCrosshairSwitch();
 bool HasLegalCfgSoundReplace();
 
