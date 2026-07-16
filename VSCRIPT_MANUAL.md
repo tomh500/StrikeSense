@@ -255,6 +255,22 @@ if(Changed("console_log_count") && console_log_text == "testcommand"){
 }
 ```
 
+### 控制台 echoln 指令
+
+这些指令由 CS2 控制台写入 `console.log` 后被 StrikeSense 读取。典型写法是 `echoln /toggle sniper_crosshair`。
+
+| 指令 | 用法 | 说明 |
+| --- | --- | --- |
+| `/notificationE 文本` | `echoln /notificationE FakeLag` | 渲染“开启”通知，模块名为后面的文本 |
+| `/notificationD 文本` | `echoln /notificationD FakeLag` | 渲染“关闭”通知，模块名为后面的文本 |
+| `/textgui reg 模块名 附属参数... 整数ID` | `echoln /textgui reg FakeLag Dynamic 250ms 1001` | 注册或更新一条 TextGUI 行；第一段是主文字，最后一段整数是共通 ID，中间全部拼成附属参数 |
+| `/textgui del 整数ID` | `echoln /textgui del 1001` | 删除指定 ID 的 TextGUI 行 |
+| `/toggle 模块ID` | `echoln /toggle sniper_crosshair` | 反转原生模块开关；如果目标是自定义 TextGUI ID，则反转隐藏/显示 |
+| `/toggle 模块ID 1` | `echoln /toggle quick_stop 1` | 强制开启模块 |
+| `/toggle 模块ID 0` | `echoln /toggle quick_stop 0` | 强制关闭模块 |
+
+`/textgui` 的整数 ID 和 VScript 里的 TextGUI ID 使用同一个命名空间；脚本可以隐藏、显示或删除控制台注册的行，控制台也可以操作脚本注册的数字 ID 行。
+
 ## 第一个实用脚本
 
 ```cpp
@@ -926,14 +942,35 @@ for(int i=0; i<Size(accounts); i++){
 | `HideTextguiModule(id)` | `string` | `bool` | 仅从 TextGUI 隐藏模块，不改变模块状态且不产生通知 |
 | `ShowTextguiModule(id)` | `string` | `bool` | 恢复模块在 TextGUI 中的显示 |
 | `SetTextguiModuleVisible(id, visible)` | `string, bool` | `bool` | 设置模块是否显示在 TextGUI |
+| `GetModuleEnabled(id)` | `string` | `bool` | 读取原生模块或自定义 TextGUI 数字 ID 当前是否开启/显示 |
+| `SetModuleEnabled(id, enabled)` | `string, bool` | `bool` | 设置原生模块开关；自定义 TextGUI ID 会设置显示/隐藏 |
+| `ToggleModuleEnabled(id)` | `string` | `bool` | 反转模块开关或 TextGUI 行显示状态 |
+| `GetModuleValue(id, field)` | `string, string|null` | `string` | 读取模块附属参数；`field` 可省略或传 `NULL` |
 
 ```cpp
 RegisterTextguiText("FakeLag", "my_fakelag", "Dynamic 250ms");
 SetTextguiText("FakeLag", "my_fakelag", NULL);
 HideTextguiModule("sniper_crosshair");
+if(GetModuleEnabled("sniper_crosshair")){
+    Log(GetModuleValue("sniper_crosshair", "style"));
+}
 ```
 
 原生模块 ID 包括 `custom_musickit`、`kill_sound`、`force_interrupt`、
 `flash_overlay`、`low_memory`、`mvp_info`、`socd`、`mwheel_jump`、
 `mixed_sensitivity`、`recoil_crosshair`、`knife_sound`、`death_volume`、
-`sniper_crosshair`、`item_helper`、`quick_stop`、`mouse_jitter` 和 `console_log`。
+`sniper_crosshair`、`item_helper`、`quick_stop`、`mouse_jitter`、`console_log`、
+`textgui` 和 `notifications`。
+
+模块状态也会暴露为变量，命名规则为 `module_模块ID`，附属参数为 `module_模块ID_value` 或更细字段：
+
+| 变量 | 说明 |
+| --- | --- |
+| `module_sniper_crosshair` | 狙击准星是否开启 |
+| `module_sniper_crosshair_style` | 狙击准星样式 |
+| `module_custom_musickit_format` | 自定义音乐包格式，`OGG` 或 `WAV` |
+| `module_mwheel_jump_mode` | 滚轮跳模式，目前为 `Normal` |
+| `module_socd_mode` | 后覆盖移动附属参数，目前为 `Joy` |
+| `module_mixed_sensitivity_normal` | 混合灵敏度常规数值 |
+| `module_mixed_sensitivity_attack` | 混合灵敏度开火数值 |
+| `module_item_helper_map` | 道具助手当前地图名 |
