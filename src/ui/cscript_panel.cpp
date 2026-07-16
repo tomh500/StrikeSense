@@ -17,10 +17,12 @@ namespace {
 
 constexpr std::size_t kScriptsPerPage = 3;
 Gdiplus::RectF g_toggleRect, g_expandRect, g_mountRect, g_openDirectoryRect;
+Gdiplus::RectF g_tickerBindRect;
 Gdiplus::RectF g_previousPageRect, g_nextPageRect;
 std::vector<Gdiplus::RectF> g_bindRects, g_reloadRects, g_removeRects;
 std::vector<std::size_t> g_visibleIndices;
 std::optional<std::size_t> g_bindingIndex;
+bool g_bindingTicker = false;
 std::size_t g_currentPage = 0;
 bool g_expanded = false;
 
@@ -69,6 +71,7 @@ void ResetDetails()
 {
     g_mountRect = {};
     g_openDirectoryRect = {};
+    g_tickerBindRect = {};
     g_previousPageRect = {};
     g_nextPageRect = {};
     g_bindRects.clear();
@@ -79,7 +82,7 @@ void ResetDetails()
 
 } // namespace
 
-void PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, int topY, HWND)
+int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, int topY, HWND)
 {
     using namespace Gdiplus;
     Font titleFont(L"Microsoft YaHei", 11);
@@ -97,27 +100,44 @@ void PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, i
         PointF(static_cast<REAL>(contentX + 10), static_cast<REAL>(topY)), &text);
     g_toggleRect = RectF(static_cast<REAL>(contentX + 220), static_cast<REAL>(topY - 4), 50.f, 24.f);
     ui::DrawToggle(graphics, contentX + 220, topY - 4, cscript::IsEnabled());
-    g_expandRect = RectF(static_cast<REAL>(contentX + 282), static_cast<REAL>(topY - 5), 70.f, 26.f);
-    DrawButton(graphics, g_expandRect, g_expanded ? i18n::T("CSCRIPT_COLLAPSE") : i18n::T("CSCRIPT_EXPAND"));
+    if (cscript::IsEnabled()) {
+        g_expandRect = RectF(static_cast<REAL>(contentX + 286), static_cast<REAL>(topY - 4), 24.f, 24.f);
+        SolidBrush foldBackground(Color(255, 231, 244, 252));
+        Pen foldBorder(Color(255, 150, 200, 230));
+        graphics.FillRectangle(&foldBackground, g_expandRect);
+        graphics.DrawRectangle(&foldBorder, g_expandRect);
+        graphics.DrawString(g_expanded ? L"v" : L">", -1, &smallFont,
+            PointF(g_expandRect.X + 8.f, g_expandRect.Y + 4.f), &text);
+    } else {
+        g_expandRect = {};
+        g_expanded = false;
+    }
 
     ResetDetails();
-    if (!g_expanded) return;
+    if (!cscript::IsEnabled() || !g_expanded) return topY + 34;
 
-    const int detailTop = topY + 70;
-    g_mountRect = RectF(static_cast<REAL>(contentX + 10), static_cast<REAL>(detailTop), 112.f, 26.f);
-    g_openDirectoryRect = RectF(static_cast<REAL>(contentX + 132), static_cast<REAL>(detailTop), 112.f, 26.f);
+    const int detailTop = topY + 34;
+    graphics.DrawString(i18n::T("CSCRIPT_TICKER_KEY"), -1, &textFont,
+        PointF(static_cast<REAL>(contentX + 14), static_cast<REAL>(detailTop + 5)), &text);
+    g_tickerBindRect = RectF(static_cast<REAL>(contentX + 118), static_cast<REAL>(detailTop), 90.f, 26.f);
+    const std::wstring tickerText = g_bindingTicker ? i18n::T("CSCRIPT_PRESS_KEY") : cscript::GetTickerSourceKey();
+    DrawButton(graphics, g_tickerBindRect, Compact(tickerText, 12).c_str());
+    const std::wstring runtimeStatus = Compact(cscript::GetLastRuntimeStatus(), 43);
+    graphics.DrawString(runtimeStatus.c_str(), -1, &smallFont,
+        PointF(static_cast<REAL>(contentX + 222), static_cast<REAL>(detailTop + 5)), &dim);
+
+    const int toolbarY = detailTop + 34;
+    g_mountRect = RectF(static_cast<REAL>(contentX + 10), static_cast<REAL>(toolbarY), 112.f, 26.f);
+    g_openDirectoryRect = RectF(static_cast<REAL>(contentX + 132), static_cast<REAL>(toolbarY), 112.f, 26.f);
     DrawButton(graphics, g_mountRect, i18n::T("CSCRIPT_MOUNT"));
     DrawButton(graphics, g_openDirectoryRect, i18n::T("CSCRIPT_OPEN_DIR"));
-    const std::wstring runtimeStatus = Compact(cscript::GetLastRuntimeStatus(), 46);
-    graphics.DrawString(runtimeStatus.c_str(), -1, &smallFont,
-        PointF(static_cast<REAL>(contentX + 258), static_cast<REAL>(detailTop + 5)), &dim);
 
     const auto& scripts = cscript::MountedScripts();
     const std::size_t pageCount = (std::max<std::size_t>)(1, (scripts.size() + kScriptsPerPage - 1) / kScriptsPerPage);
     if (g_currentPage >= pageCount) g_currentPage = pageCount - 1;
     const std::size_t first = g_currentPage * kScriptsPerPage;
     const std::size_t last = (std::min)(scripts.size(), first + kScriptsPerPage);
-    int rowY = detailTop + 36;
+    int rowY = toolbarY + 36;
 
     if (scripts.empty()) {
         graphics.DrawString(i18n::T("CSCRIPT_EMPTY"), -1, &textFont,
@@ -157,7 +177,7 @@ void PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, i
         rowY += 58;
     }
 
-    const int footerY = detailTop + 218;
+    const int footerY = toolbarY + 218;
     wchar_t pageText[96]{};
     swprintf_s(pageText, i18n::T("CSCRIPT_PAGE"), static_cast<int>(g_currentPage + 1),
         static_cast<int>(pageCount), static_cast<int>(scripts.size()));
@@ -169,6 +189,7 @@ void PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, i
         DrawButton(graphics, g_previousPageRect, i18n::T("CSCRIPT_PREVIOUS"));
         DrawButton(graphics, g_nextPageRect, i18n::T("CSCRIPT_NEXT"));
     }
+    return footerY + 34;
 }
 
 bool CheckClick(HWND owner, int mouseX, int mouseY)
@@ -181,11 +202,10 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
             if (!cscript::SetEnabled(true)) {
                 const std::wstring status = cscript::GetLastRuntimeStatus();
                 MessageBoxW(owner, status.c_str(), i18n::T("CSCRIPT_START_FAILED"), MB_OK | MB_ICONERROR);
-            } else {
-                g_expanded = true;
             }
         } else {
             cscript::SetEnabled(false);
+            g_expanded = false;
         }
         RefreshTextguiOverlay();
         InvalidateRect(owner, nullptr, FALSE);
@@ -198,6 +218,13 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
         return true;
     }
     if (!g_expanded) return false;
+    if (Hit(g_tickerBindRect, mouseX, mouseY)) {
+        g_bindingTicker = true;
+        g_bindingIndex.reset();
+        std::cout << "[CScript界面] 等待录入 ticker 单按键。" << std::endl;
+        InvalidateRect(owner, nullptr, FALSE);
+        return true;
+    }
     if (Hit(g_mountRect, mouseX, mouseY)) {
         const std::filesystem::path path = PickScript(owner);
         if (!path.empty()) {
@@ -231,6 +258,7 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
         const std::size_t index = g_visibleIndices[visible];
         if (Hit(g_bindRects[visible], mouseX, mouseY)) {
             g_bindingIndex = index;
+            g_bindingTicker = false;
             std::cout << "[CScript界面] 等待录入单按键。" << std::endl;
             InvalidateRect(owner, nullptr, FALSE);
             return true;
@@ -254,7 +282,7 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
 
 bool ProcessBindingKey(HWND owner, WPARAM wParam, LPARAM lParam)
 {
-    if (!g_bindingIndex.has_value()) return false;
+    if (!g_bindingTicker && !g_bindingIndex.has_value()) return false;
     UINT virtualKey = 0;
     bool extendedKey = false;
     if (!cscript::NormalizeWindowKey(wParam, lParam, virtualKey, extendedKey)) {
@@ -262,16 +290,20 @@ bool ProcessBindingKey(HWND owner, WPARAM wParam, LPARAM lParam)
         return true;
     }
     std::wstring error;
-    if (!cscript::SetScriptKey(*g_bindingIndex, virtualKey, extendedKey, &error)) {
+    const bool bound = g_bindingTicker
+        ? cscript::SetTickerKey(virtualKey, extendedKey, &error)
+        : cscript::SetScriptKey(*g_bindingIndex, virtualKey, extendedKey, &error);
+    if (!bound) {
         MessageBoxW(owner, error.c_str(), i18n::T("CSCRIPT_BIND_FAILED"), MB_OK | MB_ICONWARNING);
         return true;
     }
+    g_bindingTicker = false;
     g_bindingIndex.reset();
     InvalidateRect(owner, nullptr, FALSE);
     return true;
 }
 
 bool IsExpanded() { return g_expanded; }
-void SetExpanded(bool expanded) { g_expanded = expanded; }
+void SetExpanded(bool expanded) { g_expanded = cscript::IsEnabled() && expanded; }
 
 } // namespace cscriptui

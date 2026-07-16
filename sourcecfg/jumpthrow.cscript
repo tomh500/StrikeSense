@@ -1,0 +1,10 @@
+// 跳投：请在超频配置页为本脚本绑定跳投键。
+@OnPressed {
+    "+jump":0;
+    "-attack":1;
+    "-attack2":2;
+}
+
+@OnReleased {
+    "-jump":0;
+}

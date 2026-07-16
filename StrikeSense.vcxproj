@@ -341,6 +341,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\gsi_server.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\hotkey.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\i18n.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\input_environment.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\itemhelper_overlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\kernelcore.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\mouse_jitter.cpp" />
@@ -376,6 +377,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\gsi_server.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\hotkey.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\i18n.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\input_environment.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\itemhelper_overlay.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\kernelcore.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\mouse_jitter.h" />

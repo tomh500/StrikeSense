@@ -77,119 +77,98 @@ static bool PromptQuickStopValue(HWND owner, const wchar_t* label, int current, 
     return true;
 }
 
-void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
+void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int, HWND) {
     using namespace Gdiplus;
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::Rage_TITLE));
-    Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9);
-    Font xsF(L"Microsoft YaHei", 8);
-
-    // 水蓝色主题
+    Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9), xsF(L"Microsoft YaHei", 8);
     SolidBrush tdCol(Color(255, 30, 60, 100));
     SolidBrush knB(Color(255, 60, 160, 230));
     SolidBrush warnCol(Color(255, 200, 80, 80));
     SolidBrush valueBackground(Color(255, 252, 254, 255));
+    SolidBrush foldBackground(Color(255, 231, 244, 252));
     Pen valueBorder(Color(255, 145, 195, 225), 1.0f);
+    Pen foldBorder(Color(255, 150, 200, 230));
 
-    // 警告：Rage 模式不保存
     g.DrawString(_(i18n::Keys::Rage_WARN_NOSAVE), -1, &xsF, PointF((REAL)(cx + 10), 38.f), &warnCol);
-
-    // 启用 Rage 模式开关
     g.DrawString(_(i18n::Keys::Rage_ENABLE_TEXT), -1, &rF, PointF((REAL)(cx + 10), 60.f), &tdCol);
-    g_RageToggleRect = RectF((REAL)(cx + 160), (REAL)56, 50.f, 24.f);
+    g_RageToggleRect = RectF((REAL)(cx + 160), 56.f, 50.f, 24.f);
     ui::DrawToggle(g, cx + 160, 56, g_rageEnabled);
-
     if (!g_rageEnabled) return;
 
-    // ===== 急停区域 =====
-    int yBase = 100;
-
-    // 标题和开关
-    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF, PointF((REAL)(cx + 10), (REAL)yBase), &tdCol);
-    g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(yBase - 4), 50.f, 24.f);
+    const int quickStopY = 100;
+    g.DrawString(_(i18n::Keys::Rage_QUICKSTOP), -1, &rF,
+        PointF((REAL)(cx + 10), (REAL)quickStopY), &tdCol);
+    g_QSToggleRect = RectF((REAL)(cx + 220), (REAL)(quickStopY - 4), 50.f, 24.f);
     const bool quickStopEnabled = IsQuickStopEnabled();
-    ui::DrawToggle(g, cx + 220, yBase - 4, quickStopEnabled);
-    g_QuickStopExpandRect = RectF((REAL)(cx + 282), (REAL)(yBase - 5), 70.f, 26.f);
-    {
-        SolidBrush buttonBg(Color(255, 180, 220, 245));
-        SolidBrush buttonText(Color(255, 20, 80, 140));
-        Pen buttonBorder(Color(255, 130, 190, 230), 1.0f);
-        StringFormat centered;
-        centered.SetAlignment(StringAlignmentCenter);
-        centered.SetLineAlignment(StringAlignmentCenter);
-        g.FillRectangle(&buttonBg, g_QuickStopExpandRect);
-        g.DrawRectangle(&buttonBorder, g_QuickStopExpandRect);
-        g.DrawString(g_quickStopExpanded ? L"收起" : L"展开", -1, &xsF,
-            g_QuickStopExpandRect, &centered, &buttonText);
+    ui::DrawToggle(g, cx + 220, quickStopY - 4, quickStopEnabled);
+    if (quickStopEnabled) {
+        g_QuickStopExpandRect = RectF((REAL)(cx + 286), (REAL)(quickStopY - 4), 24.f, 24.f);
+        g.FillRectangle(&foldBackground, g_QuickStopExpandRect);
+        g.DrawRectangle(&foldBorder, g_QuickStopExpandRect);
+        g.DrawString(g_quickStopExpanded ? L"v" : L">", -1, &sF,
+            PointF(g_QuickStopExpandRect.X + 8.f, g_QuickStopExpandRect.Y + 4.f), &tdCol);
+    } else {
+        g_QuickStopExpandRect = RectF{};
+        g_quickStopExpanded = false;
     }
 
-    const int jitterY = yBase + 34;
-    cscriptui::PaintSection(g, cx, cw, jitterY, nullptr);
+    int nextModuleY = quickStopY + 34;
+    auto& cfg = GetQSConfig();
+    if (quickStopEnabled && g_quickStopExpanded) {
+        const int lenientY = nextModuleY;
+        g.DrawString(_(i18n::Keys::Rage_LENIENT_MANUAL_STOP), -1, &sF,
+            PointF((REAL)(cx + 28), (REAL)lenientY), &tdCol);
+        g_LenientManualStopToggleRect = RectF((REAL)(cx + 220), (REAL)(lenientY - 4), 50.f, 24.f);
+        ui::DrawToggle(g, cx + 220, lenientY - 4, cfg.lenient_manual_stop);
 
-    const int consoleLogY = yBase + 68;
-    g.DrawString(_(i18n::Keys::Rage_CONSOLE_LOG), -1, &rF, PointF((REAL)(cx + 10), (REAL)consoleLogY), &tdCol);
+        struct SliderDef { const char* nameKey; int* value; int minV; int maxV; };
+        SliderDef defs[] = {
+            { i18n::Keys::Rage_JUMP_DISABLE_MS, &cfg.jump_disable_ms, kQSSliderMin[0], kQSSliderMax[0] },
+            { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[1], kQSSliderMax[1] },
+            { i18n::Keys::Rage_MIN_PULSE, &cfg.min_pulse, kQSSliderMin[2], kQSSliderMax[2] },
+            { i18n::Keys::Rage_MAX_PULSE, &cfg.max_pulse, kQSSliderMin[3], kQSSliderMax[3] },
+            { i18n::Keys::Rage_CAP_PULSE, &cfg.cap_pulse, kQSSliderMin[4], kQSSliderMax[4] },
+            { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[5], kQSSliderMax[5] },
+            { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[6], kQSSliderMax[6] },
+            { i18n::Keys::Rage_MOVE_CAP, &cfg.move_cap_at, kQSSliderMin[7], kQSSliderMax[7] },
+            { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[8], kQSSliderMax[8] },
+            { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
+            { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[10], kQSSliderMax[10] },
+        };
+        const int sliderWidth = (std::max)(100, cw - 280);
+        const int sliderBaseY = lenientY + 40;
+        for (int i = 0; i < kQSSliderCount; ++i) {
+            const int sy = sliderBaseY + i * 34;
+            g.DrawString(_(defs[i].nameKey), -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
+            const int barX = cx + 160;
+            const int clamped = std::clamp(*defs[i].value, defs[i].minV, defs[i].maxV);
+            const float normalized = static_cast<float>(clamped - defs[i].minV)
+                / static_cast<float>(defs[i].maxV - defs[i].minV);
+            ui::DrawSlider(g, barX, sy, sliderWidth, normalized);
+            g.FillEllipse(&knB, (REAL)(barX + (int)(sliderWidth * normalized) - 8),
+                (REAL)(sy - 6), 16.f, 16.f);
+            wchar_t valueText[16]{};
+            swprintf_s(valueText, L"%d", *defs[i].value);
+            g_valueRects[i] = RectF((REAL)(barX + sliderWidth + 6), (REAL)(sy - 10), 68.f, 22.f);
+            g.FillRectangle(&valueBackground, g_valueRects[i]);
+            g.DrawRectangle(&valueBorder, g_valueRects[i]);
+            g.DrawString(valueText, -1, &sF,
+                PointF(g_valueRects[i].X + 7.f, g_valueRects[i].Y + 2.f), &tdCol);
+            g_sliderRects[i] = RectF((REAL)barX, (REAL)(sy - 8), (REAL)sliderWidth, 24.f);
+        }
+        nextModuleY = sliderBaseY + kQSSliderCount * 34 + 8;
+    } else {
+        g_LenientManualStopToggleRect = RectF{};
+        for (auto& rect : g_sliderRects) rect = RectF{};
+        for (auto& rect : g_valueRects) rect = RectF{};
+    }
+
+    nextModuleY = cscriptui::PaintSection(g, cx, cw, nextModuleY, nullptr);
+    const int consoleLogY = nextModuleY;
+    g.DrawString(_(i18n::Keys::Rage_CONSOLE_LOG), -1, &rF,
+        PointF((REAL)(cx + 10), (REAL)consoleLogY), &tdCol);
     g_ConsoleLogToggleRect = RectF((REAL)(cx + 220), (REAL)(consoleLogY - 4), 50.f, 24.f);
     ui::DrawToggle(g, cx + 220, consoleLogY - 4, consolelog::IsEnabled());
-
-    if (cscriptui::IsExpanded() || !quickStopEnabled || !g_quickStopExpanded) {
-        g_LenientManualStopToggleRect = RectF{};
-        return;
-    }
-
-    // 读取最新值
-    auto& cfg = GetQSConfig();
-    const int lenientManualStopY = yBase + 102;
-    g.DrawString(_(i18n::Keys::Rage_LENIENT_MANUAL_STOP), -1, &sF,
-        PointF((REAL)(cx + 28), (REAL)lenientManualStopY), &tdCol);
-    g_LenientManualStopToggleRect = RectF((REAL)(cx + 220), (REAL)(lenientManualStopY - 4), 50.f, 24.f);
-    ui::DrawToggle(g, cx + 220, lenientManualStopY - 4, cfg.lenient_manual_stop);
-
-    // 修复：类型完全统一为项目的底层核心 const char*
-    struct SliderDef {
-        const char* nameKey; 
-        int* value;
-        int minV, maxV;
-    };
-    SliderDef defs[] = {
-        { i18n::Keys::Rage_JUMP_DISABLE_MS, &cfg.jump_disable_ms, kQSSliderMin[0], kQSSliderMax[0] },
-        { i18n::Keys::Rage_MICRO_PULSE, &cfg.micro_pulse, kQSSliderMin[1], kQSSliderMax[1] },
-        { i18n::Keys::Rage_MIN_PULSE,  &cfg.min_pulse, kQSSliderMin[2], kQSSliderMax[2] },
-        { i18n::Keys::Rage_MAX_PULSE,  &cfg.max_pulse, kQSSliderMin[3], kQSSliderMax[3] },
-        { i18n::Keys::Rage_CAP_PULSE,  &cfg.cap_pulse, kQSSliderMin[4], kQSSliderMax[4] },
-        { i18n::Keys::Rage_MICRO_MOVE, &cfg.micro_move_at, kQSSliderMin[5], kQSSliderMax[5] },
-        { i18n::Keys::Rage_MOVE_START, &cfg.move_start_at, kQSSliderMin[6], kQSSliderMax[6] },
-        { i18n::Keys::Rage_MOVE_CAP,   &cfg.move_cap_at, kQSSliderMin[7], kQSSliderMax[7] },
-        { i18n::Keys::Rage_CURVE, &cfg.curve_percent, kQSSliderMin[8], kQSSliderMax[8] },
-        { i18n::Keys::Rage_HORIZONTAL_SCALE, &cfg.horizontal_scale_percent, kQSSliderMin[9], kQSSliderMax[9] },
-        { i18n::Keys::Rage_VERTICAL_SCALE, &cfg.vertical_scale_percent, kQSSliderMin[10], kQSSliderMax[10] },
-    };
-
-    int slW = cw - 280;
-    if (slW < 100) slW = 100;
-    for (int i = 0; i < kQSSliderCount; ++i) {
-        int sy = yBase + 142 + i * 34;
-        const wchar_t* wlabel = _(defs[i].nameKey); 
-        g.DrawString(wlabel, -1, &sF, PointF((REAL)(cx + 10), (REAL)sy), &tdCol);
-
-        int barX = cx + 160;
-        const int clampedValue = std::clamp(*defs[i].value, defs[i].minV, defs[i].maxV);
-        const float norm = static_cast<float>(clampedValue - defs[i].minV)
-            / static_cast<float>(defs[i].maxV - defs[i].minV);
-
-        ui::DrawSlider(g, barX, sy, slW, norm);
-        float kx2 = (REAL)(barX + (int)(slW * norm) - 8.f);
-        g.FillEllipse(&knB, kx2, (REAL)(sy - 6.f), 16.f, 16.f);
-
-        wchar_t valT[16];
-        swprintf_s(valT, L"%d", *defs[i].value);
-        g_valueRects[i] = RectF((REAL)(barX + slW + 6), (REAL)(sy - 10), 68.f, 22.f);
-        g.FillRectangle(&valueBackground, g_valueRects[i]);
-        g.DrawRectangle(&valueBorder, g_valueRects[i]);
-        g.DrawString(valT, -1, &sF, PointF(g_valueRects[i].X + 7.0f, g_valueRects[i].Y + 2.0f), &tdCol);
-
-        // 记录滑块区域用于点击检测
-        g_sliderRects[i] = RectF((REAL)barX, (REAL)(sy - 8), (REAL)slW, 24.f);
-    }
-
 }
 
 void CheckRageClick(HWND hw, int mx, int my) {
@@ -265,14 +244,12 @@ void CheckRageClick(HWND hw, int mx, int my) {
     if (!g_rageEnabled) return;
 
     if (cscriptui::CheckClick(hw, mx, my)) {
-        if (cscriptui::IsExpanded()) g_quickStopExpanded = false;
         return;
     }
 
     if (mx >= g_QuickStopExpandRect.X && mx <= g_QuickStopExpandRect.X + g_QuickStopExpandRect.Width &&
         my >= g_QuickStopExpandRect.Y && my <= g_QuickStopExpandRect.Y + g_QuickStopExpandRect.Height) {
         g_quickStopExpanded = !g_quickStopExpanded;
-        if (g_quickStopExpanded) cscriptui::SetExpanded(false);
         std::cout << "[急停界面] 子控件已" << (g_quickStopExpanded ? "展开" : "折叠") << "。" << std::endl;
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -302,7 +279,7 @@ void CheckRageClick(HWND hw, int mx, int my) {
         return;
     }
 
-    if (!IsQuickStopEnabled() || !g_quickStopExpanded || cscriptui::IsExpanded()) return;
+    if (!IsQuickStopEnabled() || !g_quickStopExpanded) return;
 
     RectF* lmsr = &g_LenientManualStopToggleRect;
     if (mx >= lmsr->X && mx <= lmsr->X + lmsr->Width &&

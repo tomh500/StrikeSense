@@ -16,6 +16,7 @@
 #include "itemhelper_overlay.h"
 #include "textgui_overlay.h"
 #include "notifications_overlay.h"
+#include "input_environment.h"
 #include "resource.h"
 
 namespace fs = std::filesystem;
@@ -29,6 +30,8 @@ bool g_isBindingHotkey = false; // 添加这行：标记是否正在录入快捷
 bool g_isBindingItemHelperHotkey = false; // 添加这行：标记是否正在录入道具助手快捷键
 
 static Gdiplus::RectF g_lenientWindowToggleRect;
+static Gdiplus::RectF g_inputEnvironmentToggleRect;
+static Gdiplus::RectF g_inputEnvironmentResetRect;
 
 namespace evolutionui {
 
@@ -234,6 +237,7 @@ void SaveEvolutionParams() {
     j["hotkey_mod"] = g_hotkeyMod; j["hotkey_vk"] = g_hotkeyVk;
     j["crosshair_enabled"] = g_crosshairEnabled;
     j["lenient_cs2_window_detection"] = IsLenientCS2WindowDetection();
+    j["input_environment_intercept"] = inputenvironment::IsEnabled();
     j["crosshair_r"] = g_crosshairR; j["crosshair_g"] = g_crosshairG; j["crosshair_b"] = g_crosshairB;
     j["crosshair_style"] = g_crosshairStyle;
     j["crosshair_thickness"] = g_crosshairThickness; j["crosshair_scale"] = g_crosshairScale;
@@ -305,6 +309,9 @@ void LoadEvolutionParams() {
         bool lenientWindowDetection = IsLenientCS2WindowDetection();
         gb("lenient_cs2_window_detection", lenientWindowDetection);
         SetLenientCS2WindowDetection(lenientWindowDetection);
+        bool inputEnvironmentIntercept = inputenvironment::IsEnabled();
+        gb("input_environment_intercept", inputEnvironmentIntercept);
+        inputenvironment::SetEnabled(inputEnvironmentIntercept);
         gb("item_helper_enabled", g_itemHelperEnabled);
         gv("crosshair_r", g_crosshairR); gv("crosshair_g", g_crosshairG); gv("crosshair_b", g_crosshairB);
         gv("crosshair_style", g_crosshairStyle); gv("crosshair_thickness", g_crosshairThickness);
@@ -821,7 +828,36 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         static_cast<REAL>(nextSectionY - 4), 50.f, 24.f);
     ui::DrawToggle(g, static_cast<int>(g_lenientWindowToggleRect.X),
         static_cast<int>(g_lenientWindowToggleRect.Y), IsLenientCS2WindowDetection());
-    const int textguiSectionY = nextSectionY + 42;
+
+    const int inputEnvironmentY = nextSectionY + 42;
+    g.DrawString(L"尝试为输入环境拦截", -1, &rF,
+        PointF(static_cast<REAL>(sectionX), static_cast<REAL>(inputEnvironmentY)), &text);
+    g_inputEnvironmentToggleRect = RectF(static_cast<REAL>(sectionX + 220),
+        static_cast<REAL>(inputEnvironmentY - 4), 50.f, 24.f);
+    ui::DrawToggle(g, static_cast<int>(g_inputEnvironmentToggleRect.X),
+        static_cast<int>(g_inputEnvironmentToggleRect.Y), inputenvironment::IsEnabled());
+
+    if (inputenvironment::IsEnabled()) {
+        g_inputEnvironmentResetRect = RectF(static_cast<REAL>(sectionX + 286),
+            static_cast<REAL>(inputEnvironmentY - 5), 154.f, 26.f);
+        GraphicsPath resetPath;
+        resetPath.AddArc(g_inputEnvironmentResetRect.X, g_inputEnvironmentResetRect.Y, 12.f, 12.f, 180.f, 90.f);
+        resetPath.AddArc(g_inputEnvironmentResetRect.X + g_inputEnvironmentResetRect.Width - 12.f,
+            g_inputEnvironmentResetRect.Y, 12.f, 12.f, 270.f, 90.f);
+        resetPath.AddArc(g_inputEnvironmentResetRect.X + g_inputEnvironmentResetRect.Width - 12.f,
+            g_inputEnvironmentResetRect.Y + g_inputEnvironmentResetRect.Height - 12.f, 12.f, 12.f, 0.f, 90.f);
+        resetPath.AddArc(g_inputEnvironmentResetRect.X,
+            g_inputEnvironmentResetRect.Y + g_inputEnvironmentResetRect.Height - 12.f, 12.f, 12.f, 90.f, 90.f);
+        resetPath.CloseFigure();
+        g.FillPath(&buttonBackground, &resetPath);
+        g.DrawPath(&buttonBorder, &resetPath);
+        g.DrawString(L"重置为非输入状态", -1, &sF,
+            PointF(g_inputEnvironmentResetRect.X + 14.f, g_inputEnvironmentResetRect.Y + 5.f), &text);
+    } else {
+        g_inputEnvironmentResetRect = RectF{};
+    }
+
+    const int textguiSectionY = inputEnvironmentY + 42;
     g.DrawString(i18n::T("EVO_TEXTGUI"), -1, &rF,
         PointF(static_cast<REAL>(sectionX), static_cast<REAL>(textguiSectionY)), &text);
     textguiEnableRect = RectF(static_cast<REAL>(sectionX + 220),
@@ -1261,6 +1297,21 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
         SetLenientCS2WindowDetection(!IsLenientCS2WindowDetection());
         SaveEvolutionParams();
         std::cout << "[进化分支] 宽容检测游戏窗口已切换" << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (Hit(g_inputEnvironmentToggleRect, mx, my)) {
+        inputenvironment::SetEnabled(!inputenvironment::IsEnabled());
+        SaveEvolutionParams();
+        std::cout << "[进化分支] 尝试为输入环境拦截已切换为: "
+                  << (inputenvironment::IsEnabled() ? "开启" : "关闭") << std::endl;
+        InvalidateRect(hw, nullptr, FALSE);
+        return;
+    }
+
+    if (inputenvironment::IsEnabled() && Hit(g_inputEnvironmentResetRect, mx, my)) {
+        inputenvironment::ForceNonInputState();
         InvalidateRect(hw, nullptr, FALSE);
         return;
     }

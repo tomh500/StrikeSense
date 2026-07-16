@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "console_log.h"
+#include "input_environment.h"
 #include "pages.h"
 #include "steam_helper.h"
 #include "volume_mixer.h"
@@ -31,8 +32,7 @@ using clock_type = std::chrono::steady_clock;
 
 constexpr int kTickerHz = 64;
 constexpr auto kTickerInterval = std::chrono::microseconds(1'000'000 / kTickerHz);
-constexpr UINT kTickerVirtualKey = VK_NUMPAD9;
-constexpr wchar_t kTickerSourceKey[] = L"kp_9";
+constexpr UINT kDefaultTickerVirtualKey = VK_NUMPAD9;
 constexpr char kManagedBlockStart[] = "//--StrikeSense CScript Ticker--";
 constexpr char kManagedBlockEnd[] = "//--StrikeSense CScript Ticker END--";
 
@@ -74,6 +74,10 @@ std::filesystem::path g_ticker_cfg_path;
 std::wstring g_runtime_status = L"尚未启动";
 std::uint64_t g_next_script_id = 1;
 bool g_clear_pending = false;
+UINT g_ticker_virtual_key = kDefaultTickerVirtualKey;
+bool g_ticker_extended_key = false;
+std::wstring g_ticker_source_key = L"kp_9";
+std::wstring g_previous_ticker_source_key;
 
 std::filesystem::path ConfigPath()
 {
@@ -87,14 +91,13 @@ std::filesystem::path BaseDirectory()
     return std::filesystem::path(profile) / L"StrikeSense";
 }
 
-void EnsureExampleScript()
+void EnsureDefaultScripts()
 {
-    const std::filesystem::path directory = BaseDirectory() / L"cscript";
+    const std::filesystem::path directory = BaseDirectory() / L"sourcecfg";
     std::filesystem::create_directories(directory);
     const std::filesystem::path example = directory / L"testscript.cscript";
-    if (std::filesystem::exists(example)) return;
-
-    static constexpr char kExample[] = R"cscript(// StrikeSense CScript 示例：请在界面中为本脚本绑定一个单按键。
+    if (!std::filesystem::exists(example)) {
+        static constexpr char kExample[] = R"cscript(// StrikeSense CScript 示例：请在界面中为本脚本绑定一个单按键。
 @OnPressed {
     "+forward":0;
     "alias a b;+jump":1;
@@ -107,10 +110,31 @@ void EnsureExampleScript()
     "-lookatweapon":3;
 }
 )cscript";
-    std::ofstream output(example, std::ios::binary);
-    if (output.is_open()) {
-        output.write(kExample, static_cast<std::streamsize>(std::char_traits<char>::length(kExample)));
-        std::wcout << L"[CScript] 已生成示例脚本：" << example.wstring() << std::endl;
+        std::ofstream output(example, std::ios::binary);
+        if (output.is_open()) {
+            output.write(kExample, static_cast<std::streamsize>(std::char_traits<char>::length(kExample)));
+            std::wcout << L"[CScript] 已生成示例脚本：" << example.wstring() << std::endl;
+        }
+    }
+
+    const std::filesystem::path jumpthrow = directory / L"jumpthrow.cscript";
+    if (!std::filesystem::exists(jumpthrow)) {
+        static constexpr char kJumpthrow[] = R"cscript(// 跳投：请在界面中绑定跳投键。
+@OnPressed {
+    "+jump":0;
+    "-attack":1;
+    "-attack2":2;
+}
+
+@OnReleased {
+    "-jump":0;
+}
+)cscript";
+        std::ofstream output(jumpthrow, std::ios::binary);
+        if (output.is_open()) {
+            output.write(kJumpthrow, static_cast<std::streamsize>(std::char_traits<char>::length(kJumpthrow)));
+            std::wcout << L"[CScript] 已生成跳投脚本：" << jumpthrow.wstring() << std::endl;
+        }
     }
 }
 
@@ -455,6 +479,13 @@ std::filesystem::path ResolveCfgDirectory()
 
 bool InstallAutoexecBinding(const std::filesystem::path& cfg_directory)
 {
+    std::wstring ticker_source_key;
+    std::wstring previous_ticker_source_key;
+    {
+        std::lock_guard lock(g_state_mutex);
+        ticker_source_key = g_ticker_source_key;
+        previous_ticker_source_key = g_previous_ticker_source_key;
+    }
     const std::filesystem::path autoexec = cfg_directory / L"autoexec.cfg";
     std::string content;
     {
@@ -473,7 +504,9 @@ bool InstallAutoexecBinding(const std::filesystem::path& cfg_directory)
     }
     if (!content.empty() && content.back() != '\n') content.push_back('\n');
     content += kManagedBlockStart;
-    content += "\nbind kp_9 \"exec StrikeTicker.cfg\"\n";
+    if (!previous_ticker_source_key.empty() && previous_ticker_source_key != ticker_source_key)
+        content += "\nunbind " + WideToUtf8(previous_ticker_source_key);
+    content += "\nbind " + WideToUtf8(ticker_source_key) + " \"exec StrikeTicker.cfg\"\n";
     content += kManagedBlockEnd;
     content.push_back('\n');
 
@@ -509,14 +542,15 @@ bool PrepareTickerFiles()
     {
         std::lock_guard lock(g_state_mutex);
         g_ticker_cfg_path = ticker_path;
+        if (autoexec_ok) g_previous_ticker_source_key.clear();
         g_runtime_status = autoexec_ok
-            ? L"Ticker 已就绪：kp_9 / 64Hz"
+            ? L"Ticker 已就绪：" + g_ticker_source_key + L" / 64Hz"
             : L"Ticker 已就绪，但 autoexec.cfg 绑定写入失败";
     }
     std::wcout << L"[CScript] StrikeTicker.cfg 已就绪：" << ticker_path.wstring() << std::endl;
-    std::cout << (autoexec_ok
-        ? "[CScript] 已向 autoexec.cfg 写入 kp_9 ticker 绑定。"
-        : "[CScript] autoexec.cfg 写入失败，请手动绑定 kp_9。") << std::endl;
+    std::wcout << (autoexec_ok
+        ? L"[CScript] 已向 autoexec.cfg 写入 ticker 绑定：" + GetTickerSourceKey()
+        : L"[CScript] autoexec.cfg 写入失败，请手动绑定 ticker 按键。") << std::endl;
     return true;
 }
 
@@ -558,6 +592,10 @@ void HandlePhysicalKey(UINT virtual_key, bool extended_key, bool pressed)
             script.public_state.extended_key != extended_key) continue;
 
         bool& was_down = g_physical_down[script.public_state.id];
+        if (inputenvironment::ShouldSuppressScriptKey(virtual_key)) {
+            was_down = pressed;
+            continue;
+        }
         if (pressed) {
             if (was_down) continue;
             was_down = true;
@@ -606,18 +644,28 @@ LRESULT CALLBACK LowLevelKeyboardProc(int code, WPARAM w_param, LPARAM l_param)
 
 void SendTickerKey()
 {
-    const WORD scan_code = static_cast<WORD>(MapVirtualKeyW(kTickerVirtualKey, MAPVK_VK_TO_VSC));
+    UINT ticker_virtual_key = kDefaultTickerVirtualKey;
+    bool ticker_extended_key = false;
+    std::wstring ticker_source_key;
+    {
+        std::lock_guard lock(g_state_mutex);
+        ticker_virtual_key = g_ticker_virtual_key;
+        ticker_extended_key = g_ticker_extended_key;
+        ticker_source_key = g_ticker_source_key;
+    }
+    const WORD scan_code = static_cast<WORD>(MapVirtualKeyW(ticker_virtual_key, MAPVK_VK_TO_VSC));
     std::array<INPUT, 2> inputs{};
     for (auto& input : inputs) {
         input.type = INPUT_KEYBOARD;
-        input.ki.wVk = kTickerVirtualKey;
+        input.ki.wVk = static_cast<WORD>(ticker_virtual_key);
         input.ki.wScan = scan_code;
-        input.ki.dwFlags = KEYEVENTF_SCANCODE;
+        input.ki.dwFlags = KEYEVENTF_SCANCODE | (ticker_extended_key ? KEYEVENTF_EXTENDEDKEY : 0);
     }
     inputs[1].ki.dwFlags |= KEYEVENTF_KEYUP;
     const UINT sent = SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
     if (sent != inputs.size())
-        std::cout << "[CScript] kp_9 SendInput 未完整发送，错误码=" << GetLastError() << std::endl;
+        std::wcout << L"[CScript] " << ticker_source_key
+                   << L" SendInput 未完整发送，错误码=" << GetLastError() << std::endl;
 }
 
 bool WriteTickerFile(const std::string& content)
@@ -691,7 +739,7 @@ void WorkerLoop()
             std::cout << "[CScript] CS2 不再位于前台，已清空输入状态与待执行队列。" << std::endl;
         }
         was_game_active = game_active;
-        if (game_active) {
+        if (game_active && !inputenvironment::ShouldPauseAutomation()) {
             const std::optional<std::string> command = TakeNextTickerCommand();
             if (command.has_value()) {
                 if (!WriteTickerFile(*command)) {
@@ -753,10 +801,14 @@ void StopRuntime()
 void LoadConfig()
 {
     config::EnsureDirectoriesExist();
-    EnsureExampleScript();
+    EnsureDefaultScripts();
     std::lock_guard lock(g_state_mutex);
     g_scripts.clear();
     g_next_script_id = 1;
+    g_ticker_virtual_key = kDefaultTickerVirtualKey;
+    g_ticker_extended_key = false;
+    g_ticker_source_key = L"kp_9";
+    g_previous_ticker_source_key.clear();
 
     const std::filesystem::path path = ConfigPath();
     if (!std::filesystem::exists(path)) {
@@ -771,6 +823,14 @@ void LoadConfig()
         input >> json;
         if (json.contains("enabled") && json["enabled"].is_boolean())
             g_enabled.store(json["enabled"].get<bool>());
+        g_ticker_virtual_key = json.value("ticker_virtual_key", static_cast<UINT>(kDefaultTickerVirtualKey));
+        g_ticker_extended_key = json.value("ticker_extended_key", false);
+        g_ticker_source_key = VirtualKeyToSourceName(g_ticker_virtual_key, g_ticker_extended_key);
+        if (g_ticker_source_key.empty()) {
+            g_ticker_virtual_key = kDefaultTickerVirtualKey;
+            g_ticker_extended_key = false;
+            g_ticker_source_key = L"kp_9";
+        }
         if (json.contains("scripts") && json["scripts"].is_array()) {
             for (const auto& item : json["scripts"]) {
                 if (!item.contains("path") || !item["path"].is_string()) continue;
@@ -802,11 +862,13 @@ void SaveConfig()
     config::EnsureDirectoriesExist();
     nlohmann::json json;
     json["enabled"] = g_enabled.load();
-    json["ticker_key"] = "kp_9";
     json["ticker_hz"] = kTickerHz;
     json["scripts"] = nlohmann::json::array();
     {
         std::lock_guard lock(g_state_mutex);
+        json["ticker_key"] = WideToUtf8(g_ticker_source_key);
+        json["ticker_virtual_key"] = g_ticker_virtual_key;
+        json["ticker_extended_key"] = g_ticker_extended_key;
         for (const auto& script : g_scripts) {
             json["scripts"].push_back({
                 {"id", script.public_state.id},
@@ -947,12 +1009,12 @@ bool SetScriptKey(std::size_t index, UINT virtual_key, bool extended_key, std::w
         if (error) *error = L"该按键无法映射为起源引擎按键名";
         return false;
     }
-    if (source_name == kTickerSourceKey) {
-        if (error) *error = L"kp_9 已被 64Hz ticker 保留，请选择其他按键";
-        return false;
-    }
     {
         std::lock_guard lock(g_state_mutex);
+        if (source_name == g_ticker_source_key) {
+            if (error) *error = g_ticker_source_key + L" 已被 64Hz ticker 保留，请选择其他按键";
+            return false;
+        }
         if (index >= g_scripts.size()) {
             if (error) *error = L"脚本索引无效";
             return false;
@@ -967,9 +1029,46 @@ bool SetScriptKey(std::size_t index, UINT virtual_key, bool extended_key, std::w
     return true;
 }
 
+bool SetTickerKey(UINT virtual_key, bool extended_key, std::wstring* error)
+{
+    const std::wstring source_name = VirtualKeyToSourceName(virtual_key, extended_key);
+    if (source_name.empty()) {
+        if (error) *error = L"该按键无法映射为起源引擎按键名";
+        return false;
+    }
+    {
+        std::lock_guard lock(g_state_mutex);
+        const auto conflict = std::find_if(g_scripts.begin(), g_scripts.end(), [&](const script_record& script) {
+            return script.public_state.source_key == source_name;
+        });
+        if (conflict != g_scripts.end()) {
+            if (error) *error = L"该按键已经绑定给脚本：" + conflict->public_state.path;
+            return false;
+        }
+        g_ticker_virtual_key = virtual_key;
+        g_ticker_extended_key = extended_key;
+        g_previous_ticker_source_key = g_ticker_source_key;
+        g_ticker_source_key = source_name;
+        g_runtime_status = L"Ticker 按键已改为：" + source_name;
+    }
+    SaveConfig();
+    if (g_enabled.load() && !PrepareTickerFiles()) {
+        if (error) *error = GetLastRuntimeStatus();
+        return false;
+    }
+    std::wcout << L"[CScript] 64Hz ticker 按键已修改为：" << source_name << std::endl;
+    return true;
+}
+
+std::wstring GetTickerSourceKey()
+{
+    std::lock_guard lock(g_state_mutex);
+    return g_ticker_source_key;
+}
+
 std::wstring GetDefaultScriptDir()
 {
-    return (BaseDirectory() / L"cscript").wstring();
+    return (BaseDirectory() / L"sourcecfg").wstring();
 }
 
 std::wstring GetTickerCfgPath()

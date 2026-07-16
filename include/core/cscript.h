@@ -33,6 +33,8 @@ bool AddMountedScript(const std::filesystem::path& path, std::wstring* error = n
 void RemoveMountedScript(std::size_t index);
 bool ReloadMountedScript(std::size_t index, std::wstring* error = nullptr);
 bool SetScriptKey(std::size_t index, UINT virtualKey, bool extendedKey, std::wstring* error = nullptr);
+bool SetTickerKey(UINT virtualKey, bool extendedKey, std::wstring* error = nullptr);
+std::wstring GetTickerSourceKey();
 
 std::wstring GetDefaultScriptDir();
 std::wstring GetTickerCfgPath();

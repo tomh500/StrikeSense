@@ -132,7 +132,8 @@ void i18n::Init() {
     cn[Keys::Rage_HORIZONTAL_SCALE] = L"横向 Peek 倍率 (%)"; en[Keys::Rage_HORIZONTAL_SCALE] = L"Horizontal Peek (%)";
     cn[Keys::Rage_VERTICAL_SCALE] = L"前后移动倍率 (%)"; en[Keys::Rage_VERTICAL_SCALE] = L"Forward/Back (%)";
     cn[Keys::Rage_MOUSE_JITTER] = L"为多绑定的脚本提供支持"; en[Keys::Rage_MOUSE_JITTER] = L"Support multi-bind scripts";
-    cn["CSCRIPT_SUPPORT"] = L"CScript 多绑定脚本支持 (BETA)"; en["CSCRIPT_SUPPORT"] = L"CScript multi-bind support (BETA)";
+    cn["CSCRIPT_SUPPORT"] = L"为多绑定的脚本提供支持"; en["CSCRIPT_SUPPORT"] = L"Support multi-bind scripts";
+    cn["CSCRIPT_TICKER_KEY"] = L"Ticker 按键"; en["CSCRIPT_TICKER_KEY"] = L"Ticker key";
     cn["CSCRIPT_EXPAND"] = L"展开"; en["CSCRIPT_EXPAND"] = L"Expand";
     cn["CSCRIPT_COLLAPSE"] = L"收起"; en["CSCRIPT_COLLAPSE"] = L"Collapse";
     cn["CSCRIPT_MOUNT"] = L"挂载脚本"; en["CSCRIPT_MOUNT"] = L"Mount";
@@ -146,8 +147,8 @@ void i18n::Init() {
     cn["CSCRIPT_NEXT"] = L"下一页"; en["CSCRIPT_NEXT"] = L"Next";
     cn["CSCRIPT_PAGE"] = L"第 %d / %d 页，共 %d 个脚本"; en["CSCRIPT_PAGE"] = L"Page %d / %d, %d scripts";
     cn["CSCRIPT_BETA_TITLE"] = L"CScript BETA 警告"; en["CSCRIPT_BETA_TITLE"] = L"CScript BETA Warning";
-    cn["CSCRIPT_BETA_WARNING"] = L"该功能处于BETA测试状态，且与诸多功能可能存在冲突，确认要开启？\n\n程序会以每秒 64 次的频率模拟 kp_9，并向 autoexec.cfg 写入 StrikeTicker.cfg 绑定。若游戏已经启动，请在控制台执行 exec autoexec 或重启游戏。";
-    en["CSCRIPT_BETA_WARNING"] = L"This feature is in BETA and may conflict with other features. Enable it?\n\nStrikeSense will send kp_9 at 64 Hz and install the StrikeTicker.cfg binding in autoexec.cfg. If the game is already running, execute autoexec or restart the game.";
+    cn["CSCRIPT_BETA_WARNING"] = L"该功能处于BETA测试状态，且与诸多功能可能存在冲突，确认要开启？\n\n程序会以每秒 64 次的频率模拟当前 Ticker 按键，并向 autoexec.cfg 写入 StrikeTicker.cfg 绑定。若游戏已经启动，请在控制台执行 exec autoexec 或重启游戏。";
+    en["CSCRIPT_BETA_WARNING"] = L"This feature is in BETA and may conflict with other features. Enable it?\n\nStrikeSense will send the selected ticker key at 64 Hz and install the StrikeTicker.cfg binding in autoexec.cfg. If the game is already running, execute autoexec or restart the game.";
     cn["CSCRIPT_START_FAILED"] = L"CScript 启动失败"; en["CSCRIPT_START_FAILED"] = L"CScript failed to start";
     cn["CSCRIPT_PARSE_FAILED"] = L"CScript 解析失败"; en["CSCRIPT_PARSE_FAILED"] = L"CScript parse failed";
     cn["CSCRIPT_BIND_FAILED"] = L"按键绑定失败"; en["CSCRIPT_BIND_FAILED"] = L"Key binding failed";

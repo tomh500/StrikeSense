@@ -1,6 +1,7 @@
 #include "quickstop.h"
 #include "config.h"
 #include "pages.h"
+#include "input_environment.h"
 #include "volume_mixer.h"
 #include <algorithm>
 #include <array>
@@ -298,6 +299,10 @@ namespace {
 
     void PerformDynamicStop(WORD vKey, int stop_pulse, AxisControl* axis, std::uint64_t generation)
     {
+        if (inputenvironment::ShouldPauseAutomation()) {
+            std::cout << "[急停] 当前处于输入环境，已暂停新的急停脉冲。" << std::endl;
+            return;
+        }
         {
             std::lock_guard movement_lock(movement_mutex);
             if (axis->generation.load() != generation || IsAxisKeyDownUnlocked(axis))
@@ -692,6 +697,7 @@ void ProcessQuickStopCommand(const std::string& cmd)
         }
 
         if (pause_jiting) return;           // pause键控制的全局急停开关
+        if (inputenvironment::ShouldPauseAutomation()) return;
         if (!s_qsConfig.enabled) return;    // 总开关
         if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
         if (IsJumpQuickStopDisabled()) return; // 跳跃后 3 秒内临时禁用急停

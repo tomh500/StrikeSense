@@ -11,6 +11,7 @@
 #include "sound_player.h"
 #include "antistupid.h"
 #include "i18n.h"
+#include "input_environment.h"
 #include "quickstop.h"
 #include "volume_mixer.h"
 #include <iostream>
@@ -209,7 +210,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     notifications_overlay::Initialize(hI);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607162017" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607162058" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -276,6 +277,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             DispatchMessage(&m);
         }
     }
+    inputenvironment::Shutdown();
     cscript::Shutdown();
     consolelog::Shutdown();
     StopQuickStopHook();

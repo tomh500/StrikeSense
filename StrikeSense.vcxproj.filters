@@ -37,6 +37,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\i18n.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\input_environment.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\itemhelper_overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -142,6 +145,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\i18n.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\input_environment.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\itemhelper_overlay.h">

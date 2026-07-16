@@ -4,39 +4,40 @@ CScript 用外部程序把一个按键事件拆成多个单动作 CFG 执行片�
 
 ## 工作方式
 
-启用超频配置中的 `CScript 多绑定脚本支持 (BETA)` 后，StrikeSense 会：
+启用超频配置中的“为多绑定的脚本提供支持”后，StrikeSense 会：
 
 1. 在 CS2 的 `cfg` 目录创建 `StrikeTicker.cfg`。
 2. 向 `autoexec.cfg` 写入以下托管块：
 
 ```cfg
 //--StrikeSense CScript Ticker--
-bind kp_9 "exec StrikeTicker.cfg"
+bind <当前 Ticker 按键> "exec StrikeTicker.cfg"
 //--StrikeSense CScript Ticker END--
 ```
 
-3. CS2 位于前台时，以每秒 64 次的频率模拟一次 `kp_9` 按下和松开。
+3. CS2 位于前台时，以每秒 64 次的频率模拟一次当前 Ticker 按键的按下和松开；默认按键是 `kp_9`，可在展开区域重新绑定。
 4. 捕获已绑定脚本的真实键盘按下、松开事件；`SendInput` 生成的事件不会再次进入脚本队列。
-5. 每个 15.625ms 时间片最多向 `StrikeTicker.cfg` 写入一个动作，然后模拟 `kp_9`。
+5. 每个 15.625ms 时间片最多向 `StrikeTicker.cfg` 写入一个动作，然后模拟当前 Ticker 按键。
 6. 一个事件的最后动作执行后，下一个时间片会清空 `StrikeTicker.cfg`，防止最后动作被重复执行。
-7. 队列为空且不需要清空文件时，仍维持 64Hz `kp_9` ticker，但不进行无意义文件 I/O。
+7. 队列为空且不需要清空文件时，仍维持 64Hz ticker，但不进行无意义文件 I/O。
 
-如果游戏已在运行，需要在控制台执行一次 `exec autoexec`，或重启游戏，使 `kp_9` 绑定生效。
+如果游戏已在运行，需要在控制台执行一次 `exec autoexec`，或重启游戏，使 Ticker 绑定生效。
 
-`kp_9` 是 ticker 保留按键，不能再绑定给 CScript。
+当前 Ticker 按键是保留按键，不能同时绑定给 CScript。修改 Ticker 按键后，原按键会写入 `unbind`，新按键会写入 `bind`。
 
 ## 脚本目录
 
 默认目录：
 
 ```text
-%UserProfile%\StrikeSense\cscript
+%UserProfile%\StrikeSense\sourcecfg
 ```
 
-首次运行会生成 `testscript.cscript`。仓库中的同名示例位于：
+首次运行会生成 `testscript.cscript` 和 `jumpthrow.cscript`。仓库中的示例位于：
 
 ```text
-cscript_examples/testscript.cscript
+sourcecfg/testscript.cscript
+sourcecfg/jumpthrow.cscript
 ```
 
 ## 语法
@@ -148,7 +149,7 @@ a pressed 1
 
 - `a` 到 `z`
 - 主键盘 `0` 到 `9`
-- `kp_0` 到 `kp_8`；`kp_9` 为 ticker 保留
+- `kp_0` 到 `kp_9`；其中当前 Ticker 按键不可同时绑定给脚本
 - `ctrl`、`rctrl`
 - `shift`、`rshift`
 - `alt`、`ralt`
@@ -166,4 +167,4 @@ a pressed 1
 %UserProfile%\StrikeSense\setting\cscript_config.json
 ```
 
-CScript 面板每页固定显示三个脚本，并提供挂载、绑定、重载、卸载、上一页和下一页操作。急停参数与 CScript 子控件可分别折叠；展开其中一个时会收起另一个，避免控件重叠。
+CScript 面板每页固定显示三个脚本，并提供 Ticker 按键绑定、脚本挂载、脚本按键绑定、重载、卸载、上一页和下一页操作。急停参数与 CScript 子控件使用进化页相同的 `>` / `v` 折叠样式，展开后会直接撑开下方模块的位置。

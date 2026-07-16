@@ -57,6 +57,7 @@ set(SOURCES
     src/core/gsi_server.cpp
     src/core/hotkey.cpp
     src/core/i18n.cpp
+    src/core/input_environment.cpp
     src/core/itemhelper_overlay.cpp
     src/core/kernelcore.cpp
     src/core/mouse_jitter.cpp
@@ -95,6 +96,7 @@ set(HEADERS
     include/core/gsi_server.h
     include/core/hotkey.h
     include/core/i18n.h
+    include/core/input_environment.h
     include/core/itemhelper_overlay.h
     include/core/kernelcore.h
     include/core/mouse_jitter.h
