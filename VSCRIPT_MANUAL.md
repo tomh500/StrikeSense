@@ -2,7 +2,7 @@
 
 ## 文档版本
 
-- API 文档版本：`2026.07.15`
+- API 文档版本：`2026.07.16`
 - 对应程序构建时间戳：`202607151838`
 - 适用范围：StrikeSense 内置 VScript 解释器
 - 适用场景：围绕 CS2 GSI 状态、玩家自定义触发器、自定义事件编写脚本
@@ -497,6 +497,7 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 // @version: 2026.07.04
 // @notice: 这是一个演示脚本
 // @modifier: self_user=jingy
+// @textgui: false
 ```
 
 ### 字段说明
@@ -509,6 +510,7 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 | `@version` | `string` | 脚本版本 |
 | `@notice` | `string` | UI 提示说明 |
 | `@modifier` | `string` | 额外限制条件，目前支持 `self_user=<Windows用户名>` |
+| `@textgui` | `bool` | 持续脚本是否显示在 TextGUI；缺省为 `true`，设为 `false` 仍会正常轮询 |
 
 ## 语法规则
 
@@ -534,6 +536,20 @@ if(health <= 15 && Cooldown("low_hp_warn", 5000)){
 - `array<T>`
 - 运行时对象：`list`
 - 运行时对象：`object`
+
+### 空值
+
+`NULL`、`null` 和 `nullptr` 都表示真正的空值，可用于代替空字符串。空值转为字符串时得到空文本，条件判断为 `false`。
+
+```cpp
+auto accessory = NULL;
+RegisterTextguiText("Custom Module", "custom_module", accessory);
+if(IsNull(accessory)){
+    Log("当前没有附属参数");
+}
+```
+
+`IsVoid(value)` 继续兼容旧脚本，`IsNull(value)` 用于明确判断新的空值。
 
 ### `auto` 规则
 
@@ -899,3 +915,25 @@ for(int i=0; i<Size(accounts); i++){
 - `vscript_examples/sniper_crosshair.vscrpit`
 
 文件选择器同时兼容标准扩展名 `.vscript` 和早期示例使用的拼写 `.vscrpit`。
+### TextGUI API
+
+| API | 参数 | 返回类型 | 说明 |
+| --- | --- | --- | --- |
+| `RegisterTextguiText(text, id, accessory)` | `string, string, string|null` | `bool` | 注册或更新一行文字；第三个附属参数可省略或传 `NULL` |
+| `SetTextguiText(text, id, accessory)` | `string, string, string|null` | `bool` | `RegisterTextguiText` 的同义函数 |
+| `RemoveTextguiText(id)` | `string` | `bool` | 移除脚本注册的文字 |
+| `GetTextguiModuleIds()` | 无 | `list<string>` | 返回程序原生模块的稳定 ID 列表 |
+| `HideTextguiModule(id)` | `string` | `bool` | 仅从 TextGUI 隐藏模块，不改变模块状态且不产生通知 |
+| `ShowTextguiModule(id)` | `string` | `bool` | 恢复模块在 TextGUI 中的显示 |
+| `SetTextguiModuleVisible(id, visible)` | `string, bool` | `bool` | 设置模块是否显示在 TextGUI |
+
+```cpp
+RegisterTextguiText("FakeLag", "my_fakelag", "Dynamic 250ms");
+SetTextguiText("FakeLag", "my_fakelag", NULL);
+HideTextguiModule("sniper_crosshair");
+```
+
+原生模块 ID 包括 `custom_musickit`、`kill_sound`、`force_interrupt`、
+`flash_overlay`、`low_memory`、`mvp_info`、`socd`、`mwheel_jump`、
+`mixed_sensitivity`、`recoil_crosshair`、`knife_sound`、`death_volume`、
+`sniper_crosshair`、`item_helper`、`quick_stop`、`mouse_jitter` 和 `console_log`。

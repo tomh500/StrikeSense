@@ -10,6 +10,11 @@
 
 namespace vscript::detail {
 
+value NullValue()
+{
+    return {};
+}
+
 value TextValue(const std::wstring& s)
 {
     value v;
@@ -89,7 +94,7 @@ std::wstring ToText(const value& v)
         out += L"}";
         return out;
     }
-    return L"void";
+    return L"";
 }
 
 std::wstring ExpandEnvText(const std::wstring& text)
@@ -123,7 +128,7 @@ value GetVar(const std::wstring& name)
     }
     auto it = s_vars.find(name);
     if (it != s_vars.end()) return it->second;
-    return TextValue(L"void");
+    return NullValue();
 }
 
 value GetVarFromMap(const std::map<std::wstring, value>& vars, const std::wstring& name)
@@ -325,7 +330,7 @@ value CoerceValueForType(const value& input, const std::wstring& typeName)
         return ListValue({ input });
     }
     if (typeName.rfind(L"object", 0) == 0 && input.type == value::kind::object) return input;
-    if (typeName == L"void") return TextValue(L"void");
+    if (typeName == L"void") return NullValue();
     return input;
 }
 
@@ -535,7 +540,7 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     }
     if (e == L"true") return BoolValue(true);
     if (e == L"false") return BoolValue(false);
-    if (e == L"void") return TextValue(L"void");
+    if (e == L"void" || e == L"NULL" || e == L"null" || e == L"nullptr") return NullValue();
     if (auto accessor = TryResolveAccessorExpression(e, vars)) {
         return *accessor;
     }
@@ -543,7 +548,7 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
         value base = GetVarFromMap(vars, index->first);
         const int i = static_cast<int>(ToNumber(EvalExprWithVars(index->second, vars)));
         if (base.type == value::kind::list && i >= 0 && static_cast<size_t>(i) < base.list.size()) return base.list[static_cast<size_t>(i)];
-        return TextValue(L"void");
+        return NullValue();
     }
     auto fn = ParseFunction(e);
     if (fn && fn->first.find(L' ') == std::wstring::npos) {

@@ -383,6 +383,7 @@ void ResetScriptMetadata(mounted_script& script)
     script.privilegedAllowed = false;
     script.dangerStyle = false;
     script.missing = false;
+    script.showInTextgui = true;
 }
 
 void LoadScriptMetadata(mounted_script& script)
@@ -398,6 +399,7 @@ void LoadScriptMetadata(mounted_script& script)
         std::wstring version = ReadMetaValue(line, L"@version");
         std::wstring notice = ReadMetaValue(line, L"@notice");
         std::wstring modifier = ReadMetaValue(line, L"@modifier");
+        std::wstring textgui = ReadMetaValue(line, L"@textgui");
         if (!name.empty()) {
             script.name = name;
             script.hasMetadataName = true;
@@ -407,6 +409,11 @@ void LoadScriptMetadata(mounted_script& script)
         if (!version.empty()) script.version = version;
         if (!notice.empty()) script.notice = notice;
         if (!modifier.empty()) script.modifier = modifier;
+        if (!textgui.empty()) {
+            script.showInTextgui = !(EqualsIgnoreCase(textgui, L"false")
+                || EqualsIgnoreCase(textgui, L"off") || textgui == L"0"
+                || EqualsIgnoreCase(textgui, L"no"));
+        }
     }
     ApplyModifierMetadata(script);
 }

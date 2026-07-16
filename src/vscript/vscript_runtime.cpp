@@ -2,6 +2,7 @@
 
 #include "console_log.h"
 #include "mouse_jitter.h"
+#include "module_notifications.h"
 #include "quickstop.h"
 #include "textgui_overlay.h"
 #include <TlHelp32.h>
@@ -547,7 +548,7 @@ double ValueSize(const value& input)
 
 value JsonToValue(const nlohmann::json& input)
 {
-    if (input.is_null()) return TextValue(L"void");
+    if (input.is_null()) return NullValue();
     if (input.is_boolean()) return BoolValue(input.get<bool>());
     if (input.is_number()) return NumberValue(input.get<double>());
     if (input.is_string()) return TextValue(Utf8ToWide(input.get<std::string>()));
@@ -563,7 +564,7 @@ value JsonToValue(const nlohmann::json& input)
         }
         return ObjectValue(fields);
     }
-    return TextValue(L"void");
+    return NullValue();
 }
 
 value BuildAllPlayersValue()
@@ -667,6 +668,9 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
     if (name == L"IsVoid" && args.size() >= 1) {
         return BoolValue(args[0].type == value::kind::none || (args[0].type == value::kind::text && args[0].text == L"void"));
     }
+    if (name == L"IsNull" && args.size() >= 1) {
+        return BoolValue(args[0].type == value::kind::none);
+    }
     if (name == L"HasField" && args.size() >= 2) {
         if (args[0].type != value::kind::object) return BoolValue(false);
         return BoolValue(args[0].object.find(ToText(args[1])) != args[0].object.end());
@@ -721,11 +725,25 @@ value ExecuteFunction(const std::wstring& name, const std::vector<std::wstring>&
         return NumberValue((double)s_consoleLogQueue.size());
     }
     if ((name == L"RegisterTextguiText" || name == L"SetTextguiText") && args.size() >= 2) {
-        textgui_overlay::RegisterCustomLine(ToText(args[1]), ToText(args[0]));
+        const std::wstring accessory = args.size() >= 3 ? ToText(args[2]) : L"";
+        textgui_overlay::RegisterCustomLine(ToText(args[1]), ToText(args[0]), accessory);
         return BoolValue(true);
     }
     if ((name == L"RemoveTextguiText" || name == L"DestroyTextguiText") && args.size() >= 1) {
         textgui_overlay::RemoveCustomLine(ToText(args[0]));
+        return BoolValue(true);
+    }
+    if (name == L"GetTextguiModuleIds") {
+        std::vector<value> ids;
+        for (const auto& id : modulenotifications::NativeModuleIds()) ids.push_back(TextValue(id));
+        return ListValue(ids);
+    }
+    if ((name == L"HideTextguiModule" || name == L"ShowTextguiModule") && args.size() >= 1) {
+        textgui_overlay::SetModuleHidden(ToText(args[0]), name == L"HideTextguiModule");
+        return BoolValue(true);
+    }
+    if (name == L"SetTextguiModuleVisible" && args.size() >= 2) {
+        textgui_overlay::SetModuleHidden(ToText(args[0]), !Truthy(args[1]));
         return BoolValue(true);
     }
     if (name == L"Delta" && args.size() >= 1) {

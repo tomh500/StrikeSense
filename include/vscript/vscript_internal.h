@@ -137,6 +137,7 @@ void RegisterConstVariable(const std::wstring& name);
 std::wstring BuildScopedCooldownKey(const std::wstring& key);
 void FlattenJsonState(const std::wstring& prefix, const nlohmann::json& j);
 value TextValue(const std::wstring& s);
+value NullValue();
 value NumberValue(double n);
 value BoolValue(bool b);
 value ObjectValue(const std::map<std::wstring, value>& fields);
