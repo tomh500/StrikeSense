@@ -511,14 +511,14 @@ bool ProcessLegalCfgKeyInput(HWND hw, UINT msg, WPARAM wp, LPARAM) {
     if ((g_editingMSnormal||g_editingMSattack) && msg == WM_CHAR) {
         wchar_t ch = (wchar_t)wp;
         std::wstring* t = g_editingMSnormal ? &g_msNormal : &g_msAttack;
-        if ((ch >= '0' && ch <= '9') || ch == '.') { *t += ch; InvalidateRect(hw,0,0); return true; }
-        if (ch == 8 && !t->empty()) { t->pop_back(); InvalidateRect(hw,0,0); return true; }
+        if ((ch >= '0' && ch <= '9') || ch == '.') { *t += ch; RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return true; }
+        if (ch == 8 && !t->empty()) { t->pop_back(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return true; }
         return false;
     }
     if ((g_editingMSnormal||g_editingMSattack) && msg == WM_KEYDOWN) {
         std::wstring* t = g_editingMSnormal ? &g_msNormal : &g_msAttack;
         UINT vk = (UINT)wp;
-        if (vk == VK_BACK && !t->empty()) { t->pop_back(); InvalidateRect(hw,0,0); return true; }
+        if (vk == VK_BACK && !t->empty()) { t->pop_back(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return true; }
         return false;
     }
     return false;

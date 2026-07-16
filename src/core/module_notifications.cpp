@@ -89,7 +89,7 @@ std::vector<feature_line> CollectEnabledFeatures(bool includeHidden)
     if (consolelog::IsEnabled()) add(L"console_log", L"控制台日志");
 
     for (const auto& script : vscript::MountedScripts()) {
-        if (!script.continuous || !script.showInTextgui) continue;
+        if (!script.continuous || (!includeHidden && !script.showInTextgui)) continue;
         std::wstring name = script_display_name(script);
         const std::wstring id = L"script:" + script.path;
         if (!name.empty() && (includeHidden || !IsModuleHidden(id))) features.push_back({ id, name, L"" });
