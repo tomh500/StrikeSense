@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <thread>
 #include <vector>
 
 namespace cscriptui {
@@ -41,9 +42,25 @@ void DrawButton(Gdiplus::Graphics& graphics, const Gdiplus::RectF& rect, const w
     StringFormat format;
     format.SetAlignment(StringAlignmentCenter);
     format.SetLineAlignment(StringAlignmentCenter);
-    graphics.FillRectangle(&background, rect);
-    graphics.DrawRectangle(&border, rect);
+    GraphicsPath path;
+    constexpr REAL diameter = 16.f;
+    path.AddArc(rect.X, rect.Y, diameter, diameter, 180.f, 90.f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y, diameter, diameter, 270.f, 90.f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y + rect.Height - diameter, diameter, diameter, 0.f, 90.f);
+    path.AddArc(rect.X, rect.Y + rect.Height - diameter, diameter, diameter, 90.f, 90.f);
+    path.CloseFigure();
+    graphics.FillPath(&background, &path);
+    graphics.DrawPath(&border, &path);
     graphics.DrawString(label, -1, &font, rect, &format, &foreground);
+}
+
+void OpenDirectoryAsync(std::wstring directory)
+{
+    std::thread([directory = std::move(directory)] {
+        const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        ShellExecuteW(nullptr, L"open", directory.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        if (SUCCEEDED(initialized)) CoUninitialize();
+    }).detach();
 }
 
 std::filesystem::path PickScript(HWND owner)
@@ -239,7 +256,7 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
     }
     if (Hit(g_openDirectoryRect, mouseX, mouseY)) {
         std::filesystem::create_directories(cscript::GetDefaultScriptDir());
-        ShellExecuteW(owner, L"open", cscript::GetDefaultScriptDir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        OpenDirectoryAsync(cscript::GetDefaultScriptDir());
         return true;
     }
     if (Hit(g_previousPageRect, mouseX, mouseY)) {
