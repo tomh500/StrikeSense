@@ -59,6 +59,16 @@ float ease_bounce(float t)
     return 1.f + c3 * std::pow(t - 1.f, 3.f) + c1 * std::pow(t - 1.f, 2.f);
 }
 
+BYTE alpha_byte(float alpha)
+{
+    return static_cast<BYTE>(std::lround(std::clamp(alpha, 0.f, 255.f)));
+}
+
+Gdiplus::Color with_alpha(const Gdiplus::Color& color, float alpha)
+{
+    return Gdiplus::Color(alpha_byte(alpha), color.GetR(), color.GetG(), color.GetB());
+}
+
 void add_rounded_rect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, float radius)
 {
     path.AddArc(rect.X, rect.Y, radius * 2.f, radius * 2.f, 180.f, 90.f);
@@ -253,6 +263,145 @@ void draw_square(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
         box.X + 16.f, box.Y + 38.f, s_enabledState ? Gdiplus::Color(255, 150, 255, 190) : Gdiplus::Color(255, 255, 150, 150));
 }
 
+void draw_gemini_aurora(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float seconds, float stateAlpha)
+{
+    if (stateAlpha <= 0.01f) return;
+
+    const float left = box.X + 82.f;
+    const float top = box.Y + 49.f;
+    const float right = box.X + box.Width - 28.f;
+    const float wave = std::sin(seconds * 1.3f) * 5.f;
+    Gdiplus::GraphicsPath aurora;
+    aurora.StartFigure();
+    aurora.AddBezier(left, top + wave,
+        left + 58.f, top - 10.f - wave,
+        right - 74.f, top + 14.f + wave,
+        right, top + 2.f - wave);
+    aurora.AddLine(Gdiplus::PointF(right, top + 2.f - wave),
+        Gdiplus::PointF(right, top + 20.f));
+    aurora.AddBezier(right, top + 20.f,
+        right - 72.f, top + 34.f - wave,
+        left + 66.f, top + 18.f + wave,
+        left, top + 26.f);
+    aurora.CloseFigure();
+
+    Gdiplus::LinearGradientBrush auroraBrush(
+        Gdiplus::PointF(left, top), Gdiplus::PointF(right, top + 28.f),
+        Gdiplus::Color(alpha_byte(26.f * stateAlpha), 0, 220, 255),
+        Gdiplus::Color(alpha_byte(24.f * stateAlpha), 255, 150, 200));
+    g.FillPath(&auroraBrush, &aurora);
+}
+
+void draw_gemini_icon(Gdiplus::Graphics& g, const Gdiplus::PointF& center, float seconds, float stateAlpha)
+{
+    constexpr float pi = 3.1415926535f;
+    const float breathe = s_enabledState ? (1.f + 0.08f * std::sin(seconds * 3.4f)) : 1.f;
+    const float ringRadius = 22.f * breathe;
+
+    Gdiplus::Color skyBlue(255, 0, 220, 255);
+    Gdiplus::Color softPink(255, 255, 150, 200);
+    Gdiplus::Color disabled(120, 200, 200, 200);
+
+    const auto state_color = [&](const Gdiplus::Color& enabledColor, float enabledAlpha) {
+        return s_enabledState ? with_alpha(enabledColor, enabledAlpha * stateAlpha) : disabled;
+    };
+
+    const Gdiplus::GraphicsState saved = g.Save();
+    if (s_enabledState) {
+        Gdiplus::Matrix rotation;
+        rotation.RotateAt(std::fmod(seconds * 18.f, 360.f), center);
+        g.MultiplyTransform(&rotation);
+    }
+    Gdiplus::Pen ringPen(state_color(skyBlue, 185.f), 2.f);
+    ringPen.SetDashStyle(Gdiplus::DashStyleDash);
+    const float dash[] = { 3.f, 3.f };
+    ringPen.SetDashPattern(dash, 2);
+    g.DrawEllipse(&ringPen, center.X - ringRadius, center.Y - ringRadius,
+        ringRadius * 2.f, ringRadius * 2.f);
+    g.Restore(saved);
+
+    const float coreRadius = s_enabledState ? 12.f * breathe : 11.f;
+    Gdiplus::RectF core(center.X - coreRadius, center.Y - coreRadius,
+        coreRadius * 2.f, coreRadius * 2.f);
+    if (s_enabledState) {
+        Gdiplus::LinearGradientBrush coreBrush(core, skyBlue, softPink, 35.f);
+        g.FillEllipse(&coreBrush, core);
+    } else {
+        Gdiplus::SolidBrush coreBrush(disabled);
+        g.FillEllipse(&coreBrush, core);
+    }
+
+    if (!s_enabledState) return;
+
+    for (int i = 0; i < 8; ++i) {
+        const float life = std::fmod(seconds * 0.42f + static_cast<float>(i) * 0.137f, 1.f);
+        const float angle = static_cast<float>(i) * (2.f * pi / 8.f) + seconds * 0.35f;
+        const float distance = 19.f + life * 23.f;
+        const float size = 2.f + std::fmod(static_cast<float>(i) * 1.7f, 1.4f);
+        const float alpha = (1.f - life) * 95.f * stateAlpha;
+        Gdiplus::SolidBrush particleBrush(Gdiplus::Color(alpha_byte(alpha), 180, 235, 255));
+        g.FillEllipse(&particleBrush,
+            center.X + std::cos(angle) * distance - size * 0.5f,
+            center.Y + std::sin(angle) * distance - size * 0.5f,
+            size, size);
+    }
+}
+
+void draw_gemini(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapsedMs)
+{
+    const float seconds = elapsedMs / 1000.f;
+    const float stateAlpha = s_enabledState
+        ? std::clamp(elapsedMs / 200.f, 0.f, 1.f)
+        : 0.f;
+
+    Gdiplus::RectF glowBox(box.X - 20.f, box.Y - 18.f, box.Width + 40.f, box.Height + 36.f);
+    Gdiplus::GraphicsPath glowPath;
+    add_rounded_rect(glowPath, glowBox, 18.f);
+    Gdiplus::PathGradientBrush glowBrush(&glowPath);
+    glowBrush.SetCenterColor(Gdiplus::Color(68, 0, 191, 255));
+    Gdiplus::Color glowSurround[] = { Gdiplus::Color(0, 130, 70, 220) };
+    INT surroundCount = 1;
+    glowBrush.SetSurroundColors(glowSurround, &surroundCount);
+    g.FillPath(&glowBrush, &glowPath);
+
+    Gdiplus::GraphicsPath cardPath;
+    add_rounded_rect(cardPath, box, 13.f);
+    Gdiplus::SolidBrush darkBackground(Gdiplus::Color(180, 18, 18, 24));
+    g.FillPath(&darkBackground, &cardPath);
+
+    Gdiplus::LinearGradientBrush tintBrush(
+        Gdiplus::PointF(box.X, box.Y), Gdiplus::PointF(box.X + box.Width, box.Y + box.Height),
+        Gdiplus::Color(38, 0, 220, 255), Gdiplus::Color(28, 255, 150, 200));
+    g.FillPath(&tintBrush, &cardPath);
+
+    Gdiplus::Pen edgePen(Gdiplus::Color(50, 210, 235, 255), 1.f);
+    g.DrawPath(&edgePen, &cardPath);
+
+    const Gdiplus::PointF iconCenter(box.X + 43.f, box.Y + box.Height * 0.5f);
+    draw_gemini_icon(g, iconCenter, seconds, stateAlpha);
+    draw_gemini_aurora(g, box, seconds, stateAlpha);
+
+    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 14.5f, Gdiplus::FontStyleBold);
+    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.5f, Gdiplus::FontStyleBold);
+    draw_text(g, s_text, titleFont, box.X + 82.f, box.Y + 17.f,
+        Gdiplus::Color(255, 255, 255, 255));
+
+    const std::wstring state = s_enabledState ? L"Enabled" : L"Disabled";
+    const Gdiplus::RectF statusRect(box.X + 82.f, box.Y + 46.f, 148.f, 22.f);
+    if (s_enabledState) {
+        Gdiplus::LinearGradientBrush statusBrush(statusRect,
+            Gdiplus::Color(255, 0, 220, 255),
+            Gdiplus::Color(255, 255, 150, 200),
+            Gdiplus::LinearGradientModeHorizontal);
+        g.DrawString(state.c_str(), -1, &subFont,
+            Gdiplus::PointF(statusRect.X, statusRect.Y), &statusBrush);
+    } else {
+        Gdiplus::SolidBrush disabledBrush(Gdiplus::Color(120, 200, 200, 200));
+        g.DrawString(state.c_str(), -1, &subFont,
+            Gdiplus::PointF(statusRect.X, statusRect.Y), &disabledBrush);
+    }
+}
+
 void draw_deepseek(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
 {
     Gdiplus::RectF shadow(box.X + 3.f, box.Y + 5.f, box.Width, box.Height);
@@ -304,9 +453,9 @@ void draw()
     }
 
     const int style = std::clamp(g_notificationsStyle, 0, 5);
-    const int width = style == 4 ? 460 : (style == 3 || style == 5 ? 330 : 310);
-    const int height = style == 4 ? 68 : 72;
-    const int pad = style == 1 ? 8 : 4;
+    const int width = style == 4 ? 460 : (style == 3 ? 370 : (style == 5 ? 330 : 310));
+    const int height = style == 3 ? 86 : (style == 4 ? 68 : 72);
+    const int pad = style == 3 ? 28 : (style == 1 ? 8 : 4);
     const int renderWidth = width + pad * 2;
     const int renderHeight = height + pad * 2;
     const int sw = GetSystemMetrics(SM_CXSCREEN);
@@ -314,7 +463,7 @@ void draw()
     const float progress = std::clamp(1.f - elapsed / durationMs, 0.f, 1.f);
     const float liquidbounceKnobProgress = ease_out(
         elapsed / static_cast<float>(kLiquidBounceKnobAnimMs));
-    const float in = style == 4 ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
+    const float in = (style == 3 || style == 4) ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
     const float outStart = (std::max)(0.f, durationMs - kAnimMs);
     const float out = elapsed > outStart ? ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)) : 0.f;
     const int baseX = sw - width - 26;
@@ -324,7 +473,7 @@ void draw()
     if (style == 1) {
         constexpr float vapeSlideY = 48.f;
         y = baseY - static_cast<int>(std::lround((1.f - in + out) * vapeSlideY));
-    } else if (style == 4) {
+    } else if (style == 3 || style == 4) {
         x = baseX + static_cast<int>(std::lround(out * 360.f));
         y = baseY - static_cast<int>(std::lround((1.f - in) * 80.f));
     }
@@ -337,7 +486,8 @@ void draw()
 
     const int progressBucket = style == 0
         ? static_cast<int>(std::lround(liquidbounceKnobProgress * 48.f))
-        : ((style == 1 || style == 2) ? static_cast<int>(std::lround(progress * 48.f)) : 0);
+        : ((style == 1 || style == 2) ? static_cast<int>(std::lround(progress * 48.f))
+            : (style == 3 ? static_cast<int>((now / kFrameMs) % 240) : 0));
     const bool needsRedraw = s_cacheDirty
         || s_cachedText != s_text
         || s_cachedEnabledState != s_enabledState
@@ -350,14 +500,14 @@ void draw()
         using namespace Gdiplus;
         Graphics g(s_hdcMem);
         g.SetSmoothingMode(SmoothingModeAntiAlias);
-        g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+        g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
         g.Clear(Color(0, 0, 0, 0));
         RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
 
         if (style == 0) draw_liquidbounce(g, box, liquidbounceKnobProgress);
         else if (style == 1) draw_vape(g, box, progress);
         else if (style == 2) draw_gpt(g, box, progress);
-        else if (style == 3) draw_square(g, box);
+        else if (style == 3) draw_gemini(g, box, elapsed);
         else if (style == 4) draw_deepseek(g, box);
         else draw_square(g, box);
 
@@ -375,7 +525,7 @@ void draw()
     POINT src{ 0, 0 };
     BLENDFUNCTION blend{};
     blend.BlendOp = AC_SRC_OVER;
-    blend.SourceConstantAlpha = 255;
+    blend.SourceConstantAlpha = alpha_byte((1.f - out) * 255.f);
     blend.AlphaFormat = AC_SRC_ALPHA;
     UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, s_hdcMem, &src, 0, &blend, ULW_ALPHA);
     ReleaseDC(nullptr, hdcScreen);
