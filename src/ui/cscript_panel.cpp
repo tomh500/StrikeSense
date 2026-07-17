@@ -47,6 +47,25 @@ bool Hit(const Gdiplus::RectF& rect, int x, int y)
     return x >= rect.X && x <= rect.X + rect.Width && y >= rect.Y && y <= rect.Y + rect.Height;
 }
 
+void AddRoundedRect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, float radius)
+{
+    const float d = (std::min)(radius * 2.0f, (std::min)(rect.Width, rect.Height));
+    path.AddArc(rect.X, rect.Y, d, d, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y, d, d, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y + rect.Height - d, d, d, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - d, d, d, 90.0f, 90.0f);
+    path.CloseFigure();
+}
+
+void DrawRoundedPanel(Gdiplus::Graphics& graphics, const Gdiplus::RectF& rect,
+    Gdiplus::Brush& background, Gdiplus::Pen& border)
+{
+    Gdiplus::GraphicsPath path;
+    AddRoundedRect(path, rect, 10.0f);
+    graphics.FillPath(&background, &path);
+    graphics.DrawPath(&border, &path);
+}
+
 void DrawButton(Gdiplus::Graphics& graphics, const Gdiplus::RectF& rect, const wchar_t* label)
 {
     ui::DrawRoundedButton(graphics, rect, label, false, true);
@@ -206,8 +225,7 @@ int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, in
         const auto& script = scripts[index];
         RectF row(static_cast<REAL>(contentX + 8), static_cast<REAL>(rowY),
             static_cast<REAL>(contentWidth - 16), 84.f);
-        graphics.FillRectangle(&rowBackground, row);
-        graphics.DrawRectangle(&rowBorder, row);
+        DrawRoundedPanel(graphics, row, rowBackground, rowBorder);
         const std::wstring fileName = Compact(std::filesystem::path(script.path).filename().wstring(), 28);
         graphics.DrawString(fileName.c_str(), -1, &boldFont, PointF(row.X + 8.f, row.Y + 4.f), &text);
 

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 #include <gdiplus.h>
 #include <iostream>
 #include <mutex>
@@ -46,6 +47,37 @@ constexpr int kLiquidBounceKnobAnimMs = 300;
 std::mutex s_pendingMutex;
 std::wstring s_pendingText;
 bool s_pendingEnabledState = true;
+
+struct notification_item {
+    std::wstring text;
+    bool enabled = true;
+    ULONGLONG startTick = 0;
+    ULONGLONG exitTick = 0;
+    float y = 0.0f;
+    bool yInitialized = false;
+};
+
+std::vector<notification_item> s_items;
+std::vector<notification_item> s_waitingItems;
+
+bool is_list_style(int style)
+{
+    return style == 0;
+}
+
+float list_slot_y(int slot, int height, int gap, int pad)
+{
+    return static_cast<float>(pad + (2 - slot) * (height + gap));
+}
+
+void append_list_item(notification_item item, int height, int gap, int pad)
+{
+    const int slot = static_cast<int>((std::min<std::size_t>)(s_items.size(), 2));
+    const float targetY = list_slot_y(slot, height, gap, pad);
+    item.y = targetY - 22.0f;
+    item.yInitialized = true;
+    s_items.push_back(std::move(item));
+}
 
 bool has_window()
 {
@@ -678,8 +710,119 @@ void draw_deepseek(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapse
     draw_text(g, s_text, subFont, box.X + 60.f, box.Y + 39.f, subtitleBrush);
 }
 
+void draw_liquidbounce_list()
+{
+    if (!has_window() || !g_notificationsEnabled || !IsCS2WindowActive()) {
+        hide();
+        return;
+    }
+
+    constexpr int style = 0;
+    constexpr int width = 310;
+    constexpr int height = 72;
+    constexpr int pad = 4;
+    constexpr int gap = 10;
+    constexpr int slideRoom = 150;
+    const int renderWidth = width + pad * 2 + slideRoom;
+    const int renderHeight = height * 3 + gap * 2 + pad * 2;
+    const ULONGLONG now = GetTickCount64();
+    const float durationMs = std::clamp(g_notificationsDuration, 0.05f, 86400.f) * 1000.f;
+
+    for (auto& item : s_items) {
+        if (item.exitTick == 0 && static_cast<float>(now - item.startTick) >= durationMs) {
+            item.exitTick = now;
+        }
+    }
+
+    s_items.erase(std::remove_if(s_items.begin(), s_items.end(), [now](const notification_item& item) {
+        if (item.exitTick == 0) return false;
+        return static_cast<float>(now - item.exitTick) >= static_cast<float>(kAnimMs);
+        }), s_items.end());
+
+    while (!s_waitingItems.empty() && s_items.size() < 3) {
+        notification_item item = std::move(s_waitingItems.front());
+        s_waitingItems.erase(s_waitingItems.begin());
+        item.startTick = now;
+        item.exitTick = 0;
+        append_list_item(std::move(item), height, gap, pad);
+    }
+
+    if (s_items.empty()) {
+        hide();
+        return;
+    }
+
+    const int sw = GetSystemMetrics(SM_CXSCREEN);
+    const int sh = GetSystemMetrics(SM_CYSCREEN);
+    const int baseX = sw - width - 26;
+    const int baseY = sh - height - 42;
+    const int windowX = baseX - pad;
+    const int windowY = baseY - 2 * (height + gap) - pad;
+
+    HDC hdcScreen = GetDC(nullptr);
+    if (!ensure_back_buffer(hdcScreen, renderWidth, renderHeight)) {
+        ReleaseDC(nullptr, hdcScreen);
+        return;
+    }
+
+    using namespace Gdiplus;
+    Graphics g(s_hdcMem);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
+    g.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+    g.SetCompositingQuality(CompositingQualityHighQuality);
+    g.Clear(Color(0, 0, 0, 0));
+
+    for (std::size_t i = 0; i < s_items.size(); ++i) {
+        auto& item = s_items[i];
+        const float targetY = list_slot_y(static_cast<int>(i), height, gap, pad);
+        if (!item.yInitialized) {
+            item.y = targetY;
+            item.yInitialized = true;
+        }
+        item.y += (targetY - item.y) * 0.32f;
+        if (std::fabs(item.y - targetY) < 0.35f) item.y = targetY;
+
+        const float elapsed = static_cast<float>(now - item.startTick);
+        const float entry = ease_out(elapsed / static_cast<float>(kAnimMs));
+        float exit = 0.0f;
+        if (item.exitTick != 0) {
+            exit = ease_out(static_cast<float>(now - item.exitTick) / static_cast<float>(kAnimMs));
+        }
+
+        const float x = static_cast<float>(pad) + (1.0f - entry) * 84.0f + exit * static_cast<float>(slideRoom);
+        RectF box(x, item.y, static_cast<REAL>(width), static_cast<REAL>(height));
+        s_text = item.text;
+        s_enabledState = item.enabled;
+        const float knobProgress = ease_out(elapsed / static_cast<float>(kLiquidBounceKnobAnimMs));
+        draw_liquidbounce(g, box, knobProgress);
+    }
+
+    POINT dst{ windowX, windowY };
+    SIZE size{ renderWidth, renderHeight };
+    POINT src{ 0, 0 };
+    BLENDFUNCTION blend{};
+    blend.BlendOp = AC_SRC_OVER;
+    blend.SourceConstantAlpha = 255;
+    blend.AlphaFormat = AC_SRC_ALPHA;
+    UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, s_hdcMem, &src, 0, &blend, ULW_ALPHA);
+    ReleaseDC(nullptr, hdcScreen);
+
+    if (!s_visible) {
+        ShowWindow(s_hwnd, SW_SHOWNOACTIVATE);
+        s_visible = true;
+    }
+}
+
 void draw()
 {
+    const int style = std::clamp(g_notificationsStyle, 0, 5);
+    if (is_list_style(style)) {
+        draw_liquidbounce_list();
+        return;
+    }
+
     if (!has_window() || !g_notificationsEnabled || s_text.empty() || !IsCS2WindowActive()) {
         hide();
         return;
@@ -694,7 +837,6 @@ void draw()
         return;
     }
 
-    const int style = std::clamp(g_notificationsStyle, 0, 5);
     const int width = style == 4 ? 350 : (style == 3 ? 370 : (style == 2 ? 340 : (style == 5 ? 330 : 310)));
     const int height = style == 3 ? 86 : (style == 2 ? 78 : (style == 4 ? 70 : 72));
     const int pad = style == 3 ? 28 : (style == 4 ? 24 : (style == 2 ? 12 : (style == 1 ? 8 : 4)));
@@ -835,13 +977,33 @@ void draw()
 LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     if (msg == kPushMessage) {
+        const int style = std::clamp(g_notificationsStyle, 0, 5);
         {
             std::lock_guard lock(s_pendingMutex);
-            s_text = std::move(s_pendingText);
-            s_enabledState = s_pendingEnabledState;
+            if (is_list_style(style)) {
+                constexpr int height = 72;
+                constexpr int pad = 4;
+                constexpr int gap = 10;
+                notification_item item;
+                item.text = std::move(s_pendingText);
+                item.enabled = s_pendingEnabledState;
+                item.startTick = GetTickCount64();
+                if (s_items.size() < 3) {
+                    append_list_item(std::move(item), height, gap, pad);
+                } else {
+                    if (s_items.front().exitTick == 0) s_items.front().exitTick = item.startTick;
+                    s_waitingItems.push_back(std::move(item));
+                }
+                s_text.clear();
+            } else {
+                s_items.clear();
+                s_waitingItems.clear();
+                s_text = std::move(s_pendingText);
+                s_enabledState = s_pendingEnabledState;
+                s_startTick = GetTickCount64();
+                s_cacheDirty = true;
+            }
         }
-        s_startTick = GetTickCount64();
-        s_cacheDirty = true;
         SetTimer(s_hwnd, kTimer, kFrameMs, nullptr);
         draw();
         return 0;

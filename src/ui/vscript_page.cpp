@@ -29,6 +29,25 @@ bool Hit(const Gdiplus::RectF& r, int x, int y)
     return x >= r.X && x <= r.X + r.Width && y >= r.Y && y <= r.Y + r.Height;
 }
 
+void AddRoundedRect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, float radius)
+{
+    const float d = (std::min)(radius * 2.0f, (std::min)(rect.Width, rect.Height));
+    path.AddArc(rect.X, rect.Y, d, d, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y, d, d, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y + rect.Height - d, d, d, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - d, d, d, 90.0f, 90.0f);
+    path.CloseFigure();
+}
+
+void DrawRoundedPanel(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
+    Gdiplus::Brush& background, Gdiplus::Pen& border)
+{
+    Gdiplus::GraphicsPath path;
+    AddRoundedRect(path, rect, 10.0f);
+    g.FillPath(&background, &path);
+    g.DrawPath(&border, &path);
+}
+
 void DrawButton(Gdiplus::Graphics& g, const Gdiplus::RectF& r, const wchar_t* text)
 {
     ui::DrawRoundedButton(g, r, text);
@@ -198,8 +217,8 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     for (size_t scriptIndex = firstScript; scriptIndex < lastScript; ++scriptIndex) {
         RectF row((REAL)cx + 8, (REAL)y, (REAL)cw - 16, 48);
         const bool danger = scripts[scriptIndex].dangerStyle;
-        g.FillRectangle(danger ? &rowDangerBg : &rowBg, row);
-        g.DrawRectangle(danger ? &rowDangerPen : &rowPen, row);
+        DrawRoundedPanel(g, row, danger ? static_cast<Brush&>(rowDangerBg) : static_cast<Brush&>(rowBg),
+            danger ? rowDangerPen : rowPen);
 
         std::wstring name = DisplayName(scripts[scriptIndex]);
         g.DrawString(name.c_str(), -1, &textFont, PointF((REAL)cx + 18, (REAL)y + 5), danger ? &dangerText : (scripts[scriptIndex].hasMetadataName ? &meta : &text));
