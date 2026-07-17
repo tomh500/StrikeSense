@@ -31,6 +31,7 @@
 #include "notifications_overlay.h"
 #include "itemhelper_page.h"   
 #include "vscript.h"
+#include "ui_theme.h"
 #include <regex>
 #include <sstream>
 #include <iterator>
@@ -67,6 +68,7 @@ static bool g_trayIconAdded = false;
 
 int g_currentPage = 0;
 bool g_langCN = true;
+int g_uiThemePreset = uitheme::preset_default;
 bool g_styleDropdownOpen = false;
 int g_dropdownSelection = -1;
 Gdiplus::RectF g_dropdownRects[6];
@@ -321,7 +323,8 @@ static void PaintAll(HWND hw, HDC hdc) {
     Graphics g(md);
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAlias);
-    SolidBrush bg(Color(255, 240, 248, 255));
+    const auto& theme = uitheme::get_palette();
+    SolidBrush bg(theme.window_background);
     g.FillRectangle(&bg, 0, 0, W, H);
     PaintSidebar(g, W, H);
     int cx = SIDEBAR_W + 12, cw = W - cx - 12;

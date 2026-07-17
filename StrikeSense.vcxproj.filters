@@ -73,6 +73,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\textgui_overlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\ui_theme.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\volume_mixer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -181,6 +184,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\textgui_overlay.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\ui_theme.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\volume_mixer.h">

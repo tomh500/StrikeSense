@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include "config.h"
+#include "ui_theme.h"
 
 // ===== 页面枚举 =====
 enum Page {
@@ -31,6 +32,7 @@ extern int g_currentPage;
 // ===== 全局共享变量 =====
 extern HINSTANCE hInst;
 extern bool g_langCN;
+extern int g_uiThemePreset;
 extern bool g_styleDropdownOpen;
 extern int  g_dropdownSelection;
 extern Gdiplus::RectF g_dropdownRects[6];

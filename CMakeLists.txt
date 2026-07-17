@@ -69,6 +69,7 @@ set(SOURCES
     src/core/steam_accounts.cpp
     src/core/steam_helper.cpp
     src/core/textgui_overlay.cpp
+    src/core/ui_theme.cpp
     src/core/volume_mixer.cpp
     src/ui/Rage_page.cpp
     src/ui/cscript_panel.cpp
@@ -108,6 +109,7 @@ set(HEADERS
     include/core/steam_accounts.h
     include/core/steam_helper.h
     include/core/textgui_overlay.h
+    include/core/ui_theme.h
     include/core/volume_mixer.h
     include/ui/itemhelper_page.h
     include/ui/cscript_panel.h

@@ -353,6 +353,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_accounts.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_helper.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\textgui_overlay.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\ui_theme.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\volume_mixer.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\Rage_page.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\ui\cscript_panel.cpp" />
@@ -389,6 +390,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_accounts.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_helper.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\textgui_overlay.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\ui_theme.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\volume_mixer.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\itemhelper_page.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\ui\cscript_panel.h" />

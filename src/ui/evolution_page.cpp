@@ -18,6 +18,7 @@
 #include "notifications_overlay.h"
 #include "input_environment.h"
 #include "resource.h"
+#include "ui_theme.h"
 
 namespace fs = std::filesystem;
 
@@ -266,6 +267,7 @@ void SaveEvolutionParams() {
     j["notifications_enabled"] = g_notificationsEnabled;
     j["notifications_duration"] = g_notificationsDuration;
     j["notifications_style"] = g_notificationsStyle;
+    j["ui_theme_preset"] = g_uiThemePreset;
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -343,7 +345,9 @@ void LoadEvolutionParams() {
         gb("notifications_enabled", g_notificationsEnabled);
         gv("notifications_duration", g_notificationsDuration);
         gv("notifications_style", g_notificationsStyle);
+        gv("ui_theme_preset", g_uiThemePreset);
         g_notificationsStyle = std::clamp(g_notificationsStyle, 0, evolutionui::kNotificationsStyleCount - 1);
+        g_uiThemePreset = std::clamp(g_uiThemePreset, 0, uitheme::preset_count - 1);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
