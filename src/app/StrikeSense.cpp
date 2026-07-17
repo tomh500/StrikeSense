@@ -57,6 +57,8 @@ constexpr UINT TRAY_ICON_ID = 1;
 constexpr int CLOSE_ACTION_CANCEL = 0;
 constexpr int CLOSE_ACTION_TRAY = 1;
 constexpr int CLOSE_ACTION_EXIT = 2;
+constexpr int CLOSE_DIALOG_TRAY = 1001;
+constexpr int CLOSE_DIALOG_EXIT = 1002;
 constexpr int TRAY_CMD_RESTORE = 41001;
 constexpr int TRAY_CMD_EXIT = 41002;
 
@@ -570,8 +572,8 @@ static int ResolveCloseAction(HWND hw)
         return settings.close_behavior;
 
     TASKDIALOG_BUTTON buttons[] = {
-        { CLOSE_ACTION_TRAY, L"隐藏到托盘\n程序继续在后台运行，可从托盘图标恢复。" },
-        { CLOSE_ACTION_EXIT, L"关闭程序\n停止后台功能并退出 StrikeSense。" },
+        { CLOSE_DIALOG_TRAY, L"隐藏到托盘\n程序继续在后台运行，可从托盘图标恢复。" },
+        { CLOSE_DIALOG_EXIT, L"关闭程序\n停止后台功能并退出 StrikeSense。" },
     };
 
     TASKDIALOGCONFIG cfg{};
@@ -584,7 +586,7 @@ static int ResolveCloseAction(HWND hw)
     cfg.pszContent = L"隐藏到托盘后，可以通过托盘图标重新呼出窗口或彻底退出。";
     cfg.cButtons = static_cast<UINT>(std::size(buttons));
     cfg.pButtons = buttons;
-    cfg.nDefaultButton = CLOSE_ACTION_TRAY;
+    cfg.nDefaultButton = CLOSE_DIALOG_TRAY;
     cfg.pszVerificationText = L"不再询问，记住我的选择";
     cfg.dwCommonButtons = TDCBF_CANCEL_BUTTON;
 
@@ -599,8 +601,19 @@ static int ResolveCloseAction(HWND hw)
         return CLOSE_ACTION_CANCEL;
     }
 
-    if (selected != CLOSE_ACTION_TRAY && selected != CLOSE_ACTION_EXIT)
+    if (selected == IDCANCEL || selected == CLOSE_ACTION_CANCEL) {
+        std::cout << "[关闭] 用户取消关闭询问，保持主窗口运行。" << std::endl;
         return CLOSE_ACTION_CANCEL;
+    }
+
+    if (selected == CLOSE_DIALOG_TRAY)
+        selected = CLOSE_ACTION_TRAY;
+    else if (selected == CLOSE_DIALOG_EXIT)
+        selected = CLOSE_ACTION_EXIT;
+    else {
+        std::cout << "[关闭] 未识别的关闭询问结果: " << selected << "，保持主窗口运行。" << std::endl;
+        return CLOSE_ACTION_CANCEL;
+    }
 
     if (checked) {
         settings.close_behavior = selected;
