@@ -9,16 +9,17 @@ namespace uitheme {
 
 enum preset {
     preset_default = 0,
-    preset_dark_red = 1,
-    preset_autumn_gold = 2,
-    preset_spring_green = 3,
-    preset_default_plus = 4,
-    preset_vape = 5,
-    preset_liquidbounce = 6,
-    preset_gemini = 7,
-    preset_gpt = 8,
-    preset_deepseek = 9,
-    preset_count = 10
+    preset_aqua = 1,
+    preset_dark_red = 2,
+    preset_autumn_gold = 3,
+    preset_spring_green = 4,
+    preset_default_plus = 5,
+    preset_vape = 6,
+    preset_liquidbounce = 7,
+    preset_gemini = 8,
+    preset_gpt = 9,
+    preset_deepseek = 10,
+    preset_count = 11
 };
 
 struct palette {

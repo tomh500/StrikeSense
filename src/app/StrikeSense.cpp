@@ -213,7 +213,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171735" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171747" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -276,6 +276,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     vscript::Initialize(hInst, hwMain);
     if (launchSemiRage) EnableRageModeFromLaunch(hwMain);
     SetTimer(hwMain, 2001, 200, nullptr);
+    ui::StartAnimationClock(hwMain);
 
     // 页面初始化
     InitLegalCfgPage();
@@ -497,6 +498,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         PaintAll(hw, hdc); EndPaint(hw, &ps); break;
     }
     case WM_LBUTTONDOWN: {
+        ui::NotifyInteraction(hw);
         int mx = LOWORD(lp), my = HIWORD(lp);
         if (mx < SIDEBAR_W) { CheckSidebarClick(hw, mx, my); break; }
         switch (g_currentPage) {
@@ -513,6 +515,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     }
     // 【修改后】完全独立的两个 case
     case WM_CHAR: {
+        ui::NotifyInteraction(hw);
         // 1. 如果当前在合法配置页面，优先处理该页面的字符输入逻辑
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp)) {
             return 0; // 如果内部成功处理（返回了 true），这里直接 return 0 拦截消息，不让系统默认处理
@@ -562,6 +565,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
     }
 case WM_SYSKEYDOWN:
 case WM_KEYDOWN: {
+        ui::NotifyInteraction(hw);
         // 1. 如果当前在合法配置页面，优先处理该页面的输入逻辑
         if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp))
             break;
@@ -680,6 +684,7 @@ case WM_KEYDOWN: {
         break;
     }
     case WM_MOUSEMOVE:
+        ui::NotifyInteraction(hw);
         if (g_currentPage == PAGE_VSCRIPT) {
             InvalidateRect(hw, nullptr, FALSE);
         }
@@ -687,6 +692,10 @@ case WM_KEYDOWN: {
     case WM_TIMER:
         if (wp == 2001) {
             vscript::TickContinuousScripts();
+            return 0;
+        }
+        if (wp == ui::kAnimationTimerId) {
+            ui::TickAnimation(hw);
             return 0;
         }
         break;
@@ -721,6 +730,7 @@ case WM_KEYDOWN: {
     notifications_overlay::Shutdown();
     itemhelper_overlay::Shutdown();
     KillTimer(hw, 2001);
+    ui::StopAnimationClock(hw);
     UnregisterHotKey(hw, 1001);
     UnregisterHotKey(hw, 1002);
     PostQuitMessage(0);

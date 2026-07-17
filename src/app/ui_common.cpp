@@ -2,9 +2,83 @@
 #include "ui_theme.h"
 
 #include <algorithm>
+#include <iostream>
+
+namespace {
+
+constexpr UINT kActiveFrameMs = 11;
+constexpr UINT kIdleFrameMs = 1000;
+constexpr DWORD kInteractionWindowMs = 220;
+constexpr DWORD kFastClockHoldMs = 650;
+
+DWORD g_lastInteractionMs = 0;
+bool g_fastAnimationClock = false;
+
+void add_rounded_rect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, Gdiplus::REAL radius)
+{
+    using namespace Gdiplus;
+    const REAL diameter = (std::min)(radius * 2.0f, (std::min)(rect.Width, rect.Height));
+    path.AddArc(rect.X, rect.Y, diameter, diameter, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y, diameter, diameter, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y + rect.Height - diameter,
+        diameter, diameter, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - diameter, diameter, diameter, 90.0f, 90.0f);
+    path.CloseFigure();
+}
+
+} // namespace
 
 namespace ui {
 using namespace Gdiplus;
+
+void StartAnimationClock(HWND hw)
+{
+    g_lastInteractionMs = GetTickCount();
+    g_fastAnimationClock = false;
+    SetTimer(hw, kAnimationTimerId, kIdleFrameMs, nullptr);
+    std::cout << "[界面动画] 已启动空闲刷新时钟。" << std::endl;
+}
+
+void StopAnimationClock(HWND hw)
+{
+    KillTimer(hw, kAnimationTimerId);
+    g_fastAnimationClock = false;
+    std::cout << "[界面动画] 已停止刷新时钟。" << std::endl;
+}
+
+void NotifyInteraction(HWND hw)
+{
+    g_lastInteractionMs = GetTickCount();
+    if (!g_fastAnimationClock) {
+        SetTimer(hw, kAnimationTimerId, kActiveFrameMs, nullptr);
+        g_fastAnimationClock = true;
+        std::cout << "[界面动画] 检测到交互，切换到 90fps 刷新。" << std::endl;
+    }
+}
+
+bool TickAnimation(HWND hw)
+{
+    const DWORD now = GetTickCount();
+    const DWORD elapsed = now - g_lastInteractionMs;
+    if (elapsed <= kInteractionWindowMs) {
+        InvalidateRect(hw, nullptr, FALSE);
+        return true;
+    }
+
+    if (g_fastAnimationClock && elapsed > kFastClockHoldMs) {
+        SetTimer(hw, kAnimationTimerId, kIdleFrameMs, nullptr);
+        g_fastAnimationClock = false;
+        std::cout << "[界面动画] 交互结束，降到 1fps 空闲刷新。" << std::endl;
+    }
+    return false;
+}
+
+float EaseOutCubic(float value)
+{
+    value = (std::max)(0.0f, (std::min)(1.0f, value));
+    const float inverse = 1.0f - value;
+    return 1.0f - inverse * inverse * inverse;
+}
 
 void DrawHeader(Graphics& g, int cx, int cw, const wchar_t* title)
 {
@@ -37,10 +111,17 @@ void DrawSlider(Graphics& g, int sx, int sy, int sw, float value)
     const auto& theme = uitheme::get_palette();
     SolidBrush sBg(theme.slider_background);
     SolidBrush sFill(theme.accent);
-    g.FillRectangle(&sBg, sx, sy, sw, 10);
-    int fw = static_cast<int>(sw * value);
-    if (fw > sw) fw = sw;
-    g.FillRectangle(&sFill, sx, sy, fw, 10);
+    value = (std::max)(0.0f, (std::min)(1.0f, value));
+    RectF track(static_cast<REAL>(sx), static_cast<REAL>(sy + 3), static_cast<REAL>(sw), 4.0f);
+    GraphicsPath trackPath;
+    add_rounded_rect(trackPath, track, 2.0f);
+    g.FillPath(&sBg, &trackPath);
+
+    const REAL fillWidth = (std::max)(4.0f, static_cast<REAL>(sw) * value);
+    RectF fill(track.X, track.Y, (std::min)(track.Width, fillWidth), track.Height);
+    GraphicsPath fillPath;
+    add_rounded_rect(fillPath, fill, 2.0f);
+    g.FillPath(&sFill, &fillPath);
 }
 
 void DrawSliderWithKnob(Graphics& g, int sx, int sy, int sw, float value)
@@ -48,7 +129,7 @@ void DrawSliderWithKnob(Graphics& g, int sx, int sy, int sw, float value)
     value = (std::max)(0.0f, (std::min)(1.0f, value));
     DrawSlider(g, sx, sy, sw, value);
     const auto& theme = uitheme::get_palette();
-    SolidBrush knob(theme.accent_strong);
+    SolidBrush knob(theme.accent);
     g.FillEllipse(&knob, sx + sw * value - 7.0f, sy - 5.0f, 14.0f, 14.0f);
 }
 
@@ -57,21 +138,15 @@ void DrawRoundedButton(Graphics& g, const RectF& rect, const wchar_t* label, boo
     const auto& theme = uitheme::get_palette();
     SolidBrush background(selected ? theme.card_selected_background : theme.button_background);
     SolidBrush foreground(theme.button_text);
-    Pen border(selected ? theme.accent_strong : theme.button_border, selected ? 1.5f : 1.0f);
+    Pen border(selected ? theme.accent_strong : theme.button_border, selected ? 1.5f : 0.0f);
     Font font(L"Microsoft YaHei", compact ? 8.0f : 9.0f, FontStyleBold);
     StringFormat format;
     format.SetAlignment(StringAlignmentCenter);
     format.SetLineAlignment(StringAlignmentCenter);
     GraphicsPath path;
-    const REAL diameter = (std::min)(16.0f, rect.Height);
-    path.AddArc(rect.X, rect.Y, diameter, diameter, 180.0f, 90.0f);
-    path.AddArc(rect.X + rect.Width - diameter, rect.Y, diameter, diameter, 270.0f, 90.0f);
-    path.AddArc(rect.X + rect.Width - diameter, rect.Y + rect.Height - diameter,
-        diameter, diameter, 0.0f, 90.0f);
-    path.AddArc(rect.X, rect.Y + rect.Height - diameter, diameter, diameter, 90.0f, 90.0f);
-    path.CloseFigure();
+    add_rounded_rect(path, rect, 12.0f);
     g.FillPath(&background, &path);
-    g.DrawPath(&border, &path);
+    if (selected) g.DrawPath(&border, &path);
     g.DrawString(label, -1, &font, rect, &format, &foreground);
 }
 

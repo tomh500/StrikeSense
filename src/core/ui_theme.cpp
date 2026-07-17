@@ -16,6 +16,17 @@ Color rgba(int a, int r, int g, int b)
 
 const std::array<palette, preset_count> k_palettes = {
     palette{
+        rgba(255, 19, 18, 26), rgba(255, 27, 25, 37), rgba(102, 58, 53, 80), rgba(255, 42, 38, 59),
+        rgba(255, 27, 25, 37), rgba(255, 244, 242, 250), rgba(255, 244, 242, 250), rgba(255, 200, 195, 217),
+        rgba(255, 200, 168, 255), rgba(255, 216, 190, 255), rgba(255, 183, 148, 242), rgba(255, 71, 66, 90),
+        rgba(255, 255, 255, 255), rgba(255, 68, 64, 90), rgba(255, 42, 38, 59), rgba(255, 55, 49, 77),
+        rgba(0, 0, 0, 0), rgba(255, 244, 242, 250), rgba(255, 27, 25, 37), rgba(255, 35, 32, 51),
+        rgba(255, 71, 59, 104), rgba(102, 58, 53, 80), rgba(255, 42, 38, 59), rgba(145, 220, 203, 255),
+        rgba(255, 19, 18, 26), rgba(245, 42, 38, 59), rgba(255, 244, 242, 250), rgba(130, 220, 203, 255),
+        rgba(255, 118, 218, 158), rgba(255, 255, 211, 112), rgba(255, 255, 122, 136),
+        rgba(255, 48, 43, 68), rgba(255, 255, 224, 140), rgba(255, 255, 211, 112)
+    },
+    palette{
         rgba(255, 240, 248, 255), rgba(255, 200, 230, 250), rgba(255, 160, 210, 240), rgba(255, 160, 210, 245),
         rgba(255, 180, 220, 245), rgba(255, 20, 80, 140), rgba(255, 30, 60, 100), rgba(255, 100, 130, 160),
         rgba(255, 80, 180, 240), rgba(255, 140, 200, 240), rgba(255, 60, 160, 230), rgba(255, 180, 180, 190),
@@ -128,7 +139,7 @@ const std::array<palette, preset_count> k_palettes = {
 };
 
 const wchar_t* const k_names[preset_count] = {
-    L"Default", L"暗黑红系", L"金秋", L"春意盎然",
+    L"Default", L"\u6c34\u8272\u7cfb", L"\u6697\u9ed1\u7ea2\u7cfb", L"\u91d1\u79cb", L"\u6625\u610f\u76ce\u7136",
     L"Default++", L"Vape", L"LiquidBounce", L"Gemini", L"GPT", L"DeepSeek"
 };
 
