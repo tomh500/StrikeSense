@@ -346,7 +346,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\kernelcore.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\mouse_jitter.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\module_notifications.cpp" />
-    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\notifications_layout.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\notifications_overlay.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\normalgen.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\quickstop.cpp" />
@@ -383,7 +382,6 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\kernelcore.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\mouse_jitter.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\module_notifications.h" />
-    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\notifications_layout.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\notifications_overlay.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\normalgen.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\quickstop.h" />
