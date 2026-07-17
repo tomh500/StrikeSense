@@ -350,6 +350,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\normalgen.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\quickstop.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\sound_player.cpp" />
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\splash_screen.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_accounts.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_helper.cpp" />
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\textgui_overlay.cpp" />
@@ -387,6 +388,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\normalgen.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\quickstop.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\sound_player.h" />
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\splash_screen.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_accounts.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_helper.h" />
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\textgui_overlay.h" />

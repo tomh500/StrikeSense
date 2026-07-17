@@ -64,6 +64,9 @@
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\sound_player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\splash_screen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="C:\Users\jingy\source\repos\StrikeSense\src\core\steam_accounts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -175,6 +178,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\sound_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\splash_screen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="C:\Users\jingy\source\repos\StrikeSense\include\core\steam_accounts.h">

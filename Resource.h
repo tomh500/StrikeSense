@@ -19,6 +19,7 @@
 #define IDI_SMALL				108
 #define IDC_STRIKESENSE			109
 #define IDC_MYICON				2
+#define IDB_BOOT_PNG			129
 
 // 菜单项
 #define IDM_DEBUGGER			110

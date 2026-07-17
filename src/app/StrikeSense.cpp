@@ -9,6 +9,7 @@
 #include "cscript.h"
 #include "cscript_panel.h"
 #include "sound_player.h"
+#include "splash_screen.h"
 #include "antistupid.h"
 #include "i18n.h"
 #include "input_environment.h"
@@ -35,6 +36,7 @@
 #include <regex>
 #include <sstream>
 #include <iterator>
+#include <thread>
 #include <utility>
 #include <vector>
 #include <Windows.h>
@@ -192,6 +194,7 @@ static bool HasLaunchArg(const std::wstring& expected)
 // ===== 修正后的 wWinMain =====
 int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     const bool launchSemiRage = HasLaunchArg(L"-semirage");
+    hInst = hI;
     // 互斥锁：防止多个实例同时运行
     std::set_terminate(LogTerminate);
     g_hMutex = CreateMutexW(nullptr, FALSE, L"StrikeSense_SingleInstanceMutex");
@@ -207,12 +210,10 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
     g_Console.InitRedirection();
-    flashoverlay::Initialize(hInst);
-    textgui_overlay::Initialize(hInst);
-    notifications_overlay::Initialize(hI);
+    auto splash = splashscreen::Create(hI);
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607162353" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171724" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -223,12 +224,38 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺绝不联网！所以无法检查更新" << std::endl;
     std::cout << "============================================" << std::endl;
-    config::EnsureDirectoriesExist(); config::Load();
-    LoadQuickStopConfig();
-    cscript::LoadConfig();
-    consolelog::LoadConfig();
-    sound::Init(); sound::PreloadSounds();
-    if (gsi::Initialize()) gsi::StartServer();
+
+    flashoverlay::Initialize(hI);
+    textgui_overlay::Initialize(hI);
+    notifications_overlay::Initialize(hI);
+
+    HANDLE initReady = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    std::exception_ptr initError = nullptr;
+    std::thread initThread([&]() {
+        try {
+            std::cout << "[启动] 后台初始化开始。" << std::endl;
+            config::EnsureDirectoriesExist(); config::Load();
+            LoadQuickStopConfig();
+            cscript::LoadConfig();
+            consolelog::LoadConfig();
+            sound::Init(); sound::PreloadSounds();
+            if (gsi::Initialize()) gsi::StartServer();
+            std::cout << "[启动] 后台初始化完成。" << std::endl;
+        }
+        catch (...) {
+            initError = std::current_exception();
+            std::cout << "[启动] 后台初始化发生异常。" << std::endl;
+        }
+        SetEvent(initReady);
+    });
+
+    splashscreen::PumpUntilReady(splash, initReady, 2000);
+    initThread.join();
+    CloseHandle(initReady);
+    if (initError) {
+        splashscreen::Destroy(splash);
+        std::rethrow_exception(initError);
+    }
 
     LoadStringW(hI, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hI, IDC_STRIKESENSE, szWindowClass, MAX_LOADSTRING);
@@ -241,7 +268,10 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     LoadUiThemePresetBeforeWindow();
     
     HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
-    if (!hwMain) return FALSE;
+    if (!hwMain) {
+        splashscreen::Destroy(splash);
+        return FALSE;
+    }
     g_hwnd = hwMain;
     vscript::Initialize(hInst, hwMain);
     if (launchSemiRage) EnableRageModeFromLaunch(hwMain);
@@ -271,6 +301,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
             std::cout << "[GSI] GSI 配置文件已存在: " << gsiCfg.string() << std::endl;
         }
     }
+
+    splashscreen::PlayExit(splash);
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;

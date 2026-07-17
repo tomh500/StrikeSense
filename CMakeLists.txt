@@ -66,6 +66,7 @@ set(SOURCES
     src/core/normalgen.cpp
     src/core/quickstop.cpp
     src/core/sound_player.cpp
+    src/core/splash_screen.cpp
     src/core/steam_accounts.cpp
     src/core/steam_helper.cpp
     src/core/textgui_overlay.cpp
@@ -106,6 +107,7 @@ set(HEADERS
     include/core/normalgen.h
     include/core/quickstop.h
     include/core/sound_player.h
+    include/core/splash_screen.h
     include/core/steam_accounts.h
     include/core/steam_helper.h
     include/core/textgui_overlay.h
