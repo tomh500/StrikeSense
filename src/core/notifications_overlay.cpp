@@ -35,6 +35,7 @@ constexpr UINT_PTR kTimer = 3021;
 constexpr UINT kPushMessage = WM_APP + 3021;
 constexpr UINT kFrameMs = 1000 / 30;
 constexpr int kAnimMs = 260;
+constexpr int kLiquidBounceKnobAnimMs = 300;
 std::mutex s_pendingMutex;
 std::wstring s_pendingText;
 bool s_pendingEnabledState = true;
@@ -162,7 +163,7 @@ void draw_progress(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progre
     g.FillRectangle(&barBrush, Gdiplus::RectF(back.X, back.Y, back.Width * progress, back.Height));
 }
 
-void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float toggleProgress)
+void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float knobAnimProgress)
 {
     fill_card(g, box, Gdiplus::Color(245, 33, 33, 33), 8.f);
 
@@ -179,7 +180,7 @@ void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float to
     trackPen.SetEndCap(Gdiplus::LineCapRound);
     g.DrawLine(&trackPen, Gdiplus::PointF(trackX, trackY), Gdiplus::PointF(trackX + trackWidth, trackY));
 
-    const float clamped = std::clamp(toggleProgress, 0.f, 1.f);
+    const float clamped = std::clamp(knobAnimProgress, 0.f, 1.f);
     const float knobProgress = s_enabledState ? clamped : (1.f - clamped);
     constexpr float knobSize = 9.f;
     const float knobX = trackX + trackWidth * knobProgress - knobSize * 0.5f;
@@ -311,6 +312,8 @@ void draw()
     const int sw = GetSystemMetrics(SM_CXSCREEN);
     const int sh = GetSystemMetrics(SM_CYSCREEN);
     const float progress = std::clamp(1.f - elapsed / durationMs, 0.f, 1.f);
+    const float liquidbounceKnobProgress = ease_out(
+        elapsed / static_cast<float>(kLiquidBounceKnobAnimMs));
     const float in = style == 4 ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
     const float outStart = (std::max)(0.f, durationMs - kAnimMs);
     const float out = elapsed > outStart ? ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)) : 0.f;
@@ -333,7 +336,7 @@ void draw()
     }
 
     const int progressBucket = style == 0
-        ? static_cast<int>(std::lround(in * 24.f))
+        ? static_cast<int>(std::lround(liquidbounceKnobProgress * 48.f))
         : ((style == 1 || style == 2) ? static_cast<int>(std::lround(progress * 48.f)) : 0);
     const bool needsRedraw = s_cacheDirty
         || s_cachedText != s_text
@@ -351,7 +354,7 @@ void draw()
         g.Clear(Color(0, 0, 0, 0));
         RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
 
-        if (style == 0) draw_liquidbounce(g, box, in);
+        if (style == 0) draw_liquidbounce(g, box, liquidbounceKnobProgress);
         else if (style == 1) draw_vape(g, box, progress);
         else if (style == 2) draw_gpt(g, box, progress);
         else if (style == 3) draw_gemini(g, box);
