@@ -12,6 +12,14 @@ void i18n::Init() {
     cn[Keys::SIDEBAR_Rage] = L"超频配置"; en[Keys::SIDEBAR_Rage] = L"Semi Rage";
     cn[Keys::SIDEBAR_ITEMHELPER] = L"道具助手"; en[Keys::SIDEBAR_ITEMHELPER] = L"Items Helper";
     cn["SIDEBAR_VSCRIPT"] = L"自定脚本"; en["SIDEBAR_VSCRIPT"] = L"Scripts";
+    cn["SIDEBAR_PROGRAM_SETTINGS"] = L"程序设置"; en["SIDEBAR_PROGRAM_SETTINGS"] = L"Program Settings";
+    cn["PROGRAM_SETTINGS_TITLE"] = L"程序设置"; en["PROGRAM_SETTINGS_TITLE"] = L"Program Settings";
+    cn["PROGRAM_SETTINGS_THEME"] = L"程序主题"; en["PROGRAM_SETTINGS_THEME"] = L"Theme";
+    cn["PROGRAM_SETTINGS_THEME_HINT"] = L"选择后立即应用到所有页面。"; en["PROGRAM_SETTINGS_THEME_HINT"] = L"Applied to every page immediately.";
+    cn["PROGRAM_SETTINGS_BASIC_VISUAL"] = L"基础视觉组"; en["PROGRAM_SETTINGS_BASIC_VISUAL"] = L"Basic Visuals";
+    cn["PROGRAM_SETTINGS_ADVANCED_VISUAL"] = L"高级视觉组"; en["PROGRAM_SETTINGS_ADVANCED_VISUAL"] = L"Advanced Visuals";
+    cn["PROGRAM_SETTINGS_COMING_SOON"] = L"正在开发中"; en["PROGRAM_SETTINGS_COMING_SOON"] = L"Coming soon";
+    cn["LEGAL_OPEN_FILE"] = L"打开文件"; en["LEGAL_OPEN_FILE"] = L"Open File";
     
     cn[Keys::SOUNDS_TITLE] = L"文件位置"; en[Keys::SOUNDS_TITLE] = L"File Location";
     cn[Keys::SOUNDS_GSI_RUNNING] = L"运行中"; en[Keys::SOUNDS_GSI_RUNNING] = L"Running";

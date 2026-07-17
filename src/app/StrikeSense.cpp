@@ -215,7 +215,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171809" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171843" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -800,6 +800,11 @@ case WM_KEYDOWN: {
             InvalidateRect(hw, nullptr, FALSE);
         }
         break;
+    case WM_MOUSEWHEEL:
+        if (g_currentPage == PAGE_LEGALCFG && ProcessLegalCfgKeyInput(hw, m, wp, lp)) {
+            return 0;
+        }
+        return DefWindowProc(hw, m, wp, lp);
     case WM_TIMER:
         if (wp == 2001) {
             vscript::TickContinuousScripts();

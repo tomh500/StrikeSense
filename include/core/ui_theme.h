@@ -9,11 +9,12 @@ namespace uitheme {
 
 enum preset {
     preset_default = 0,
+    preset_default_plus = preset_default,
     preset_aqua = 1,
     preset_dark_red = 2,
     preset_autumn_gold = 3,
     preset_spring_green = 4,
-    preset_default_plus = 5,
+    preset_purple_song = 5,
     preset_vape = 6,
     preset_liquidbounce = 7,
     preset_gemini = 8,

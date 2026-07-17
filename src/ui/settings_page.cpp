@@ -4,7 +4,6 @@
 #include "i18n.h"
 #include "textgui_overlay.h"
 #include "ui_theme.h"
-#include "vscript.h"
 
 #include <algorithm>
 
@@ -23,16 +22,9 @@ bool hit(const Gdiplus::RectF& rect, int x, int y)
         && y >= rect.Y && y <= rect.Y + rect.Height;
 }
 
-bool can_use_advanced_theme()
-{
-    return vscript::GetBuildCode() == vscript::buildcode::eng;
-}
-
 bool is_locked_theme(int preset)
 {
-    return preset == uitheme::preset_gemini
-        || preset == uitheme::preset_gpt
-        || preset == uitheme::preset_deepseek;
+    return preset >= uitheme::preset_vape;
 }
 
 void draw_theme_group(Gdiplus::Graphics& g, int cx, const wchar_t* title,
@@ -58,7 +50,7 @@ void draw_theme_group(Gdiplus::Graphics& g, int cx, const wchar_t* title,
         const int boxY = y + row * 34;
         g_themePresetRects[i] = RectF(static_cast<REAL>(x), static_cast<REAL>(boxY), 120.0f, 26.0f);
         ui::DrawRoundedButton(g, g_themePresetRects[i], uitheme::get_preset_name(i), i == g_uiThemePreset, true);
-        if (is_locked_theme(i) && !can_use_advanced_theme()) {
+        if (is_locked_theme(i)) {
             SolidBrush disabledOverlay(Color(148, theme.card_background.GetR(), theme.card_background.GetG(), theme.card_background.GetB()));
             SolidBrush disabledText(theme.dim);
             Font font(L"Microsoft YaHei", 8.0f, FontStyleBold);
@@ -169,7 +161,7 @@ void PaintProgramSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     using namespace Gdiplus;
     const auto& theme = uitheme::get_palette();
 
-    ui::DrawHeader(g, cx, cw, L"\u7a0b\u5e8f\u8bbe\u7f6e");
+    ui::DrawHeader(g, cx, cw, i18n::T("PROGRAM_SETTINGS_TITLE"));
     Font titleFont(L"Microsoft YaHei", 12);
     Font smallFont(L"Microsoft YaHei", 9);
     SolidBrush text(theme.text);
@@ -178,16 +170,16 @@ void PaintProgramSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     for (auto& rect : g_themePresetRects) rect = RectF{};
 
     int y = 58;
-    g.DrawString(L"\u7a0b\u5e8f\u4e3b\u9898", -1, &titleFont,
+    g.DrawString(i18n::T("PROGRAM_SETTINGS_THEME"), -1, &titleFont,
         PointF(static_cast<REAL>(cx + 10), static_cast<REAL>(y)), &text);
-    g.DrawString(L"\u9009\u62e9\u540e\u7acb\u5373\u5e94\u7528\u5230\u6240\u6709\u9875\u9762\u3002", -1, &smallFont,
+    g.DrawString(i18n::T("PROGRAM_SETTINGS_THEME_HINT"), -1, &smallFont,
         PointF(static_cast<REAL>(cx + 120), static_cast<REAL>(y + 2)), &dim);
     y += 42;
 
-    draw_theme_group(g, cx, L"\u7eaf\u989c\u8272\u7ec4", g_basicThemeFoldRect, g_basicThemeExpanded,
-        uitheme::preset_default, uitheme::preset_spring_green, y);
-    draw_theme_group(g, cx, L"\u9ad8\u7ea7\u89c6\u89c9\u7ec4", g_advancedThemeFoldRect, g_advancedThemeExpanded,
-        uitheme::preset_default_plus, uitheme::preset_count - 1, y);
+    draw_theme_group(g, cx, i18n::T("PROGRAM_SETTINGS_BASIC_VISUAL"), g_basicThemeFoldRect, g_basicThemeExpanded,
+        uitheme::preset_default, uitheme::preset_purple_song, y);
+    draw_theme_group(g, cx, i18n::T("PROGRAM_SETTINGS_ADVANCED_VISUAL"), g_advancedThemeFoldRect, g_advancedThemeExpanded,
+        uitheme::preset_vape, uitheme::preset_count - 1, y);
 }
 
 void CheckProgramSettingsClick(HWND hw, int mx, int my)
@@ -205,7 +197,8 @@ void CheckProgramSettingsClick(HWND hw, int mx, int my)
 
     for (int i = 0; i < uitheme::preset_count; ++i) {
         if (!hit(g_themePresetRects[i], mx, my)) continue;
-        if (is_locked_theme(i) && !can_use_advanced_theme()) {
+        if (is_locked_theme(i)) {
+            MessageBoxW(hw, i18n::T("PROGRAM_SETTINGS_COMING_SOON"), L"StrikeSense", MB_OK | MB_ICONINFORMATION);
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }

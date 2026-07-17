@@ -1,10 +1,12 @@
 #include "pages.h"
 #include "steam_helper.h"
-#include "i18n.h" 
+#include "i18n.h"
 #include "textgui_overlay.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <algorithm>
+#include <Shellapi.h>
 
 namespace fs = std::filesystem;
 
@@ -55,15 +57,16 @@ static std::wstring BuildSRP() {
 }
 
 // 回归 wstring，但存储的是通过 _() 翻译后的动态文本
-static std::wstring g_autoexecStatus; 
+static std::wstring g_autoexecStatus;
 // 增加一个标记，用来画图时判断状态颜色（是否为绿色“已保存”）
-static bool g_isStatusSaved = false; 
+static bool g_isStatusSaved = false;
 
 static ULONGLONG g_lastWriteTime = 0;
 static bool g_editing = false;
 static int g_cursorPos = 0;
 static int g_scrollOffset = 0;
 static int g_visibleLines = 0;
+static bool g_autoexecManualScroll = false;
 
 static const wchar_t* SOCD_BLOCK = LR"(
 //--StrikeSense SOCD--
@@ -79,19 +82,19 @@ alias jneutral_rl "rightleft 0 0 0"
 alias jright      "rightleft 1 0 0"
 alias jleft       " rightleft -1 0 0"
 alias jfb_00 "alias +ForwardEvent jfb_10; alias +BackEvent jfb_01; jneutral_fb"
-alias jfb_10 "alias -ForwardEvent jfb_00; alias +BackEvent jfb_11_s; jforward"  
-alias jfb_01 "alias -BackEvent jfb_00; alias +ForwardEvent jfb_11_w; jback"     
-alias jfb_11_s "alias -BackEvent jfb_10; alias -ForwardEvent jfb_01; jback"     
-alias jfb_11_w "alias -BackEvent jfb_10; alias -ForwardEvent jfb_01; jforward"    
-alias jrl_00 "alias +LeftEvent jrl_10; alias +RightEvent jrl_01; jneutral_rl"  
-alias jrl_10 "alias -LeftEvent jrl_00; alias +RightEvent jrl_11_d; jleft"     
-alias jrl_01 "alias -RightEvent jrl_00; alias +LeftEvent jrl_11_a; jright"     
-alias jrl_11_d "alias -RightEvent jrl_10; alias -LeftEvent jrl_01; jright"   
-alias jrl_11_a "alias -RightEvent jrl_10; alias -LeftEvent jrl_01; jleft"      
+alias jfb_10 "alias -ForwardEvent jfb_00; alias +BackEvent jfb_11_s; jforward"
+alias jfb_01 "alias -BackEvent jfb_00; alias +ForwardEvent jfb_11_w; jback"
+alias jfb_11_s "alias -BackEvent jfb_10; alias -ForwardEvent jfb_01; jback"
+alias jfb_11_w "alias -BackEvent jfb_10; alias -ForwardEvent jfb_01; jforward"
+alias jrl_00 "alias +LeftEvent jrl_10; alias +RightEvent jrl_01; jneutral_rl"
+alias jrl_10 "alias -LeftEvent jrl_00; alias +RightEvent jrl_11_d; jleft"
+alias jrl_01 "alias -RightEvent jrl_00; alias +LeftEvent jrl_11_a; jright"
+alias jrl_11_d "alias -RightEvent jrl_10; alias -LeftEvent jrl_01; jright"
+alias jrl_11_a "alias -RightEvent jrl_10; alias -LeftEvent jrl_01; jleft"
 jfb_00
 jrl_00
 bind w +ForwardEvent
-bind s +BackEvent 
+bind s +BackEvent
 bind a +LeftEvent
 bind d +RightEvent
 //--StrikeSense SOCD END--
@@ -200,6 +203,56 @@ static void SaveCfg(const std::wstring& c) {
 static void Append(const std::wstring& t) { g_autoexecContent += t; g_editBuffer = g_autoexecContent; SaveCfg(g_autoexecContent); }
 static bool RemoveSave(const std::wstring& s, const std::wstring& e) { std::wstring c = g_autoexecContent; bool f = RemoveBlock(c, s, e); if (f) { g_autoexecContent = c; g_editBuffer = c; SaveCfg(c); } return f; }
 
+static void AddRoundRect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, Gdiplus::REAL radius)
+{
+    using namespace Gdiplus;
+    const REAL d = (std::min)(radius * 2.0f, (std::min)(rect.Width, rect.Height));
+    path.AddArc(rect.X, rect.Y, d, d, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y, d, d, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - d, rect.Y + rect.Height - d, d, d, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - d, d, d, 90.0f, 90.0f);
+    path.CloseFigure();
+}
+
+static void DrawRoundedFill(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
+    Gdiplus::Brush& brush, Gdiplus::Pen& pen, float radius = 8.0f)
+{
+    Gdiplus::GraphicsPath path;
+    AddRoundRect(path, rect, radius);
+    g.FillPath(&brush, &path);
+    g.DrawPath(&pen, &path);
+}
+
+static void ExitAutoexecEditAndSave()
+{
+    if (g_editing) {
+        g_autoexecContent = g_editBuffer;
+        SaveCfg(g_autoexecContent);
+    }
+    g_editing = false;
+    g_editingMSnormal = false;
+    g_editingMSattack = false;
+    g_autoexecManualScroll = false;
+}
+
+static void OpenAutoexecFile(HWND owner)
+{
+    if (g_editing) {
+        g_autoexecContent = g_editBuffer;
+        SaveCfg(g_autoexecContent);
+    }
+    if (g_autoexecPath.empty()) return;
+    const INT_PTR opened = reinterpret_cast<INT_PTR>(
+        ShellExecuteW(owner, L"open", g_autoexecPath.c_str(), nullptr, nullptr, SW_SHOWNORMAL));
+    if (opened <= 32) {
+        ShellExecuteW(owner, L"open", L"notepad.exe", g_autoexecPath.c_str(), nullptr, SW_SHOWNORMAL);
+    }
+    g_editing = false;
+    g_editingMSnormal = false;
+    g_editingMSattack = false;
+    g_autoexecManualScroll = false;
+}
+
 bool IsLegalCfgManaged()
 {
     return g_autoexecContent.find(L"//--StrikeSense ") != std::wstring::npos;
@@ -297,6 +350,46 @@ static void EnsureVis(const std::vector<std::wstring>& l) {
     if (g_scrollOffset < 0) g_scrollOffset = 0;
 }
 
+static Gdiplus::REAL MeasureEditorTextWidth(Gdiplus::Graphics& g, Gdiplus::Font& font, const std::wstring& text)
+{
+    if (text.empty()) return 0.0f;
+    Gdiplus::StringFormat format;
+    format.SetFormatFlags(Gdiplus::StringFormatFlagsMeasureTrailingSpaces);
+    Gdiplus::RectF bounds;
+    Gdiplus::RectF layout(0.0f, 0.0f, 20000.0f, 1000.0f);
+    g.MeasureString(text.c_str(), static_cast<INT>(text.size()), &font, layout, &format, &bounds);
+    return bounds.Width;
+}
+
+static int MeasureEditorTextWidth(HWND hw, const std::wstring& text)
+{
+    if (text.empty()) return 0;
+    HDC dc = GetDC(hw);
+    if (!dc) return static_cast<int>(text.size()) * 7;
+    const int height = -MulDiv(9, GetDeviceCaps(dc, LOGPIXELSY), 72);
+    HFONT font = CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, L"Microsoft YaHei");
+    HGDIOBJ old = font ? SelectObject(dc, font) : nullptr;
+    SIZE size{};
+    GetTextExtentPoint32W(dc, text.c_str(), static_cast<int>(text.size()), &size);
+    if (old) SelectObject(dc, old);
+    if (font) DeleteObject(font);
+    ReleaseDC(hw, dc);
+    return size.cx;
+}
+
+static int EditorColumnFromX(HWND hw, const std::wstring& line, int x)
+{
+    if (x <= 0 || line.empty()) return 0;
+    for (int col = 1; col <= static_cast<int>(line.size()); ++col) {
+        const int left = MeasureEditorTextWidth(hw, line.substr(0, col - 1));
+        const int right = MeasureEditorTextWidth(hw, line.substr(0, col));
+        if (x < left + (right - left) / 2) return col - 1;
+    }
+    return static_cast<int>(line.size());
+}
+
 constexpr int LH = 18;
 static Gdiplus::RectF g_er, g_sv, g_rl, g_sd, g_rsd, g_mw, g_rmw, g_msN, g_msA, g_msw, g_rmsw, g_csw, g_rcsw;
 
@@ -321,18 +414,25 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int av = H - 85; int eh = av / 4; if (eh < 120) eh = 120;
     g_er = RectF((REAL)(cx + 10), (REAL)85, (REAL)(cw - 20), (REAL)eh);
     SolidBrush ebg(theme.input_background); Pen ep(theme.input_border);
-    g.FillRectangle(&ebg, g_er); g.DrawRectangle(&ep, g_er);
+    DrawRoundedFill(g, g_er, ebg, ep, 10.0f);
     g_visibleLines = (eh - 4) / LH;
     const std::wstring& disp = g_editing ? g_editBuffer : g_autoexecContent;
     auto lines = ToLines(disp);
-    if (g_editing) EnsureVis(lines);
+    if (g_editing && !g_autoexecManualScroll) EnsureVis(lines);
     int ly = 89, dr = 0;
     for (int i = g_scrollOffset; i < (int)lines.size() && dr < g_visibleLines; i++, dr++) {
         g.DrawString(lines[i].c_str(), -1, &sf, PointF((REAL)(cx + 14), (REAL)ly), &tc); ly += LH;
     }
     if (g_editing) {
         int cl, cc; LCFromPos(lines, g_cursorPos, cl, cc); int vr = cl - g_scrollOffset;
-        if (vr >= 0 && vr < g_visibleLines) { SolidBrush cb(Color(255, 0, 0, 0)); g.FillRectangle(&cb, (REAL)(cx + 14 + cc * 7), (REAL)(89 + vr * LH), 2.f, (REAL)LH); }
+        if (vr >= 0 && vr < g_visibleLines) {
+            const std::wstring prefix = (cl >= 0 && cl < static_cast<int>(lines.size()))
+                ? lines[cl].substr(0, (std::min)(cc, static_cast<int>(lines[cl].size())))
+                : std::wstring{};
+            SolidBrush cb(theme.text);
+            g.FillRectangle(&cb, (REAL)(cx + 14) + MeasureEditorTextWidth(g, sf, prefix),
+                (REAL)(89 + vr * LH), 2.f, (REAL)LH);
+        }
     }
 
     const int BW = 100, BH = 26;
@@ -342,7 +442,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         };
 
     int by = 85 + eh + 10;
-    B(g_sv, cx + 10, by, _(i18n::Keys::LEGAL_SAVE));
+    B(g_sv, cx + 10, by, i18n::T("LEGAL_OPEN_FILE"));
     B(g_rl, cx + 10 + BW + 10, by, _(i18n::Keys::LEGAL_REFRESH));
     g.DrawString(_(i18n::Keys::LEGAL_EDIT_HINT), -1, &sf, PointF((REAL)(cx + 10 + BW + 10 + BW + 20), (REAL)(by + 6)), &td);
 
@@ -384,7 +484,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     int dx = cx + 10 + BW + 10 + BW + 20, dw = 90;
     g_chSWDropRect = RectF((REAL)dx, (REAL)fy4, (REAL)dw, (REAL)BH);
     SolidBrush db2(theme.button_background); Pen dp(theme.button_border);
-    g.FillRectangle(&db2, g_chSWDropRect); g.DrawRectangle(&dp, g_chSWDropRect);
+    DrawRoundedFill(g, g_chSWDropRect, db2, dp, 8.0f);
     g.DrawString(CHSW_MODES[g_chSWMode], -1, &sf, PointF((REAL)(dx + 4), (REAL)(fy4 + 4)), &tc);
     SolidBrush ar(theme.text);
     PointF apt[] = { PointF((REAL)(dx + dw - 8),(REAL)(fy4 + 6)), PointF((REAL)(dx + dw),(REAL)(fy4 + 6)), PointF((REAL)(dx + dw - 4),(REAL)(fy4 + 14)) };
@@ -400,7 +500,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     int dxSrp = cx + 10 + BW + 10 + BW + 20, dwSrp = 90;
     g_ddSrpRect = RectF((REAL)dxSrp, (REAL)fy5, (REAL)dwSrp, (REAL)BH);
-    g.FillRectangle(&db2, g_ddSrpRect); g.DrawRectangle(&dp, g_ddSrpRect);
+    DrawRoundedFill(g, g_ddSrpRect, db2, dp, 8.0f);
     g.DrawString(GetSrpModeName(g_srpModeIdx), -1, &sf, PointF((REAL)(dxSrp + 4), (REAL)(fy5 + 4)), &tc);
 
     PointF aptSrp[] = { PointF((REAL)(dxSrp + dwSrp - 8),(REAL)(fy5 + 6)), PointF((REAL)(dxSrp + dwSrp),(REAL)(fy5 + 6)), PointF((REAL)(dxSrp + dwSrp - 4),(REAL)(fy5 + 14)) };
@@ -414,7 +514,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         for (int j = 0; j < 2; ++j) {
             RectF or2((REAL)dx, (REAL)(fy4 + BH + j * 18), (REAL)dw, 18.f);
             g_dropdownRects[j] = or2;
-            g.FillRectangle(j == g_chSWMode ? &dh : &db, or2); g.DrawRectangle(&dp, or2);
+            DrawRoundedFill(g, or2, j == g_chSWMode ? dh : db, dp, 6.0f);
             g.DrawString(CHSW_MODES[j], -1, &sf, PointF((REAL)(dx + 4), (REAL)(fy4 + BH + j * 18)), &tc);
         }
     }
@@ -424,7 +524,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         for (int j = 0; j < 8; ++j) {
             RectF or2((REAL)dxSrp, (REAL)(fy5 + BH + j * 18), (REAL)dwSrp, 18.f);
             g_srpDropdownRects[j] = or2;
-            g.FillRectangle(j == g_srpModeIdx ? &dh : &db, or2); g.DrawRectangle(&dp, or2);
+            DrawRoundedFill(g, or2, j == g_srpModeIdx ? dh : db, dp, 6.0f);
             g.DrawString(GetSrpModeName(j), -1, &sf, PointF((REAL)(dxSrp + 4), (REAL)(fy5 + BH + j * 18)), &tc);
         }
     }
@@ -432,7 +532,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
 // ===== UI 点击事件层 =====
 void CheckLegalCfgClick(HWND hw, int mx, int my) {
-    auto cf = [&]() { g_editing = false; g_editingMSnormal = false; g_editingMSattack = false; };
+    auto cf = [&]() { ClearEditingFocus(); };
     #define R(r) (mx >= r.X && mx <= r.X+r.Width && my >= r.Y && my <= r.Y+r.Height)
 
     // 拦截 SRP 下拉菜单内的点击
@@ -471,43 +571,43 @@ void CheckLegalCfgClick(HWND hw, int mx, int my) {
         InvalidateRect(hw, 0, 0);
         return;
     }
-    if R(g_sv) { if (g_editing) { g_autoexecContent = g_editBuffer; cf(); } SaveCfg(g_autoexecContent); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
+    if R(g_sv) { OpenAutoexecFile(hw); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
     if R(g_rl) { g_lastWriteTime = 0; LoadCfg(); cf(); InvalidateRect(hw,0,0); return; }
     if R(g_sd) { Append(SOCD_BLOCK); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
-    if R(g_rsd) { 
+    if R(g_rsd) {
         if (RemoveSave(L"//--StrikeSense SOCD--", L"//--StrikeSense SOCD END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return;
     }
     if R(g_mw) { Append(MWHEELJUMP_BLOCK); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
-    if R(g_rmw) { 
+    if R(g_rmw) {
         if (RemoveSave(L"//--StrikeSense MwheelJump--", L"//--StrikeSense MwheelJump END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return;
     }
     if R(g_msw) { Append(BuildMS()); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
-    if R(g_rmsw) { 
+    if R(g_rmsw) {
         if (RemoveSave(L"//--StrikeSense MS--", L"//--StrikeSense MS END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return;
     }
     if R(g_csw) { Append(BuildCHSW()); cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; }
-    if R(g_rcsw) { 
+    if R(g_rcsw) {
         if (RemoveSave(L"//--StrikeSense CrosshairSW--", L"//--StrikeSense CrosshairSW END--")) {
             g_autoexecStatus = _(i18n::Keys::LEGAL_SAVED); g_isStatusSaved = true;
         } else {
             g_autoexecStatus = _(i18n::Keys::LEGAL_NOT_FOUND); g_isStatusSaved = false;
         }
-        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return; 
+        cf(); RefreshTextguiOverlay(); InvalidateRect(hw,0,0); return;
 
 
     }
@@ -529,27 +629,40 @@ void CheckLegalCfgClick(HWND hw, int mx, int my) {
     if R(g_msA) { cf(); g_editingMSattack = true; SetFocus(hw); InvalidateRect(hw,0,0); return; }
     if R(g_er) {
         cf(); g_editing = true; g_editBuffer = g_autoexecContent;
+        g_autoexecManualScroll = false;
         int ry = my - (int)g_er.Y - 4, rx = mx - (int)g_er.X - 14;
-        int cl = ry / LH + g_scrollOffset, cc = (rx / 7 > 0) ? rx / 7 : 0;
-        auto l = ToLines(g_editBuffer); if (cl < 0) cl = 0;
+        int cl = ry / LH + g_scrollOffset, cc = 0;
+        auto l = ToLines(g_editBuffer); if (l.empty()) l.push_back(L""); if (cl < 0) cl = 0;
         if (cl >= (int)l.size()) { cl = (int)l.size()-1; cc = (int)l[cl].length(); }
+        else { cc = EditorColumnFromX(hw, l[cl], rx); }
         g_cursorPos = PosFromLC(l, cl, cc); SetFocus(hw); InvalidateRect(hw,0,0); return;
     }
     cf(); InvalidateRect(hw,0,0);
     #undef R
 }
 
-void ClearEditingFocus() { g_editing = false; g_editingMSnormal = false; g_editingMSattack = false; }
+void ClearEditingFocus() { ExitAutoexecEditAndSave(); }
 
 bool ProcessLegalCfgKeyInput(HWND hw, UINT msg, WPARAM wp, LPARAM) {
     auto lines = ToLines(g_editBuffer);
+    if (g_editing && msg == WM_MOUSEWHEEL) {
+        const int delta = GET_WHEEL_DELTA_WPARAM(wp);
+        const int step = delta > 0 ? -3 : 3;
+        const int maxScroll = (std::max)(0, static_cast<int>(lines.size()) - g_visibleLines);
+        g_scrollOffset = std::clamp(g_scrollOffset + step, 0, maxScroll);
+        g_autoexecManualScroll = true;
+        InvalidateRect(hw, 0, 0);
+        return true;
+    }
     if (g_editing && msg == WM_CHAR) {
+        g_autoexecManualScroll = false;
         wchar_t ch = (wchar_t)wp;
         if (ch >= 32 && ch <= 126) { g_editBuffer.insert(g_cursorPos, 1, ch); g_cursorPos++; InvalidateRect(hw,0,0); return true; }
         if (ch == 13) { g_editBuffer.insert(g_cursorPos, 1, L'\n'); g_cursorPos++; InvalidateRect(hw,0,0); return true; }
         return false;
     }
     if (g_editing && msg == WM_KEYDOWN) {
+        g_autoexecManualScroll = false;
         UINT vk = (UINT)wp;
         if (vk == VK_BACK && g_cursorPos > 0) { g_editBuffer.erase(g_cursorPos-1,1); g_cursorPos--; InvalidateRect(hw,0,0); return true; }
         if (vk == VK_DELETE && g_cursorPos < (int)g_editBuffer.length()) { g_editBuffer.erase(g_cursorPos,1); InvalidateRect(hw,0,0); return true; }

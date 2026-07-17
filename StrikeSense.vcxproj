@@ -236,14 +236,14 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
       <UseFullPaths>false</UseFullPaths>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;UNICODE;_UNICODE;STRIKESENSE_BUILD_CODE=1;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;SIMDJSON_THREADS_ENABLED=1;CMAKE_INTDIR="Nightly"</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;UNICODE;_UNICODE;STRIKESENSE_BUILD_CODE=2;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;SIMDJSON_THREADS_ENABLED=1;CMAKE_INTDIR="Nightly"</PreprocessorDefinitions>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <DebugInformationFormat>
       </DebugInformationFormat>
       <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;UNICODE;_UNICODE;STRIKESENSE_BUILD_CODE=1;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;SIMDJSON_THREADS_ENABLED=1;CMAKE_INTDIR=\"Nightly\"</PreprocessorDefinitions>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;UNICODE;_UNICODE;STRIKESENSE_BUILD_CODE=2;CPPHTTPLIB_BROTLI_SUPPORT;CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO;YAML_CPP_STATIC_DEFINE;SIMDJSON_THREADS_ENABLED=1;CMAKE_INTDIR=\"Nightly\"</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\jingy\source\repos\StrikeSense;C:\Users\jingy\source\repos\StrikeSense\include\app;C:\Users\jingy\source\repos\StrikeSense\include\core;C:\Users\jingy\source\repos\StrikeSense\include\ui;C:\Users\jingy\source\repos\StrikeSense\include\vscript;C:\Users\jingy\vcpkg\installed\x64-windows-static\include;C:\Users\jingy\vcpkg\installed\x64-windows-static\include\SDL2;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ResourceCompile>
     <Midl>

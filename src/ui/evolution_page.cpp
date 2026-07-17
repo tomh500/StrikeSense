@@ -19,28 +19,20 @@
 #include "input_environment.h"
 #include "resource.h"
 #include "ui_theme.h"
-#include "vscript.h"
 
 namespace fs = std::filesystem;
 
 namespace {
 
-bool can_use_advanced_theme()
-{
-    return vscript::GetBuildCode() == vscript::buildcode::eng;
-}
-
 bool is_locked_theme(int preset)
 {
-    return preset == uitheme::preset_gemini
-        || preset == uitheme::preset_gpt
-        || preset == uitheme::preset_deepseek;
+    return preset >= uitheme::preset_vape;
 }
 
 int visible_theme_preset()
 {
-    if (!can_use_advanced_theme() && is_locked_theme(g_uiThemePreset)) {
-        std::cout << "[界面主题] 当前权限不允许使用 Gemini/GPT/DeepSeek，保存时回退到 Default++。" << std::endl;
+    if (is_locked_theme(g_uiThemePreset)) {
+        std::cout << "[界面主题] 高级视觉组正在开发中，保存时回退到 Defult。" << std::endl;
         return uitheme::preset_default_plus;
     }
     return g_uiThemePreset;
@@ -340,9 +332,9 @@ void LoadUiThemePresetBeforeWindow() {
         }
 
         g_uiThemePreset = std::clamp(g_uiThemePreset, 0, uitheme::preset_count - 1);
-        if (!can_use_advanced_theme() && is_locked_theme(g_uiThemePreset)) {
+        if (is_locked_theme(g_uiThemePreset)) {
             g_uiThemePreset = uitheme::preset_default_plus;
-            std::cout << "[界面主题] 非 eng 权限检测到锁定主题，已回退到 Default++。" << std::endl;
+            std::cout << "[界面主题] 检测到开发中主题，已回退到 Defult。" << std::endl;
         }
     }
     catch (...) {
@@ -408,9 +400,9 @@ void LoadEvolutionParams() {
         gv("ui_theme_preset", g_uiThemePreset);
         g_notificationsStyle = std::clamp(g_notificationsStyle, 0, evolutionui::kNotificationsStyleCount - 1);
         g_uiThemePreset = std::clamp(g_uiThemePreset, 0, uitheme::preset_count - 1);
-        if (!can_use_advanced_theme() && is_locked_theme(g_uiThemePreset)) {
+        if (is_locked_theme(g_uiThemePreset)) {
             g_uiThemePreset = uitheme::preset_default_plus;
-            std::cout << "[界面主题] 非 eng 权限检测到锁定主题，已回退到 Default++。" << std::endl;
+            std::cout << "[界面主题] 检测到开发中主题，已回退到 Defult。" << std::endl;
         }
 
         gb("item_helper_enabled", g_itemHelperEnabled);
