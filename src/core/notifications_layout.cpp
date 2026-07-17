@@ -1,6 +1,7 @@
 #include "notifications_layout.h"
 
 #include <algorithm>
+#include <windows.h>
 
 namespace notifications_layout {
 namespace {
@@ -8,12 +9,23 @@ namespace {
 constexpr float kBaseWidth = 2560.f;
 constexpr float kBaseHeight = 1440.f;
 
+float query_dpi_scale()
+{
+    const UINT dpi = GetDpiForSystem();
+    if (dpi == 0) return 1.f;
+    return static_cast<float>(dpi) / 96.f;
+}
+
 float resolve_scale(int screenWidth, int screenHeight)
 {
     if (screenWidth <= 0 || screenHeight <= 0) return 1.f;
-    const float scaleX = static_cast<float>(screenWidth) / kBaseWidth;
-    const float scaleY = static_cast<float>(screenHeight) / kBaseHeight;
-    return (std::max)(0.65f, (std::min)(scaleX, scaleY));
+    const float dpiScale = query_dpi_scale();
+    const float estimatedRealWidth = static_cast<float>(screenWidth) * dpiScale;
+    const float estimatedRealHeight = static_cast<float>(screenHeight) * dpiScale;
+    const float resolutionScaleX = estimatedRealWidth / kBaseWidth;
+    const float resolutionScaleY = estimatedRealHeight / kBaseHeight;
+    const float resolutionScale = (std::min)(resolutionScaleX, resolutionScaleY);
+    return (std::max)(0.65f, resolutionScale * dpiScale);
 }
 
 int scaled_int(float scale, float baseValue)
