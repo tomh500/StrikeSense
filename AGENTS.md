@@ -25,6 +25,7 @@
 如果必须脚本写文件，显式用 UTF8Encoding($false)。
 保持原文件换行，不顺手重写整文件。
 不用 PowerShell 默认 Set-Content / WriteAllText 裸写源码
+
 # 主题和公共绘图要求
 - 新建或修改 UI 控件时，必须优先使用 `pages.h` 中 `ui::` 公共绘图接口和 `src/app/ui_common.cpp` 的实现，不要在页面里重新写一套按钮、开关、滑块、导航项动画。
 - 控件颜色必须来自 `uitheme::get_palette()` / `include/core/ui_theme.h` 的全局 `palette`，禁止在控件内部写死传统科技蓝或一次性主题色。
@@ -34,3 +35,5 @@
 - 高级视觉组顺序为：`Vape`、`LiquidBounce`、`Gemini`、`GPT`、`DeepSeek`。当前全部处于开发中，按钮置灰且不可点击，点击只提示“正在开发中”。
 - 动画刷新由公共 UI 时钟管理：交互时约 90fps，空闲降频到低刷新。不要在单个控件里私自开独立定时器或直接瞬间切换颜色。
 - 程序启动默认主题是 `Defult`，并且窗口创建前要先读取保存的主题配置，避免启动后仍显示旧蓝色。
+
+- 一般来讲 %UserProfile%/StrikeSense是程序的数据目录，如果我说了相对路径 一般是说从%UserProfile%/StrikeSense开始 例如 img/1.jpg 指的是%UserProfile%/StrikeSense/img/1.jpg
