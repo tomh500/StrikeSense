@@ -7,7 +7,6 @@
 #include "textgui_overlay.h"
 
 #include <algorithm>
-#include <array>
 #include <commdlg.h>
 #include <filesystem>
 #include <optional>
@@ -22,23 +21,21 @@ constexpr std::size_t kScriptsPerPage = 3;
 enum class BindingTarget {
     None,
     Ticker,
-    ScriptKey
+    ScriptKey,
+    ScriptTriggerKey
 };
 
-struct TriggerDialogContext {
-    std::wstring title;
-    std::wstring file_name;
-    std::wstring trigger_key_label;
-    UINT trigger_virtual_key = 0;
-    bool trigger_extended_key = false;
-    bool capture_mode = false;
+struct InputDialogContext {
+    const wchar_t* label = nullptr;
+    std::wstring initial;
+    std::wstring result;
     bool accepted = false;
 };
 
 Gdiplus::RectF g_toggleRect, g_expandRect, g_mountRect, g_openDirectoryRect;
 Gdiplus::RectF g_tickerBindRect, g_performanceToggleRect;
 Gdiplus::RectF g_previousPageRect, g_nextPageRect;
-std::vector<Gdiplus::RectF> g_bindRects, g_triggerEditorRects, g_reloadRects, g_removeRects;
+std::vector<Gdiplus::RectF> g_bindRects, g_triggerBindRects, g_triggerFileRects, g_reloadRects, g_removeRects;
 std::vector<std::size_t> g_visibleIndices;
 std::optional<std::size_t> g_bindingIndex;
 BindingTarget g_bindingTarget = BindingTarget::None;
@@ -111,92 +108,48 @@ void ResetDetails()
     g_previousPageRect = {};
     g_nextPageRect = {};
     g_bindRects.clear();
-    g_triggerEditorRects.clear();
+    g_triggerBindRects.clear();
+    g_triggerFileRects.clear();
     g_reloadRects.clear();
     g_removeRects.clear();
     g_visibleIndices.clear();
 }
 
-void UpdateTriggerButtonLabel(HWND dialog, const TriggerDialogContext& context)
+INT_PTR CALLBACK InputDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    SetDlgItemTextW(dialog, IDC_CSCRIPT_TRIGGER_KEY_BUTTON, context.trigger_key_label.c_str());
-}
-
-INT_PTR CALLBACK TriggerDialogProc(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    auto* context = reinterpret_cast<TriggerDialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
-    switch (message) {
-    case WM_INITDIALOG:
-        context = reinterpret_cast<TriggerDialogContext*>(lParam);
+    auto* context = reinterpret_cast<InputDialogContext*>(GetWindowLongPtrW(dialog, DWLP_USER));
+    if (message == WM_INITDIALOG) {
+        context = reinterpret_cast<InputDialogContext*>(lParam);
         SetWindowLongPtrW(dialog, DWLP_USER, reinterpret_cast<LONG_PTR>(context));
-        SetWindowTextW(dialog, context->title.c_str());
-        SetDlgItemTextW(dialog, IDC_CSCRIPT_TRIGGER_FILE_EDIT, context->file_name.c_str());
-        UpdateTriggerButtonLabel(dialog, *context);
+        SetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_LABEL, context->label);
+        SetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_EDIT, context->initial.c_str());
+        SendDlgItemMessageW(dialog, IDC_EVOLUTION_INPUT_EDIT, EM_SETSEL, 0, -1);
+        SetFocus(GetDlgItem(dialog, IDC_EVOLUTION_INPUT_EDIT));
+        return FALSE;
+    }
+    if (message != WM_COMMAND || !context) return FALSE;
+    if (LOWORD(wParam) == IDOK) {
+        wchar_t text[260]{};
+        GetDlgItemTextW(dialog, IDC_EVOLUTION_INPUT_EDIT, text, static_cast<int>(std::size(text)));
+        context->result = text;
+        context->accepted = true;
+        EndDialog(dialog, IDOK);
         return TRUE;
-    case WM_COMMAND:
-        if (!context) return FALSE;
-        if (LOWORD(wParam) == IDC_CSCRIPT_TRIGGER_KEY_BUTTON) {
-            context->capture_mode = true;
-            context->trigger_key_label = L"请按键（ESC 清空）";
-            UpdateTriggerButtonLabel(dialog, *context);
-            return TRUE;
-        }
-        if (LOWORD(wParam) == IDOK) {
-            wchar_t text[260]{};
-            GetDlgItemTextW(dialog, IDC_CSCRIPT_TRIGGER_FILE_EDIT, text, static_cast<int>(std::size(text)));
-            context->file_name = text;
-            context->accepted = true;
-            EndDialog(dialog, IDOK);
-            return TRUE;
-        }
-        if (LOWORD(wParam) == IDCANCEL) {
-            EndDialog(dialog, IDCANCEL);
-            return TRUE;
-        }
-        break;
-    case WM_KEYDOWN:
-    case WM_SYSKEYDOWN:
-        if (!context || !context->capture_mode) return FALSE;
-        if (static_cast<UINT>(wParam) == VK_ESCAPE) {
-            context->trigger_virtual_key = 0;
-            context->trigger_extended_key = false;
-            context->trigger_key_label = L"未设置";
-            context->capture_mode = false;
-            UpdateTriggerButtonLabel(dialog, *context);
-            return TRUE;
-        }
-        UINT virtualKey = 0;
-        bool extendedKey = false;
-        if (!cscript::NormalizeWindowKey(wParam, 0, virtualKey, extendedKey)) {
-            MessageBoxW(dialog, i18n::T("CSCRIPT_UNSUPPORTED_KEY"), i18n::T("CSCRIPT_BIND_FAILED"), MB_OK | MB_ICONWARNING);
-            return TRUE;
-        }
-        context->trigger_virtual_key = virtualKey;
-        context->trigger_extended_key = extendedKey;
-        context->trigger_key_label = cscript::VirtualKeyToSourceName(virtualKey, extendedKey);
-        if (context->trigger_key_label.empty()) context->trigger_key_label = L"未设置";
-        context->capture_mode = false;
-        UpdateTriggerButtonLabel(dialog, *context);
+    }
+    if (LOWORD(wParam) == IDCANCEL) {
+        EndDialog(dialog, IDCANCEL);
         return TRUE;
     }
     return FALSE;
 }
 
-bool EditCustomTrigger(HWND owner, const cscript::mounted_script& script, UINT& trigger_virtual_key,
-    bool& trigger_extended_key, std::wstring& file_name)
+bool PromptTextValue(HWND owner, const wchar_t* label, const std::wstring& initial, std::wstring& result)
 {
-    TriggerDialogContext context;
-    context.title = L"编辑自定义触发器";
-    context.file_name = script.trigger_file_name;
-    context.trigger_virtual_key = script.trigger_virtual_key;
-    context.trigger_extended_key = script.trigger_extended_key;
-    context.trigger_key_label = script.trigger_source_key.empty() ? L"未设置" : script.trigger_source_key;
-    DialogBoxParamW(hInst, MAKEINTRESOURCEW(IDD_CSCRIPT_TRIGGER), owner,
-        TriggerDialogProc, reinterpret_cast<LPARAM>(&context));
+    InputDialogContext context{ label, initial, initial, false };
+    DialogBoxParamW(hInst, MAKEINTRESOURCEW(IDD_EVOLUTION_INPUT), owner,
+        InputDialogProc, reinterpret_cast<LPARAM>(&context));
     if (!context.accepted) return false;
-    trigger_virtual_key = context.trigger_virtual_key;
-    trigger_extended_key = context.trigger_extended_key;
-    file_name = context.file_name;
+    result = context.result;
     return true;
 }
 
@@ -270,14 +223,12 @@ int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, in
         graphics.DrawString(i18n::T("CSCRIPT_EMPTY"), -1, &textFont,
             PointF(static_cast<REAL>(contentX + 12), static_cast<REAL>(rowY + 8)), &dim);
     }
-
     for (std::size_t index = first; index < last; ++index) {
         const auto& script = scripts[index];
         RectF row(static_cast<REAL>(contentX + 8), static_cast<REAL>(rowY),
             static_cast<REAL>(contentWidth - 16), 84.f);
         graphics.FillRectangle(&rowBackground, row);
         graphics.DrawRectangle(&rowBorder, row);
-
         const std::wstring fileName = Compact(std::filesystem::path(script.path).filename().wstring(), 28);
         graphics.DrawString(fileName.c_str(), -1, &boldFont, PointF(row.X + 8.f, row.Y + 4.f), &text);
 
@@ -290,17 +241,19 @@ int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, in
 
         graphics.DrawString(L"监听键", -1, &smallFont, PointF(row.X + 8.f, row.Y + 50.f), &dim);
         const std::wstring triggerSummary = script.trigger_file_name.empty()
-            ? L"自定义触发器未设置"
-            : (L"自定义: " + script.trigger_source_key + L" -> " + script.trigger_file_name);
-        graphics.DrawString(Compact(triggerSummary, 30).c_str(), -1, &smallFont,
+            ? L"默认全局 StrikeTicker.cfg"
+            : (L"触发文件: CustomTicker/" + script.trigger_file_name + L".cfg");
+        graphics.DrawString(Compact(triggerSummary, 36).c_str(), -1, &smallFont,
             PointF(row.X + 76.f, row.Y + 50.f), &dim);
 
-        RectF bind(row.X + row.Width - 280.f, row.Y + 10.f, 76.f, 28.f);
-        RectF triggerEditor(row.X + row.Width - 196.f, row.Y + 10.f, 120.f, 28.f);
-        RectF reload(row.X + row.Width - 144.f, row.Y + 46.f, 60.f, 28.f);
-        RectF remove(row.X + row.Width - 76.f, row.Y + 46.f, 60.f, 28.f);
+        RectF bind(row.X + row.Width - 396.f, row.Y + 10.f, 76.f, 28.f);
+        RectF triggerBind(row.X + row.Width - 312.f, row.Y + 10.f, 76.f, 28.f);
+        RectF triggerFile(row.X + row.Width - 228.f, row.Y + 10.f, 76.f, 28.f);
+        RectF reload(row.X + row.Width - 144.f, row.Y + 10.f, 60.f, 28.f);
+        RectF remove(row.X + row.Width - 76.f, row.Y + 10.f, 60.f, 28.f);
         g_bindRects.push_back(bind);
-        g_triggerEditorRects.push_back(triggerEditor);
+        g_triggerBindRects.push_back(triggerBind);
+        g_triggerFileRects.push_back(triggerFile);
         g_reloadRects.push_back(reload);
         g_removeRects.push_back(remove);
         g_visibleIndices.push_back(index);
@@ -311,12 +264,18 @@ int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, in
         else if (!script.source_key.empty()) bindText = script.source_key;
         else bindText = L"未绑定";
 
-        const std::wstring triggerButtonText = script.trigger_file_name.empty()
-            ? L"自定义触发器"
-            : L"自定义触发器(存在)";
+        std::wstring triggerBindText;
+        if (g_bindingTarget == BindingTarget::ScriptTriggerKey && g_bindingIndex.has_value() && *g_bindingIndex == index)
+            triggerBindText = i18n::T("CSCRIPT_PRESS_KEY");
+        else if (!script.trigger_source_key.empty()) triggerBindText = script.trigger_source_key;
+        else triggerBindText = L"自定义触发键";
+
+        const std::wstring triggerFileText = script.trigger_file_name.empty()
+            ? L"自定义触发名" : script.trigger_file_name;
 
         DrawButton(graphics, bind, Compact(bindText, 10).c_str());
-        DrawButton(graphics, triggerEditor, Compact(triggerButtonText, 16).c_str());
+        DrawButton(graphics, triggerBind, Compact(triggerBindText, 10).c_str());
+        DrawButton(graphics, triggerFile, Compact(triggerFileText, 10).c_str());
         DrawButton(graphics, reload, i18n::T("CSCRIPT_RELOAD"));
         DrawButton(graphics, remove, i18n::T("CSCRIPT_REMOVE"));
         rowY += 90;
@@ -403,7 +362,6 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
         InvalidateRect(owner, nullptr, FALSE);
         return true;
     }
-
     for (std::size_t visible = 0; visible < g_visibleIndices.size(); ++visible) {
         const std::size_t index = g_visibleIndices[visible];
         if (Hit(g_bindRects[visible], mouseX, mouseY)) {
@@ -412,21 +370,20 @@ bool CheckClick(HWND owner, int mouseX, int mouseY)
             InvalidateRect(owner, nullptr, FALSE);
             return true;
         }
-        if (Hit(g_triggerEditorRects[visible], mouseX, mouseY)) {
+        if (Hit(g_triggerBindRects[visible], mouseX, mouseY)) {
+            g_bindingIndex = index;
+            g_bindingTarget = BindingTarget::ScriptTriggerKey;
+            InvalidateRect(owner, nullptr, FALSE);
+            return true;
+        }
+        if (Hit(g_triggerFileRects[visible], mouseX, mouseY)) {
             const auto& scripts = cscript::MountedScripts();
             if (index < scripts.size()) {
-                UINT triggerVirtualKey = scripts[index].trigger_virtual_key;
-                bool triggerExtendedKey = scripts[index].trigger_extended_key;
-                std::wstring fileName = scripts[index].trigger_file_name;
-                if (EditCustomTrigger(owner, scripts[index], triggerVirtualKey, triggerExtendedKey, fileName)) {
+                std::wstring next;
+                if (PromptTextValue(owner, L"输入触发文件名，留空恢复全局设置", scripts[index].trigger_file_name, next)) {
                     std::wstring error;
-                    if (!cscript::SetScriptTriggerFileName(index, fileName, &error) && !error.empty()) {
+                    if (!cscript::SetScriptTriggerFileName(index, next, &error) && !error.empty())
                         MessageBoxW(owner, error.c_str(), i18n::T("CSCRIPT_BIND_FAILED"), MB_OK | MB_ICONWARNING);
-                    } else if (triggerVirtualKey == 0) {
-                        cscript::ClearScriptTriggerKey(index, nullptr);
-                    } else if (!cscript::SetScriptTriggerKey(index, triggerVirtualKey, triggerExtendedKey, &error) && !error.empty()) {
-                        MessageBoxW(owner, error.c_str(), i18n::T("CSCRIPT_BIND_FAILED"), MB_OK | MB_ICONWARNING);
-                    }
                 }
             }
             InvalidateRect(owner, nullptr, FALSE);
@@ -464,6 +421,15 @@ bool ProcessBindingKey(HWND owner, WPARAM wParam, LPARAM lParam)
         InvalidateRect(owner, nullptr, FALSE);
         return true;
     }
+    if (g_bindingTarget == BindingTarget::ScriptTriggerKey && static_cast<UINT>(wParam) == VK_ESCAPE) {
+        std::wstring error;
+        if (!cscript::ClearScriptTriggerKey(*g_bindingIndex, &error) && !error.empty())
+            MessageBoxW(owner, error.c_str(), i18n::T("CSCRIPT_BIND_FAILED"), MB_OK | MB_ICONWARNING);
+        g_bindingTarget = BindingTarget::None;
+        g_bindingIndex.reset();
+        InvalidateRect(owner, nullptr, FALSE);
+        return true;
+    }
 
     UINT virtualKey = 0;
     bool extendedKey = false;
@@ -480,6 +446,9 @@ bool ProcessBindingKey(HWND owner, WPARAM wParam, LPARAM lParam)
         break;
     case BindingTarget::ScriptKey:
         bound = cscript::SetScriptKey(*g_bindingIndex, virtualKey, extendedKey, &error);
+        break;
+    case BindingTarget::ScriptTriggerKey:
+        bound = cscript::SetScriptTriggerKey(*g_bindingIndex, virtualKey, extendedKey, &error);
         break;
     case BindingTarget::None:
         break;
