@@ -30,7 +30,7 @@ constexpr wchar_t kClassName[] = L"StrikeSenseSplashWindow";
 //    这样后台初始化很快完成时，进度条仍会完整走完才开始关闭动画。
 constexpr double kIntroMs = 3000.0;
 constexpr double kLogoMs = 220.0;
-constexpr double kExitMs = 600.0;
+constexpr double kExitMs = 500.0;
 constexpr double kFadeMs = 80.0;
 constexpr DWORD kFrameDelayMs = 4;
 constexpr int kTargetWidth = 460;
