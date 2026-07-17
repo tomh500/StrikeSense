@@ -35,6 +35,8 @@ constexpr UINT_PTR kTimer = 3021;
 constexpr UINT kPushMessage = WM_APP + 3021;
 constexpr UINT kFrameMs = 1000 / 90;
 constexpr int kAnimMs = 260;
+constexpr int kGptEntryMs = 220;
+constexpr int kGptExitMs = 190;
 constexpr int kGeminiEntryMs = 400;
 constexpr int kGeminiExitMs = 250;
 constexpr int kLiquidBounceKnobAnimMs = 300;
@@ -104,6 +106,12 @@ Gdiplus::Font& font_yahei_13_5_bold()
     return font;
 }
 
+Gdiplus::Font& font_yahei_13_5_regular()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 13.5f, Gdiplus::FontStyleRegular);
+    return font;
+}
+
 Gdiplus::Font& font_yahei_13_bold()
 {
     static Gdiplus::Font font(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
@@ -160,7 +168,7 @@ Gdiplus::SolidBrush& brush_vape_sub()
 
 Gdiplus::SolidBrush& brush_gpt_sub()
 {
-    static Gdiplus::SolidBrush brush(Gdiplus::Color(230, 210, 220, 235));
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 185, 185, 185));
     return brush;
 }
 
@@ -357,13 +365,66 @@ void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 
 void draw_gpt(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 {
-    fill_card(g, box, Gdiplus::Color(235, 15, 18, 25), 12.f, Gdiplus::Color(180, 90, 170, 255));
-    auto& titleFont = font_yahei_13_bold();
+    constexpr float radius = 11.f;
+    constexpr float progressHeight = 2.5f;
+    const Gdiplus::Color cardColor(244, 32, 33, 35);
+    const Gdiplus::Color enabledColor(255, 16, 163, 127);
+    const Gdiplus::Color disabledColor(255, 91, 111, 102);
+    const Gdiplus::Color accentColor = s_enabledState ? enabledColor : disabledColor;
+
+    for (int i = 3; i >= 1; --i) {
+        const float spread = static_cast<float>(i) * 3.f;
+        Gdiplus::RectF shadow(box.X - spread * 0.5f, box.Y + spread,
+            box.Width + spread, box.Height + spread * 0.25f);
+        Gdiplus::GraphicsPath shadowPath;
+        add_rounded_rect(shadowPath, shadow, radius + spread * 0.45f);
+        Gdiplus::SolidBrush shadowBrush(Gdiplus::Color(static_cast<BYTE>(10 + i * 5), 0, 0, 0));
+        g.FillPath(&shadowBrush, &shadowPath);
+    }
+
+    Gdiplus::GraphicsPath cardPath;
+    add_rounded_rect(cardPath, box, radius);
+    Gdiplus::SolidBrush cardBrush(cardColor);
+    g.FillPath(&cardBrush, &cardPath);
+
+    const float iconSize = 30.f;
+    const float iconX = box.X + 18.f;
+    const float iconY = box.Y + 18.f;
+    Gdiplus::SolidBrush iconBack(accentColor);
+    g.FillEllipse(&iconBack, iconX, iconY, iconSize, iconSize);
+
+    Gdiplus::Pen iconPen(Gdiplus::Color(255, 255, 255, 255), 2.2f);
+    iconPen.SetStartCap(Gdiplus::LineCapRound);
+    iconPen.SetEndCap(Gdiplus::LineCapRound);
+    if (s_enabledState) {
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconX + 8.2f, iconY + 15.5f),
+            Gdiplus::PointF(iconX + 13.2f, iconY + 20.3f));
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconX + 13.2f, iconY + 20.3f),
+            Gdiplus::PointF(iconX + 22.2f, iconY + 10.6f));
+    } else {
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconX + 8.5f, iconY + 15.f),
+            Gdiplus::PointF(iconX + 21.5f, iconY + 15.f));
+    }
+
+    auto& titleFont = font_yahei_13_5_regular();
     auto& subFont = font_yahei_10_regular();
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, brush_white());
-    draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 36.f, brush_gpt_sub());
-    draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 74, 222, 150) : Gdiplus::Color(255, 255, 95, 95), false);
+    Gdiplus::SolidBrush titleBrush(Gdiplus::Color(255, 245, 245, 245));
+    draw_text(g, s_text, titleFont, box.X + 62.f, box.Y + 15.f, titleBrush);
+    draw_text(g, s_enabledState ? L"Enabled" : L"Disabled", subFont,
+        box.X + 62.f, box.Y + 39.f, brush_gpt_sub());
+
+    Gdiplus::SolidBrush progressBack(Gdiplus::Color(70, 255, 255, 255));
+    g.FillRectangle(&progressBack, Gdiplus::RectF(box.X + 12.f,
+        box.Y + box.Height - progressHeight - 7.f,
+        box.Width - 24.f, progressHeight));
+
+    const float progressWidth = (box.Width - 24.f) * std::clamp(progress, 0.f, 1.f);
+    if (progressWidth > 0.f) {
+        Gdiplus::SolidBrush progressBrush(accentColor);
+        g.FillRectangle(&progressBrush, Gdiplus::RectF(box.X + 12.f,
+            box.Y + box.Height - progressHeight - 7.f,
+            progressWidth, progressHeight));
+    }
 }
 
 void draw_square(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
@@ -568,9 +629,9 @@ void draw()
     }
 
     const int style = std::clamp(g_notificationsStyle, 0, 5);
-    const int width = style == 4 ? 460 : (style == 3 ? 370 : (style == 5 ? 330 : 310));
-    const int height = style == 3 ? 86 : (style == 4 ? 68 : 72);
-    const int pad = style == 3 ? 28 : (style == 1 ? 8 : 4);
+    const int width = style == 4 ? 460 : (style == 3 ? 370 : (style == 2 ? 340 : (style == 5 ? 330 : 310)));
+    const int height = style == 3 ? 86 : (style == 2 ? 78 : (style == 4 ? 68 : 72));
+    const int pad = style == 3 ? 28 : (style == 2 ? 12 : (style == 1 ? 8 : 4));
     const int renderWidth = width + pad * 2;
     const int renderHeight = height + pad * 2;
     const int sw = GetSystemMetrics(SM_CXSCREEN);
@@ -578,13 +639,23 @@ void draw()
     const float progress = std::clamp(1.f - elapsed / durationMs, 0.f, 1.f);
     const float liquidbounceKnobProgress = ease_out(
         elapsed / static_cast<float>(kLiquidBounceKnobAnimMs));
-    const float in = style == 4 ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
-    const float outStart = (std::max)(0.f, durationMs - (style == 3 ? static_cast<float>(kGeminiExitMs) : static_cast<float>(kAnimMs)));
-    const float out = elapsed > outStart
-        ? (style == 3
-            ? ease_in_quint((elapsed - outStart) / static_cast<float>(kGeminiExitMs))
-            : ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)))
-        : 0.f;
+    float in = ease_out(elapsed / static_cast<float>(kAnimMs));
+    if (style == 2) {
+        in = ease_out(elapsed / static_cast<float>(kGptEntryMs));
+    } else if (style == 4) {
+        in = ease_bounce(elapsed / static_cast<float>(kAnimMs));
+    }
+
+    float outDuration = static_cast<float>(kAnimMs);
+    if (style == 2) outDuration = static_cast<float>(kGptExitMs);
+    else if (style == 3) outDuration = static_cast<float>(kGeminiExitMs);
+
+    const float outStart = (std::max)(0.f, durationMs - outDuration);
+    float out = 0.f;
+    if (elapsed > outStart) {
+        const float outProgress = (elapsed - outStart) / outDuration;
+        out = style == 3 ? ease_in_quint(outProgress) : ease_out(outProgress);
+    }
     const int baseX = sw - width - 26;
     const int baseY = sh - height - 42;
     int x = baseX + static_cast<int>(std::lround((1.f - in + out) * 360.f));
@@ -594,6 +665,10 @@ void draw()
     if (style == 1) {
         constexpr float vapeSlideY = 48.f;
         y = baseY - static_cast<int>(std::lround((1.f - in + out) * vapeSlideY));
+    } else if (style == 2) {
+        x = baseX + static_cast<int>(std::lround((1.f - in + out) * 300.f));
+        y = baseY;
+        layerAlpha = std::clamp(in * (1.f - out), 0.f, 1.f);
     } else if (style == 3) {
         // Gemini 入场使用“极光凝聚”：右下角浮现、逐渐显形，并在中心轻微回弹。
         const float entryProgress = std::clamp(elapsed / static_cast<float>(kGeminiEntryMs), 0.f, 1.f);
@@ -640,6 +715,9 @@ void draw()
         Graphics g(s_hdcMem);
         g.SetSmoothingMode(SmoothingModeAntiAlias);
         g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
+        g.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+        g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+        g.SetCompositingQuality(CompositingQualityHighQuality);
         g.Clear(Color(0, 0, 0, 0));
         RectF box(static_cast<REAL>(pad), static_cast<REAL>(pad), static_cast<REAL>(width), static_cast<REAL>(height));
 
