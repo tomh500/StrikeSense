@@ -17,6 +17,12 @@
       "path": "app/nightly/StrikeSense-nightly-202607172030.exe",
       "size": 10034192,
       "modified": 1784292995
+    },
+    {
+      "name": "StrikeSense-nightly-202607172326.exe",
+      "path": "app/nightly/StrikeSense-nightly-202607172326.exe",
+      "size": 9824784,
+      "modified": 1784302029
     }
   ]
 }
