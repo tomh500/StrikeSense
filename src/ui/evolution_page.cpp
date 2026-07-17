@@ -345,7 +345,12 @@ void LoadUiThemePresetBeforeWindow() {
 
 void LoadEvolutionParams() {
     fs::path p(GetEvolutionConfigPath());
-    if (!fs::exists(p)) return;
+    if (!fs::exists(p)) {
+        SaveEvolutionParams();
+        ApplyTextguiEnabled(g_textguiEnabled);
+        std::cout << "[进化分支] 已创建默认配置：TextGUI 与通知提示开启，其余功能关闭。" << std::endl;
+        return;
+    }
     try {
         std::ifstream in(p); if (!in.is_open()) return;
         nlohmann::json j; in >> j; in.close();

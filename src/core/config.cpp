@@ -110,6 +110,8 @@ void EnsureDirectory(const fs::path& p)
         if (!fs::exists(path))
         {
             std::cout << "[配置] 创建默认 gsi.json" << std::endl;
+            s.flash_image = GetDefaultFlashPath();
+            s.snd_lastsec = GetDefaultSndPath(L"lastsec", s.ogg);
             Save(s);
             s_cacheValid = true;
             return s;
@@ -127,7 +129,7 @@ void EnsureDirectory(const fs::path& p)
             if (j.contains("enable_kill_sound") && j["enable_kill_sound"].is_boolean())
                 s.enable_kill_sound = j["enable_kill_sound"];
             else
-                s.enable_kill_sound = true;
+                s.enable_kill_sound = false;
 
             if (j.contains("vol") && j["vol"].is_number())
                 s.volume = j["vol"].get<float>();

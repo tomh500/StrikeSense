@@ -20,5 +20,6 @@ void PumpOnce(State& state);
 void PumpUntilReady(State& state, HANDLE ready_event, DWORD minimum_ms);
 void PlayExit(State& state);
 void Destroy(State& state);
+void ReleaseResources();
 
 } // namespace splashscreen

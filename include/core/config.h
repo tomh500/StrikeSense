@@ -16,7 +16,7 @@ struct Settings {
     bool custom_flashbang = false;
     bool low_memory = false;
     bool show_mvp = false;
-    bool enable_kill_sound = true;
+    bool enable_kill_sound = false;
     int close_behavior = 0; // 0=询问, 1=隐藏到托盘, 2=关闭程序
 
 

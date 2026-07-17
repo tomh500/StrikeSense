@@ -404,4 +404,10 @@ void Destroy(State& state)
     state.active = false;
 }
 
+void ReleaseResources()
+{
+    g_boot_image.reset();
+    std::cout << "[退出] 启动画面绘图资源已释放。" << std::endl;
+}
+
 } // namespace splashscreen

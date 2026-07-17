@@ -41,6 +41,7 @@
 #include <utility>
 #include <vector>
 #include <cstring>
+#include <cstdlib>
 #include <Windows.h>
 #include "SteamHelper.h"
 #pragma comment(lib, "gdiplus.lib")
@@ -93,7 +94,7 @@ int   g_crosshairLength = 12;
 bool  g_crosshairCenterDot = true;
 float g_crosshairScale = 0.2f;
 
-bool  g_textguiEnabled = false;
+bool  g_textguiEnabled = true;
 float g_textguiX = 1.0f;
 float g_textguiY = 0.04f;
 float g_textguiScale = 1.0f;
@@ -175,6 +176,14 @@ static void LogTerminate()
     abort();
 }
 
+static void ShutdownGdiplusAtProcessExit()
+{
+    if (g_gdiToken == 0) return;
+    std::cout << "[退出] 静态绘图缓存已释放，正在关闭 GDI+。" << std::endl;
+    Gdiplus::GdiplusShutdown(g_gdiToken);
+    g_gdiToken = 0;
+}
+
 static bool HasLaunchArg(const std::wstring& expected)
 {
     int argc = 0;
@@ -210,12 +219,19 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
 
     if (antistupid::CheckAndBlock()) { if (g_hMutex) CloseHandle(g_hMutex); return 1; }
     Gdiplus::GdiplusStartupInput in;
-    Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
+    const auto gdiStatus = Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
+    if (gdiStatus != Gdiplus::Ok) {
+        std::cerr << "[启动] GDI+ 初始化失败，程序无法继续。错误码: "
+                  << static_cast<int>(gdiStatus) << std::endl;
+        if (g_hMutex) CloseHandle(g_hMutex);
+        return 1;
+    }
+    std::atexit(ShutdownGdiplusAtProcessExit);
     auto splash = splashscreen::Create(hI);
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171910" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607172030" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -322,7 +338,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     consolelog::Shutdown();
     StopQuickStopHook();
     gsi::StopServer(); gsi::Cleanup(); vscript::Shutdown(); sound::Quit();
-    Gdiplus::GdiplusShutdown(g_gdiToken);
+    splashscreen::ReleaseResources();
     if (g_hMutex) CloseHandle(g_hMutex);
     return (int)m.wParam;
 
