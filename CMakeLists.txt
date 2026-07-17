@@ -62,6 +62,7 @@ set(SOURCES
     src/core/kernelcore.cpp
     src/core/mouse_jitter.cpp
     src/core/module_notifications.cpp
+    src/core/notifications_layout.cpp
     src/core/notifications_overlay.cpp
     src/core/normalgen.cpp
     src/core/quickstop.cpp
@@ -101,6 +102,7 @@ set(HEADERS
     include/core/kernelcore.h
     include/core/mouse_jitter.h
     include/core/module_notifications.h
+    include/core/notifications_layout.h
     include/core/notifications_overlay.h
     include/core/normalgen.h
     include/core/quickstop.h
