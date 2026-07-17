@@ -33,7 +33,7 @@ int s_cachedHeight = 0;
 bool s_cacheDirty = true;
 constexpr UINT_PTR kTimer = 3021;
 constexpr UINT kPushMessage = WM_APP + 3021;
-constexpr UINT kFrameMs = 1000 / 30;
+constexpr UINT kFrameMs = 1000 / 90;
 constexpr int kAnimMs = 260;
 constexpr int kLiquidBounceKnobAnimMs = 300;
 std::mutex s_pendingMutex;
