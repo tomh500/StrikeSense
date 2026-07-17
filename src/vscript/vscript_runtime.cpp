@@ -427,6 +427,12 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
 {
     CloseImage(id);
     EnsureImageClass();
+    std::wcout << L"[脚本] 准备绘制图片，路径=" << path.wstring()
+               << L"，存在=" << (std::filesystem::exists(path) ? L"是" : L"否")
+               << L"，alpha=" << (alphaChannel ? L"true" : L"false")
+               << L"，opacity=" << opacity
+               << L"，ttl_ms=" << ttlMs
+               << L"，id=" << id << std::endl;
     auto img = std::make_unique<Gdiplus::Image>(path.c_str());
     if (img->GetLastStatus() != Gdiplus::Ok) {
         std::wcout << L"[脚本] 图片加载失败: " << path.wstring() << std::endl;
@@ -436,24 +442,35 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
     int h = (int)img->GetHeight();
     int x = GetSystemMetrics(SM_CXSCREEN) / 2 - w / 2 + offsetX;
     int y = GetSystemMetrics(SM_CYSCREEN) / 2 - h / 2 + offsetY;
+    std::wcout << L"[脚本] 图片尺寸=" << w << L"x" << h
+               << L"，屏幕中心位置=(" << x << L"," << y << L")"
+               << L"，屏幕尺寸=" << GetSystemMetrics(SM_CXSCREEN)
+               << L"x" << GetSystemMetrics(SM_CYSCREEN) << std::endl;
     HWND hwnd = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TRANSPARENT,
         k_imageClass, L"", WS_POPUP, x, y, w, h, nullptr, nullptr, s_instance, nullptr);
-    if (!hwnd) return false;
+    if (!hwnd) {
+        std::wcout << L"[脚本] 图片窗口创建失败，id=" << id << std::endl;
+        return false;
+    }
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, id);
     s_images[id] = image_window{ hwnd, std::move(img), w, h, opacity, alphaChannel };
     ShowWindow(hwnd, SW_SHOWNA);
+    std::wcout << L"[脚本] 图片窗口已创建，hwnd=" << hwnd << std::endl;
 
     if (alphaChannel) {
         if (!ApplyPerPixelAlphaImage(hwnd, s_images[id].image.get(), w, h, x, y, opacity)) {
+            std::wcout << L"[脚本] 真 alpha 绘制失败，准备销毁图片窗口，id=" << id << std::endl;
             DestroyWindow(hwnd);
             s_images.erase(id);
             return false;
         }
+        std::wcout << L"[脚本] 真 alpha 绘制成功，id=" << id << std::endl;
     } else {
         BYTE a = (BYTE)std::clamp((int)(opacity * 255.0f), 0, 255);
         SetLayeredWindowAttributes(hwnd, 0, a, LWA_ALPHA);
         InvalidateRect(hwnd, nullptr, FALSE);
+        std::wcout << L"[脚本] 透明度绘制成功，alpha=" << (int)a << L"，id=" << id << std::endl;
     }
 
     if (ttlMs > 0) {

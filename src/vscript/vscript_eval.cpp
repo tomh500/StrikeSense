@@ -541,6 +541,9 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     if (e == L"true") return BoolValue(true);
     if (e == L"false") return BoolValue(false);
     if (e == L"void" || e == L"NULL" || e == L"null" || e == L"nullptr") return NullValue();
+    if (!e.empty() && (iswdigit(e[0]) || e[0] == L'-')) {
+        try { return NumberValue(std::stod(e)); } catch (...) {}
+    }
     if (auto accessor = TryResolveAccessorExpression(e, vars)) {
         return *accessor;
     }
@@ -553,9 +556,6 @@ value EvalExprWithVars(const std::wstring& expr, const std::map<std::wstring, va
     auto fn = ParseFunction(e);
     if (fn && fn->first.find(L' ') == std::wstring::npos) {
         return ExecuteFunction(fn->first, SplitArgs(fn->second));
-    }
-    if (!e.empty() && (iswdigit(e[0]) || e[0] == L'-')) {
-        try { return NumberValue(std::stod(e)); } catch (...) {}
     }
     return GetVarFromMap(vars, e);
 }
