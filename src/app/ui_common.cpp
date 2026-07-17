@@ -48,9 +48,9 @@ bool hit_rect(const Gdiplus::RectF& rect)
         && g_pointerY >= rect.Y && g_pointerY <= rect.Y + rect.Height;
 }
 
-bool is_default_visual_theme()
+bool is_default_plus_visual_theme()
 {
-    return uitheme::get_preset() == uitheme::preset_default;
+    return uitheme::get_preset() == uitheme::preset_default_plus;
 }
 
 std::uint64_t anim_key(const Gdiplus::RectF& rect, std::uint32_t salt)
@@ -115,7 +115,7 @@ void SetPointerState(HWND hw, int mx, int my, bool pressed)
     g_pointerX = mx;
     g_pointerY = my;
     g_pointerPressed = pressed;
-    if (is_default_visual_theme()) NotifyInteraction(hw);
+    if (is_default_plus_visual_theme()) NotifyInteraction(hw);
 }
 
 void StartAnimationClock(HWND hw)
@@ -135,7 +135,7 @@ void StopAnimationClock(HWND hw)
 
 void NotifyInteraction(HWND hw)
 {
-    if (!is_default_visual_theme()) return;
+    if (!is_default_plus_visual_theme()) return;
     g_lastInteractionMs = GetTickCount();
     if (!g_fastAnimationClock) {
         SetTimer(hw, kAnimationTimerId, kActiveFrameMs, nullptr);
@@ -173,7 +173,7 @@ void DrawHeader(Graphics& g, int cx, int cw, const wchar_t* title)
     const auto& theme = uitheme::get_palette();
     SolidBrush tbCol(theme.title);
     Font pF(L"Microsoft YaHei", 13, FontStyleBold);
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush hdrBg(theme.header_background);
         g.FillRectangle(&hdrBg, cx, 8, cw, 34);
         g.DrawString(title, -1, &pF, PointF(static_cast<REAL>(cx + 10), 14), &tbCol);
@@ -190,7 +190,7 @@ void DrawToggle(Graphics& g, int tx, int ty, bool state)
 {
     const auto& theme = uitheme::get_palette();
     RectF tr(static_cast<REAL>(tx), static_cast<REAL>(ty), 50.f, 24.f);
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush onBr(theme.accent);
         SolidBrush offBr(theme.toggle_off);
         SolidBrush kBr(theme.toggle_knob);
@@ -233,7 +233,7 @@ void DrawSlider(Graphics& g, int sx, int sy, int sw, float value)
 {
     const auto& theme = uitheme::get_palette();
     value = (std::max)(0.0f, (std::min)(1.0f, value));
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush sBg(theme.slider_background);
         SolidBrush sFill(theme.accent);
         g.FillRectangle(&sBg, sx, sy, sw, 10);
@@ -265,7 +265,7 @@ void DrawSliderWithKnob(Graphics& g, int sx, int sy, int sw, float value)
     value = (std::max)(0.0f, (std::min)(1.0f, value));
     DrawSlider(g, sx, sy, sw, value);
     const auto& theme = uitheme::get_palette();
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush knob(theme.accent_strong);
         g.FillEllipse(&knob, sx + sw * value - 7.0f, sy - 5.0f, 14.0f, 14.0f);
         return;
@@ -287,7 +287,7 @@ void DrawSliderWithKnob(Graphics& g, int sx, int sy, int sw, float value)
 void DrawRoundedButton(Graphics& g, const RectF& rect, const wchar_t* label, bool selected, bool compact)
 {
     const auto& theme = uitheme::get_palette();
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush background(selected ? theme.card_selected_background : theme.button_background);
         SolidBrush foreground(theme.button_text);
         Pen border(selected ? theme.accent_strong : theme.button_border, selected ? 1.5f : 1.0f);
@@ -349,7 +349,7 @@ void DrawFoldButton(Graphics& g, const RectF& rect, bool expanded)
 void DrawNavigationButton(Graphics& g, const RectF& rect, const wchar_t* label, bool selected)
 {
     const auto& theme = uitheme::get_palette();
-    if (!is_default_visual_theme()) {
+    if (!is_default_plus_visual_theme()) {
         SolidBrush background(theme.sidebar_selected_background);
         SolidBrush text(selected ? theme.title : theme.text);
         Font font(L"Microsoft YaHei", 12, selected ? FontStyleBold : FontStyleRegular);

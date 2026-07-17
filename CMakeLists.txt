@@ -31,7 +31,7 @@ endif()
 add_definitions(-D_WINDOWS -DUNICODE -D_UNICODE)
 add_compile_definitions(
     $<$<CONFIG:Release>:STRIKESENSE_BUILD_CODE=0>
-    $<$<CONFIG:Nightly>:STRIKESENSE_BUILD_CODE=1>
+    $<$<CONFIG:Nightly>:STRIKESENSE_BUILD_CODE=2>
     $<$<CONFIG:Debug>:STRIKESENSE_BUILD_CODE=2>
 )
 

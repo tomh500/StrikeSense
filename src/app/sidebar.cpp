@@ -31,8 +31,8 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
     SolidBrush offBr(theme.toggle_off);
     SolidBrush kBr(theme.toggle_knob);
 
-    const bool defaultTheme = uitheme::get_preset() == uitheme::preset_default;
-    if (defaultTheme) {
+    const bool defaultPlusTheme = uitheme::get_preset() == uitheme::preset_default_plus;
+    if (defaultPlusTheme) {
         RectF sideRect(0.0f, 0.0f, static_cast<REAL>(SIDEBAR_W), static_cast<REAL>(H));
         LinearGradientBrush bg(sideRect, theme.sidebar_background, theme.card_background, LinearGradientModeVertical);
         g.FillRectangle(&bg, sideRect);
@@ -58,7 +58,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
     };
     int idx = 0;
     for (const auto& it : g_sidebarItems) {
-        if (defaultTheme) {
+        if (defaultPlusTheme) {
             ui::DrawNavigationButton(g, RectF(8.0f, static_cast<REAL>(it.y), SIDEBAR_W - 16.0f, 24.0f),
                 labels[idx], g_currentPage == it.page);
         } else {
@@ -73,7 +73,7 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
     const int langY = H - 40;
     const int ltx = SIDEBAR_W / 2 - 30;
     g.DrawString(g_langCN ? L"\u4e2d\u6587" : L"EN(BETA)", -1, &sF, PointF(10, static_cast<REAL>(langY + 2)), &td);
-    if (defaultTheme) {
+    if (defaultPlusTheme) {
         ui::DrawToggle(g, ltx, langY, g_langCN);
     } else {
         GraphicsPath tp;

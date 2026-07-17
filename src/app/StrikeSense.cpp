@@ -36,9 +36,11 @@
 #include <regex>
 #include <sstream>
 #include <iterator>
+#include <memory>
 #include <thread>
 #include <utility>
 #include <vector>
+#include <cstring>
 #include <Windows.h>
 #include "SteamHelper.h"
 #pragma comment(lib, "gdiplus.lib")
@@ -70,7 +72,7 @@ static bool g_trayIconAdded = false;
 
 int g_currentPage = 0;
 bool g_langCN = true;
-int g_uiThemePreset = uitheme::preset_default;
+int g_uiThemePreset = uitheme::preset_default_plus;
 bool g_styleDropdownOpen = false;
 int g_dropdownSelection = -1;
 Gdiplus::RectF g_dropdownRects[6];
@@ -213,7 +215,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171803" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171809" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -349,6 +351,105 @@ HWND InitInstance(HINSTANCE hI) {
     return w; //返回窗口句柄
 }
 
+static std::unique_ptr<Gdiplus::Image> LoadBootBackgroundImage()
+{
+    HRSRC resource = FindResourceW(hInst, MAKEINTRESOURCEW(IDB_BOOT_PNG), L"PNG");
+    if (!resource) return nullptr;
+
+    HGLOBAL loaded = LoadResource(hInst, resource);
+    const DWORD size = SizeofResource(hInst, resource);
+    const void* data = loaded ? LockResource(loaded) : nullptr;
+    if (!data || size == 0) return nullptr;
+
+    HGLOBAL copy = GlobalAlloc(GMEM_MOVEABLE, size);
+    if (!copy) return nullptr;
+
+    void* target = GlobalLock(copy);
+    if (!target) {
+        GlobalFree(copy);
+        return nullptr;
+    }
+    std::memcpy(target, data, size);
+    GlobalUnlock(copy);
+
+    IStream* stream = nullptr;
+    if (FAILED(CreateStreamOnHGlobal(copy, TRUE, &stream)) || !stream) {
+        GlobalFree(copy);
+        return nullptr;
+    }
+
+    std::unique_ptr<Gdiplus::Image> image(Gdiplus::Image::FromStream(stream));
+    stream->Release();
+    if (!image || image->GetLastStatus() != Gdiplus::Ok) return nullptr;
+    return image;
+}
+
+static Gdiplus::RectF CoverSourceRect(Gdiplus::Image& image, int targetW, int targetH)
+{
+    const float imageW = static_cast<float>(image.GetWidth());
+    const float imageH = static_cast<float>(image.GetHeight());
+    const float imageRatio = imageW / imageH;
+    const float targetRatio = static_cast<float>(targetW) / static_cast<float>(targetH);
+
+    if (targetRatio > imageRatio) {
+        const float sourceH = imageW / targetRatio;
+        return Gdiplus::RectF(0.0f, (imageH - sourceH) * 0.5f, imageW, sourceH);
+    }
+
+    const float sourceW = imageH * targetRatio;
+    return Gdiplus::RectF((imageW - sourceW) * 0.5f, 0.0f, sourceW, imageH);
+}
+
+static void DrawBootBlurBackground(Gdiplus::Graphics& g, int W, int H, const uitheme::palette& theme)
+{
+    using namespace Gdiplus;
+    static std::unique_ptr<Image> bootImage = LoadBootBackgroundImage();
+    static std::unique_ptr<Bitmap> cachedBackground;
+    static int cachedW = 0;
+    static int cachedH = 0;
+
+    if (!bootImage) {
+        RectF canvas(0.0f, 0.0f, static_cast<REAL>(W), static_cast<REAL>(H));
+        LinearGradientBrush fallback(canvas, theme.card_alt_background, theme.window_background, LinearGradientModeVertical);
+        g.FillRectangle(&fallback, canvas);
+        return;
+    }
+
+    if (!cachedBackground || cachedW != W || cachedH != H) {
+        cachedW = W;
+        cachedH = H;
+        const int lowW = (std::max)(64, W / 14);
+        const int lowH = (std::max)(48, H / 14);
+        Bitmap low(lowW, lowH, PixelFormat32bppPARGB);
+        Graphics lowGraphics(&low);
+        lowGraphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+        lowGraphics.SetSmoothingMode(SmoothingModeHighQuality);
+
+        const RectF source = CoverSourceRect(*bootImage, W, H);
+        lowGraphics.DrawImage(bootImage.get(), RectF(0.0f, 0.0f, static_cast<REAL>(lowW), static_cast<REAL>(lowH)),
+            source.X, source.Y, source.Width, source.Height, UnitPixel);
+
+        cachedBackground = std::make_unique<Bitmap>(W, H, PixelFormat32bppPARGB);
+        Graphics blurGraphics(cachedBackground.get());
+        blurGraphics.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+        blurGraphics.DrawImage(&low, RectF(0.0f, 0.0f, static_cast<REAL>(W), static_cast<REAL>(H)),
+            0.0f, 0.0f, static_cast<REAL>(lowW), static_cast<REAL>(lowH), UnitPixel);
+    }
+
+    g.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+    g.DrawImage(cachedBackground.get(), 0, 0, W, H);
+
+    SolidBrush lavenderVeil(Color(118, theme.window_background.GetR(), theme.window_background.GetG(), theme.window_background.GetB()));
+    g.FillRectangle(&lavenderVeil, 0, 0, W, H);
+
+    RectF canvas(0.0f, 0.0f, static_cast<REAL>(W), static_cast<REAL>(H));
+    LinearGradientBrush depth(canvas,
+        Color(68, theme.card_alt_background.GetR(), theme.card_alt_background.GetG(), theme.card_alt_background.GetB()),
+        Color(154, theme.window_background.GetR(), theme.window_background.GetG(), theme.window_background.GetB()),
+        LinearGradientModeVertical);
+    g.FillRectangle(&depth, canvas);
+}
+
 static void PaintAll(HWND hw, HDC hdc) {
     using namespace Gdiplus;
     ui::BeginFrame();
@@ -361,15 +462,8 @@ static void PaintAll(HWND hw, HDC hdc) {
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAlias);
     const auto& theme = uitheme::get_palette();
-    if (uitheme::get_preset() == uitheme::preset_default) {
-        RectF canvas(0.0f, 0.0f, static_cast<REAL>(W), static_cast<REAL>(H));
-        LinearGradientBrush bg(canvas, theme.card_alt_background, theme.window_background, LinearGradientModeVertical);
-        g.FillRectangle(&bg, canvas);
-        SolidBrush ambient(Gdiplus::Color(18, theme.accent.GetR(), theme.accent.GetG(), theme.accent.GetB()));
-        g.FillEllipse(&ambient, -140.0f, -100.0f, static_cast<REAL>(W * 0.72f), static_cast<REAL>(H * 0.55f));
-        SolidBrush ambientBottom(Gdiplus::Color(13, theme.accent_soft.GetR(), theme.accent_soft.GetG(), theme.accent_soft.GetB()));
-        g.FillEllipse(&ambientBottom, static_cast<REAL>(W * 0.38f), static_cast<REAL>(H * 0.62f),
-            static_cast<REAL>(W * 0.78f), static_cast<REAL>(H * 0.48f));
+    if (uitheme::get_preset() == uitheme::preset_default_plus) {
+        DrawBootBlurBackground(g, W, H, theme);
     } else {
         SolidBrush bg(theme.window_background);
         g.FillRectangle(&bg, 0, 0, W, H);

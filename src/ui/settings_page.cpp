@@ -28,6 +28,13 @@ bool can_use_advanced_theme()
     return vscript::GetBuildCode() == vscript::buildcode::eng;
 }
 
+bool is_locked_theme(int preset)
+{
+    return preset == uitheme::preset_gemini
+        || preset == uitheme::preset_gpt
+        || preset == uitheme::preset_deepseek;
+}
+
 void draw_theme_group(Gdiplus::Graphics& g, int cx, const wchar_t* title,
     Gdiplus::RectF& foldRect, bool expanded, int first, int last, int& y)
 {
@@ -51,6 +58,16 @@ void draw_theme_group(Gdiplus::Graphics& g, int cx, const wchar_t* title,
         const int boxY = y + row * 34;
         g_themePresetRects[i] = RectF(static_cast<REAL>(x), static_cast<REAL>(boxY), 120.0f, 26.0f);
         ui::DrawRoundedButton(g, g_themePresetRects[i], uitheme::get_preset_name(i), i == g_uiThemePreset, true);
+        if (is_locked_theme(i) && !can_use_advanced_theme()) {
+            SolidBrush disabledOverlay(Color(148, theme.card_background.GetR(), theme.card_background.GetG(), theme.card_background.GetB()));
+            SolidBrush disabledText(theme.dim);
+            Font font(L"Microsoft YaHei", 8.0f, FontStyleBold);
+            StringFormat format;
+            format.SetAlignment(StringAlignmentCenter);
+            format.SetLineAlignment(StringAlignmentCenter);
+            g.FillRectangle(&disabledOverlay, g_themePresetRects[i]);
+            g.DrawString(uitheme::get_preset_name(i), -1, &font, g_themePresetRects[i], &format, &disabledText);
+        }
     }
 
     y += ((last - first + 3) / 3) * 34 + 10;
@@ -158,8 +175,6 @@ void PaintProgramSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     SolidBrush text(theme.text);
     SolidBrush dim(theme.dim);
 
-    if (!can_use_advanced_theme()) g_advancedThemeExpanded = false;
-
     for (auto& rect : g_themePresetRects) rect = RectF{};
 
     int y = 58;
@@ -183,11 +198,6 @@ void CheckProgramSettingsClick(HWND hw, int mx, int my)
         return;
     }
     if (hit(g_advancedThemeFoldRect, mx, my)) {
-        if (!can_use_advanced_theme()) {
-            g_advancedThemeExpanded = false;
-            InvalidateRect(hw, nullptr, FALSE);
-            return;
-        }
         g_advancedThemeExpanded = !g_advancedThemeExpanded;
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -195,8 +205,7 @@ void CheckProgramSettingsClick(HWND hw, int mx, int my)
 
     for (int i = 0; i < uitheme::preset_count; ++i) {
         if (!hit(g_themePresetRects[i], mx, my)) continue;
-        if (uitheme::is_advanced_preset(i) && !can_use_advanced_theme()) {
-            g_advancedThemeExpanded = false;
+        if (is_locked_theme(i) && !can_use_advanced_theme()) {
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
