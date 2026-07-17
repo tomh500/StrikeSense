@@ -241,7 +241,7 @@ void draw_gpt(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
     draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 74, 222, 150) : Gdiplus::Color(255, 255, 95, 95), false);
 }
 
-void draw_gemini(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
+void draw_square(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
 {
     fill_card(g, box, Gdiplus::Color(215, 0, 0, 0), 10.f);
     Gdiplus::SolidBrush stripe(s_enabledState ? Gdiplus::Color(255, 80, 220, 120) : Gdiplus::Color(255, 230, 70, 70));
@@ -303,8 +303,8 @@ void draw()
         return;
     }
 
-    const int style = std::clamp(g_notificationsStyle, 0, 4);
-    const int width = style == 4 ? 460 : (style == 3 ? 330 : 310);
+    const int style = std::clamp(g_notificationsStyle, 0, 5);
+    const int width = style == 4 ? 460 : (style == 3 || style == 5 ? 330 : 310);
     const int height = style == 4 ? 68 : 72;
     const int pad = style == 1 ? 8 : 4;
     const int renderWidth = width + pad * 2;
@@ -357,8 +357,9 @@ void draw()
         if (style == 0) draw_liquidbounce(g, box, liquidbounceKnobProgress);
         else if (style == 1) draw_vape(g, box, progress);
         else if (style == 2) draw_gpt(g, box, progress);
-        else if (style == 3) draw_gemini(g, box);
-        else draw_deepseek(g, box);
+        else if (style == 3) draw_square(g, box);
+        else if (style == 4) draw_deepseek(g, box);
+        else draw_square(g, box);
 
         s_cachedText = s_text;
         s_cachedEnabledState = s_enabledState;

@@ -36,6 +36,7 @@ static Gdiplus::RectF g_inputEnvironmentResetRect;
 namespace evolutionui {
 
 constexpr int kCrosshairStyleCount = 6;
+constexpr int kNotificationsStyleCount = 6;
 constexpr float kTextguiRainbowSpeedMin = 0.1f;
 constexpr float kTextguiRainbowSpeedMax = 5.0f;
 constexpr float kTextguiRainbowSpreadMin = 4.0f;
@@ -70,7 +71,7 @@ Gdiplus::RectF notificationsEnableRect;
 Gdiplus::RectF notificationsFoldRect;
 Gdiplus::RectF notificationsDurationRect;
 Gdiplus::RectF notificationsDurationValueRect;
-std::array<Gdiplus::RectF, 5> notificationsStyleRects;
+std::array<Gdiplus::RectF, kNotificationsStyleCount> notificationsStyleRects;
 Gdiplus::RectF crosshairFoldRect;
 bool textguiCollapsed = true;
 bool notificationsCollapsed = true;
@@ -342,7 +343,7 @@ void LoadEvolutionParams() {
         gb("notifications_enabled", g_notificationsEnabled);
         gv("notifications_duration", g_notificationsDuration);
         gv("notifications_style", g_notificationsStyle);
-        g_notificationsStyle = std::clamp(g_notificationsStyle, 0, 4);
+        g_notificationsStyle = std::clamp(g_notificationsStyle, 0, evolutionui::kNotificationsStyleCount - 1);
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
@@ -1097,8 +1098,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             notificationsDurationRect.X + notificationsDurationRect.Width + 3.f,
             static_cast<REAL>(notifyBodyY - 3), 48.f, 20.f);
 
-        const wchar_t* styleNames[] = { L"LiquidBounce", L"VAPE", L"GPT", L"Gemini", L"DeepSeek" };
-        for (int i = 0; i < 5; ++i) {
+        const wchar_t* styleNames[kNotificationsStyleCount] = { L"LiquidBounce", L"VAPE", L"GPT", L"Gemini", L"DeepSeek", L"Square" };
+        for (int i = 0; i < kNotificationsStyleCount; ++i) {
             notificationsStyleRects[i] = RectF(static_cast<REAL>(sectionX + 14 + (i % 3) * 126),
                 static_cast<REAL>(notifyBodyY + 32 + (i / 3) * 31), 112.f, 25.f);
             g.FillRectangle(i == g_notificationsStyle ? &selectedBackground : &buttonBackground, notificationsStyleRects[i]);
@@ -1573,7 +1574,7 @@ void CheckEvolutionClick(HWND hw, int mx, int my)
             InvalidateRect(hw, nullptr, FALSE);
             return;
         }
-        for (int i = 0; i < 5; ++i) {
+        for (int i = 0; i < evolutionui::kNotificationsStyleCount; ++i) {
             if (!Hit(notificationsStyleRects[i], mx, my)) continue;
             g_notificationsStyle = i;
             SaveEvolutionParams();
