@@ -461,6 +461,12 @@ namespace {
     void UpdateWeaponState(const std::string& json)
     {
         if (json.find("\"weapons\"") == std::string::npos) return;
+        if (gsi::runtime::dead_muted && gsi::runtime::map_mode != "deathmatch")
+        {
+            std::cout << "[Debug] 本回合已死亡且当前不是死亡竞赛，暂停使用 GSI 武器数据更新急停状态。"
+                << std::endl;
+            return;
+        }
 
         size_t activePos = json.find("\"state\": \"active\"");
         if (activePos == std::string::npos) return;
