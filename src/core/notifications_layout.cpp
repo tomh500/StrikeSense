@@ -9,6 +9,28 @@ namespace {
 constexpr float kBaseWidth = 2560.f;
 constexpr float kBaseHeight = 1440.f;
 
+struct style_base_metrics {
+    float width = 310.f;
+    float height = 72.f;
+    float pad = 4.f;
+};
+
+style_base_metrics get_style_base_metrics(int style)
+{
+    switch (style) {
+    case 1:
+        return style_base_metrics{ 584.f, 136.f, 15.f };
+    case 3:
+        return style_base_metrics{ 622.f, 136.f, 8.f };
+    case 4:
+        return style_base_metrics{ 867.f, 128.f, 8.f };
+    case 0:
+    case 2:
+    default:
+        return style_base_metrics{ 584.f, 136.f, 8.f };
+    }
+}
+
 float query_dpi_scale()
 {
     const UINT dpi = GetDpiForSystem();
@@ -38,17 +60,18 @@ int scaled_int(float scale, float baseValue)
 metrics CalculateMetrics(int style, int screenWidth, int screenHeight)
 {
     metrics layout{};
+    const style_base_metrics styleBase = get_style_base_metrics(style);
     layout.scale = resolve_scale(screenWidth, screenHeight);
-    layout.width = scaled_int(layout.scale, style == 4 ? 460.f : (style == 3 ? 330.f : 310.f));
-    layout.height = scaled_int(layout.scale, style == 4 ? 68.f : 72.f);
-    layout.pad = scaled_int(layout.scale, style == 1 ? 8.f : 4.f);
+    layout.width = scaled_int(layout.scale, styleBase.width);
+    layout.height = scaled_int(layout.scale, styleBase.height);
+    layout.pad = scaled_int(layout.scale, styleBase.pad);
     layout.renderWidth = layout.width + layout.pad * 2;
     layout.renderHeight = layout.height + layout.pad * 2;
-    layout.baseX = screenWidth - layout.width - scaled_int(layout.scale, 26.f);
-    layout.baseY = screenHeight - layout.height - scaled_int(layout.scale, 42.f);
-    layout.slideDistanceX = Scale(layout, 360.f);
-    layout.vapeSlideY = Scale(layout, 48.f);
-    layout.deepseekSlideY = Scale(layout, 80.f);
+    layout.baseX = screenWidth - layout.width - scaled_int(layout.scale, 49.f);
+    layout.baseY = screenHeight - layout.height - scaled_int(layout.scale, 79.f);
+    layout.slideDistanceX = Scale(layout, 678.f);
+    layout.vapeSlideY = Scale(layout, 90.f);
+    layout.deepseekSlideY = Scale(layout, 151.f);
     return layout;
 }
 
