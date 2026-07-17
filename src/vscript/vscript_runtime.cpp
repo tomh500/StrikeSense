@@ -364,13 +364,13 @@ bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Bitmap* bitmap, int width, int 
     Gdiplus::BitmapData sourceData{};
     Gdiplus::BitmapData fallbackData{};
     std::unique_ptr<Gdiplus::Bitmap> fallbackSurface;
-    const PixelFormat sourceFormat = bitmap->GetPixelFormat();
+    const auto sourceFormat = bitmap->GetPixelFormat();
     const bool sourceIsPremultiplied = sourceFormat == PixelFormat32bppPARGB;
     const bool sourceHasAlpha = sourceFormat == PixelFormat32bppARGB || sourceFormat == PixelFormat32bppPARGB;
     bool directCopy = false;
 
     if (sourceHasAlpha) {
-        const PixelFormat lockFormat = sourceIsPremultiplied ? PixelFormat32bppPARGB : PixelFormat32bppARGB;
+        const auto lockFormat = sourceIsPremultiplied ? PixelFormat32bppPARGB : PixelFormat32bppARGB;
         if (bitmap->LockBits(&rect, Gdiplus::ImageLockModeRead, lockFormat, &sourceData) == Gdiplus::Ok) {
             directCopy = true;
             std::wcout << L"[脚本] 直接读取源图片像素，保留 alpha 通道" << std::endl;
