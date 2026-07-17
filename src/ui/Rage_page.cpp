@@ -84,7 +84,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int, HWND) {
     Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9), xsF(L"Microsoft YaHei", 8);
     SolidBrush tdCol(theme.text);
     SolidBrush knB(theme.accent_strong);
-    SolidBrush warnCol(theme.warning);
+    SolidBrush warnCol(Gdiplus::Color(255, 255, 0, 0));
     SolidBrush valueBackground(theme.input_background);
     Pen valueBorder(theme.input_border, 1.0f);
 
