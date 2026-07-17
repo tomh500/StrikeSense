@@ -15,6 +15,10 @@ struct mounted_script {
     UINT virtual_key = 0;
     bool extended_key = false;
     std::wstring source_key;
+    UINT trigger_virtual_key = 0;
+    bool trigger_extended_key = false;
+    std::wstring trigger_source_key;
+    std::wstring trigger_file_name;
     bool valid = false;
     std::wstring status;
     std::size_t pressed_command_count = 0;
@@ -33,8 +37,14 @@ bool AddMountedScript(const std::filesystem::path& path, std::wstring* error = n
 void RemoveMountedScript(std::size_t index);
 bool ReloadMountedScript(std::size_t index, std::wstring* error = nullptr);
 bool SetScriptKey(std::size_t index, UINT virtualKey, bool extendedKey, std::wstring* error = nullptr);
+bool ClearScriptKey(std::size_t index, std::wstring* error = nullptr);
+bool SetScriptTriggerKey(std::size_t index, UINT virtualKey, bool extendedKey, std::wstring* error = nullptr);
+bool ClearScriptTriggerKey(std::size_t index, std::wstring* error = nullptr);
+bool SetScriptTriggerFileName(std::size_t index, const std::wstring& fileName, std::wstring* error = nullptr);
 bool SetTickerKey(UINT virtualKey, bool extendedKey, std::wstring* error = nullptr);
 std::wstring GetTickerSourceKey();
+bool SetPerformanceMode(bool enabled);
+bool IsPerformanceMode();
 
 std::wstring GetDefaultScriptDir();
 std::wstring GetTickerCfgPath();

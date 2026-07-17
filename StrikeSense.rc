@@ -1,4 +1,4 @@
-//Microsoft Visual C++ 生成的资源脚本。
+﻿//Microsoft Visual C++ 生成的资源脚本。
 //
 #pragma code_page(65001)
 
@@ -28,8 +28,8 @@ LANGUAGE 4, 2
 /////////////////////////////////////////////////////////////////////////////
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 202607162353
- PRODUCTVERSION 202607162353
+ FILEVERSION 202607170940
+ PRODUCTVERSION 202607170940
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -46,13 +46,13 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "无损平方集团"
             VALUE "FileDescription", "StrikeSense - CS2 GSI客户端"
-            VALUE "FileVersion", "测试发布版 202607162353"
+            VALUE "FileVersion", "测试发布版 202607170940"
             VALUE "InternalName", "StrikeSense"
             VALUE "LegalCopyright", "Copyright (C) 2026 无损平方集团"
             VALUE "OriginalFilename", "StrikeSense.exe"
             VALUE "ProductName", "StrikeSense"
-            VALUE "ProductVersion", "测试发布版 202607162353"
-            VALUE "PrivateBuild", "\n本程序承诺：\n永不联网！\n绝对无毒！\n数据安全！\n快速好用！\n\n因供应商要求，无法检查更新。"
+            VALUE "ProductVersion", "测试发布版 202607170940"
+            VALUE "PrivateBuild", "本程序承诺：永不联网；绝对无毒；数据安全；快速好用。因供应商要求，无法检查更新。"
         END
     END
     BLOCK "VarFileInfo"
@@ -67,7 +67,7 @@ END
 //
 
 IDI_STRIKESENSE       ICON         "StrikeSense.ico"
-IDI_SMALL               ICON         "small.ico"
+IDI_SMALL             ICON         "small.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -86,7 +86,7 @@ BEGIN
     BEGIN
         MENUITEM "Debugger(&D)",            IDM_DEBUGGER
         MENUITEM SEPARATOR
-        MENUITEM "关于(&A) ...",           IDM_ABOUT
+        MENUITEM "关于(&A) ...",            IDM_ABOUT
     END
 END
 
@@ -116,9 +116,9 @@ FONT 9, "MS Shell Dlg"
 BEGIN
     ICON            IDI_STRIKESENSE,IDC_STATIC,14,14,21,20
     LTEXT           "StrikeSense",IDC_STATIC,42,8,100,8,SS_NOPREFIX
-    LTEXT           "测试发布版 202607162353",IDC_STATIC,42,20,120,8
-    LTEXT           "Copyright (C) 2026 无损平方集团",IDC_STATIC,42,32,140,8
-    LTEXT           "本程序承诺绝不联网！所以无法检查更新",IDC_STATIC,14,50,250,16
+    LTEXT           "测试发布版 202607170940",IDC_STATIC,42,20,140,8
+    LTEXT           "Copyright (C) 2026 无损平方集团",IDC_STATIC,42,32,160,8
+    LTEXT           "本程序承诺绝不联网，所以无法检查更新",IDC_STATIC,14,50,250,16
     LTEXT           "永不联网 | 绝对无毒 | 数据安全 | 快速好用",IDC_STATIC,14,66,250,12
     DEFPUSHBUTTON   "确定",IDOK,115,88,50,14,WS_GROUP
 END
@@ -196,6 +196,20 @@ BEGIN
     PUSHBUTTON      "取消",IDCANCEL,144,62,50,20
 END
 
+IDD_CSCRIPT_TRIGGER DIALOGEX 0, 0, 280, 122
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "编辑自定义触发器"
+FONT 9, "Microsoft YaHei", 400, 0, 0x86
+BEGIN
+    LTEXT           "触发键",IDC_CSCRIPT_TRIGGER_KEY_LABEL,12,12,60,12
+    PUSHBUTTON      "未设置",IDC_CSCRIPT_TRIGGER_KEY_BUTTON,80,9,188,20
+    LTEXT           "触发文件名",IDC_CSCRIPT_TRIGGER_FILE_LABEL,12,44,80,12
+    EDITTEXT        IDC_CSCRIPT_TRIGGER_FILE_EDIT,12,60,256,20,ES_AUTOHSCROLL
+    LTEXT           "按 ESC 可清空自定义触发器，留空则回退全局设置",IDC_STATIC,12,86,256,12
+    DEFPUSHBUTTON   "确定",IDOK,74,100,56,20
+    PUSHBUTTON      "取消",IDCANCEL,146,100,56,20
+END
+
 /////////////////////////////////////////////////////////////////////////////
 //
 // DESIGNINFO
@@ -251,7 +265,7 @@ END
 STRINGTABLE
 BEGIN
    IDC_STRIKESENSE   "STRIKESENSE"
-   IDS_APP_TITLE       "StrikeSense"
+   IDS_APP_TITLE     "StrikeSense"
 END
 
 #endif

@@ -45,6 +45,7 @@ struct parsed_script {
 struct script_record {
     mounted_script public_state;
     parsed_script parsed;
+    std::wstring previous_trigger_source_key;
 };
 
 struct command_sequence {
@@ -58,6 +59,15 @@ struct command_sequence {
 struct script_lane {
     std::deque<command_sequence> sequences;
     bool ready = false;
+};
+
+struct custom_trigger_job {
+    UINT virtual_key = 0;
+    bool extended_key = false;
+    std::filesystem::path cfg_path;
+    std::string content;
+    std::wstring trigger_key_name;
+    std::wstring trigger_file_name;
 };
 
 std::atomic<bool> g_enabled{ false };
@@ -86,6 +96,8 @@ UINT g_ticker_virtual_key = kDefaultTickerVirtualKey;
 bool g_ticker_extended_key = false;
 std::wstring g_ticker_source_key = L"]";
 std::wstring g_previous_ticker_source_key;
+bool g_performance_mode = false;
+std::vector<std::wstring> g_pending_unbind_keys;
 
 std::filesystem::path ConfigPath()
 {
@@ -97,6 +109,48 @@ std::filesystem::path BaseDirectory()
     wchar_t profile[MAX_PATH]{};
     GetEnvironmentVariableW(L"USERPROFILE", profile, MAX_PATH);
     return std::filesystem::path(profile) / L"StrikeSense";
+}
+
+std::wstring TrimWide(std::wstring value)
+{
+    const auto first = std::find_if_not(value.begin(), value.end(), [](wchar_t ch) {
+        return std::iswspace(ch) != 0;
+    });
+    const auto last = std::find_if_not(value.rbegin(), value.rend(), [](wchar_t ch) {
+        return std::iswspace(ch) != 0;
+    }).base();
+    if (first >= last) return {};
+    return std::wstring(first, last);
+}
+
+bool IsTriggerFileNameValid(const std::wstring& file_name)
+{
+    if (file_name.empty()) return true;
+    static constexpr wchar_t kInvalidChars[] = L"<>:\"/\\|?*";
+    return file_name.find_first_of(kInvalidChars) == std::wstring::npos;
+}
+
+std::wstring NormalizeTriggerFileName(std::wstring file_name)
+{
+    file_name = TrimWide(std::move(file_name));
+    if (file_name.size() > 4) {
+        std::wstring suffix = file_name.substr(file_name.size() - 4);
+        std::transform(suffix.begin(), suffix.end(), suffix.begin(), [](wchar_t ch) {
+            return static_cast<wchar_t>(std::towlower(ch));
+        });
+        if (suffix == L".cfg") file_name.erase(file_name.size() - 4);
+    }
+    return file_name;
+}
+
+std::filesystem::path BuildCustomTickerPath(const std::filesystem::path& cfg_directory, const std::wstring& file_name)
+{
+    return cfg_directory / L"CustomTicker" / (file_name + L".cfg");
+}
+
+bool UsesCustomTrigger(const mounted_script& script)
+{
+    return !script.trigger_source_key.empty() && !script.trigger_file_name.empty();
 }
 
 void EnsureDefaultScripts()
@@ -488,11 +542,23 @@ std::filesystem::path ResolveCfgDirectory()
 bool InstallAutoexecBinding(const std::filesystem::path& cfg_directory)
 {
     std::wstring ticker_source_key;
-    std::wstring previous_ticker_source_key;
+    std::vector<std::wstring> unbind_keys;
+    std::vector<std::pair<std::wstring, std::wstring>> custom_binds;
     {
         std::lock_guard lock(g_state_mutex);
         ticker_source_key = g_ticker_source_key;
-        previous_ticker_source_key = g_previous_ticker_source_key;
+        if (!g_previous_ticker_source_key.empty() && g_previous_ticker_source_key != ticker_source_key)
+            unbind_keys.push_back(g_previous_ticker_source_key);
+        for (const std::wstring& pending_key : g_pending_unbind_keys) {
+            if (!pending_key.empty()) unbind_keys.push_back(pending_key);
+        }
+        for (const auto& script : g_scripts) {
+            if (!UsesCustomTrigger(script.public_state)) continue;
+            custom_binds.push_back({
+                script.public_state.trigger_source_key,
+                L"CustomTicker/" + script.public_state.trigger_file_name + L".cfg"
+            });
+        }
     }
     const std::filesystem::path autoexec = cfg_directory / L"autoexec.cfg";
     std::string content;
@@ -512,9 +578,13 @@ bool InstallAutoexecBinding(const std::filesystem::path& cfg_directory)
     }
     if (!content.empty() && content.back() != '\n') content.push_back('\n');
     content += kManagedBlockStart;
-    if (!previous_ticker_source_key.empty() && previous_ticker_source_key != ticker_source_key)
-        content += "\nunbind " + WideToUtf8(previous_ticker_source_key);
+    for (const std::wstring& unbind_key : unbind_keys)
+        content += "\nunbind " + WideToUtf8(unbind_key);
     content += "\nbind " + WideToUtf8(ticker_source_key) + " \"exec StrikeTicker.cfg\"\n";
+    for (const auto& custom_bind : custom_binds) {
+        content += "bind " + WideToUtf8(custom_bind.first)
+            + " \"exec " + WideToUtf8(custom_bind.second) + "\"\n";
+    }
     content += kManagedBlockEnd;
     content.push_back('\n');
 
@@ -527,6 +597,69 @@ bool InstallAutoexecBinding(const std::filesystem::path& cfg_directory)
 
 bool PrepareTickerFiles()
 {
+    const std::filesystem::path resolved_cfg_directory = ResolveCfgDirectory();
+    if (resolved_cfg_directory.empty() || !std::filesystem::exists(resolved_cfg_directory)) {
+        std::lock_guard lock(g_state_mutex);
+        g_runtime_status = L"未找到 CS2 cfg 目录";
+        std::cout << "[CScript] 未找到 CS2 cfg 目录，无法启动 ticker。" << std::endl;
+        return false;
+    }
+
+    const std::filesystem::path resolved_ticker_path = resolved_cfg_directory / L"StrikeTicker.cfg";
+    const std::filesystem::path resolved_custom_directory = resolved_cfg_directory / L"CustomTicker";
+    {
+        std::ofstream ticker(resolved_ticker_path, std::ios::binary | std::ios::trunc);
+        if (!ticker.is_open()) {
+            std::lock_guard lock(g_state_mutex);
+            g_runtime_status = L"无法创建 StrikeTicker.cfg";
+            std::wcout << L"[CScript] 无法创建 ticker 文件：" << resolved_ticker_path.wstring() << std::endl;
+            return false;
+        }
+    }
+
+    std::error_code directory_error;
+    std::filesystem::create_directories(resolved_custom_directory, directory_error);
+    if (directory_error) {
+        std::lock_guard lock(g_state_mutex);
+        g_runtime_status = L"无法创建 CustomTicker 目录";
+        std::wcout << L"[CScript] 无法创建 CustomTicker 目录：" << resolved_custom_directory.wstring() << std::endl;
+        return false;
+    }
+
+    {
+        std::lock_guard lock(g_state_mutex);
+        for (auto& script : g_scripts) {
+            if (!UsesCustomTrigger(script.public_state)) continue;
+            const std::filesystem::path custom_path = BuildCustomTickerPath(
+                resolved_cfg_directory, script.public_state.trigger_file_name);
+            std::ofstream custom_cfg(custom_path, std::ios::binary | std::ios::trunc);
+            if (!custom_cfg.is_open()) {
+                g_runtime_status = L"无法创建自定义 ticker 文件";
+                std::wcout << L"[CScript] 无法创建自定义 ticker 文件：" << custom_path.wstring() << std::endl;
+                return false;
+            }
+        }
+    }
+
+    const bool resolved_autoexec_ok = InstallAutoexecBinding(resolved_cfg_directory);
+    {
+        std::lock_guard lock(g_state_mutex);
+        g_ticker_cfg_path = resolved_ticker_path;
+        if (resolved_autoexec_ok) {
+            g_previous_ticker_source_key.clear();
+            g_pending_unbind_keys.clear();
+            for (auto& script : g_scripts) script.previous_trigger_source_key.clear();
+        }
+        g_runtime_status = resolved_autoexec_ok
+            ? L"Ticker 已就绪：" + g_ticker_source_key + L" / 64Hz"
+            : L"Ticker 已就绪，但 autoexec.cfg 绑定写入失败";
+    }
+    std::wcout << L"[CScript] StrikeTicker.cfg 已就绪：" << resolved_ticker_path.wstring() << std::endl;
+    std::wcout << (resolved_autoexec_ok
+        ? L"[CScript] 已向 autoexec.cfg 写入 ticker 绑定：" + GetTickerSourceKey()
+        : L"[CScript] autoexec.cfg 写入失败，请手动绑定 ticker 按键。") << std::endl;
+    return true;
+
     const std::filesystem::path cfg_directory = ResolveCfgDirectory();
     if (cfg_directory.empty() || !std::filesystem::exists(cfg_directory)) {
         std::lock_guard lock(g_state_mutex);
@@ -570,6 +703,29 @@ void ClearQueuesLocked()
     g_clear_pending = false;
 }
 
+bool HasPendingTickerWorkLocked()
+{
+    return g_clear_pending || !g_ready_lanes.empty();
+}
+
+bool WriteScriptTickerFile(const std::filesystem::path& path, const std::string& content)
+{
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    if (!output.is_open()) return false;
+    output.write(content.data(), static_cast<std::streamsize>(content.size()));
+    output.flush();
+    return output.good();
+}
+
+std::string BuildTriggeredCommand(const command_sequence& sequence)
+{
+    if (sequence.commands.empty()) return {};
+    std::string output = sequence.commands.front();
+    if (!output.empty() && output.back() != ';') output.push_back(';');
+    output += "echoln \"[cscript]" + sequence.phase + " " + sequence.source_key + " custom trigger!\"\n";
+    return output;
+}
+
 void QueueSequenceLocked(const script_record& script, bool pressed)
 {
     const auto& commands = pressed ? script.parsed.on_pressed : script.parsed.on_released;
@@ -596,27 +752,80 @@ void QueueSequenceLocked(const script_record& script, bool pressed)
 
 void HandlePhysicalKey(UINT virtual_key, bool extended_key, bool pressed)
 {
-    std::lock_guard lock(g_state_mutex);
-    for (const auto& script : g_scripts) {
-        if (script.public_state.virtual_key != virtual_key ||
-            script.public_state.extended_key != extended_key) continue;
+    std::vector<custom_trigger_job> custom_jobs;
+    std::filesystem::path cfg_directory;
+    {
+        std::lock_guard lock(g_state_mutex);
+        for (const auto& script : g_scripts) {
+            if (script.public_state.virtual_key != virtual_key ||
+                script.public_state.extended_key != extended_key) continue;
 
-        bool& was_down = g_physical_down[script.public_state.id];
-        if (inputenvironment::ShouldSuppressScriptKey(virtual_key)) {
-            was_down = pressed;
+            bool& was_down = g_physical_down[script.public_state.id];
+            if (inputenvironment::ShouldSuppressScriptKey(virtual_key)) {
+                was_down = pressed;
+                continue;
+            }
+            if (pressed) {
+                if (was_down) continue;
+                was_down = true;
+            } else {
+                if (!was_down) continue;
+                was_down = false;
+            }
+
+            if (UsesCustomTrigger(script.public_state)) {
+                const auto& commands = pressed ? script.parsed.on_pressed : script.parsed.on_released;
+                if (commands.empty()) continue;
+                if (cfg_directory.empty()) cfg_directory = ResolveCfgDirectory();
+                if (cfg_directory.empty()) {
+                    g_runtime_status = L"未找到 CS2 cfg 目录";
+                    continue;
+                }
+                command_sequence sequence;
+                sequence.phase = pressed ? "pressed" : "released";
+                sequence.source_key = WideToUtf8(script.public_state.source_key);
+                sequence.commands.push_back(commands.front());
+
+                custom_trigger_job job;
+                job.virtual_key = script.public_state.trigger_virtual_key;
+                job.extended_key = script.public_state.trigger_extended_key;
+                job.cfg_path = BuildCustomTickerPath(cfg_directory, script.public_state.trigger_file_name);
+                job.content = BuildTriggeredCommand(sequence);
+                job.trigger_key_name = script.public_state.trigger_source_key;
+                job.trigger_file_name = script.public_state.trigger_file_name;
+                custom_jobs.push_back(std::move(job));
+                continue;
+            }
+
+            QueueSequenceLocked(script, pressed);
+        }
+        if (HasPendingTickerWorkLocked()) g_worker_cv.notify_one();
+    }
+
+    for (const auto& job : custom_jobs) {
+        if (!WriteScriptTickerFile(job.cfg_path, job.content)) {
+            std::lock_guard lock(g_state_mutex);
+            g_runtime_status = L"写入自定义 ticker 文件失败";
+            std::wcout << L"[CScript] 写入自定义 ticker 文件失败：" << job.cfg_path.wstring() << std::endl;
             continue;
         }
-        if (pressed) {
-            if (was_down) continue;
-            was_down = true;
-            QueueSequenceLocked(script, true);
-        } else {
-            if (!was_down) continue;
-            was_down = false;
-            QueueSequenceLocked(script, false);
+        const WORD scan_code = static_cast<WORD>(MapVirtualKeyW(job.virtual_key, MAPVK_VK_TO_VSC));
+        std::array<INPUT, 2> inputs{};
+        for (auto& input : inputs) {
+            input.type = INPUT_KEYBOARD;
+            input.ki.wVk = static_cast<WORD>(job.virtual_key);
+            input.ki.wScan = scan_code;
+            input.ki.dwFlags = KEYEVENTF_SCANCODE | (job.extended_key ? KEYEVENTF_EXTENDEDKEY : 0);
+        }
+        inputs[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+        const UINT sent = SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
+        if (sent != inputs.size()) {
+            std::lock_guard lock(g_state_mutex);
+            g_runtime_status = L"自定义触发按键发送失败";
+            std::wcout << L"[CScript] 自定义触发按键发送失败：" << job.trigger_key_name
+                << L"，错误码=" << GetLastError() << std::endl;
         }
     }
-    g_worker_cv.notify_one();
 }
 
 void NormalizeLowLevelKey(const KBDLLHOOKSTRUCT& key, UINT& virtual_key, bool& extended_key)
@@ -803,6 +1012,14 @@ void WorkerLoop()
         }
         was_game_active = game_active;
         if (game_active && !inputenvironment::ShouldPauseAutomation()) {
+            if (g_performance_mode) {
+                bool has_pending_work = false;
+                {
+                    std::lock_guard lock(g_state_mutex);
+                    has_pending_work = HasPendingTickerWorkLocked();
+                }
+                if (!has_pending_work) goto cscript_worker_wait;
+            }
             const std::optional<std::string> command = TakeNextTickerCommand();
             if (command.has_value()) {
                 if (!WriteTickerFile(*command)) {
@@ -814,6 +1031,7 @@ void WorkerLoop()
             SendTickerKey();
         }
 
+cscript_worker_wait:
         std::unique_lock lock(g_state_mutex);
         g_worker_cv.wait_until(lock, next_tick, [] { return !g_worker_running.load(); });
         const auto now = clock_type::now();
@@ -866,6 +1084,8 @@ void LoadConfig()
     g_ticker_extended_key = false;
     g_ticker_source_key = L"]";
     g_previous_ticker_source_key.clear();
+    g_performance_mode = false;
+    g_pending_unbind_keys.clear();
 
     const std::filesystem::path path = ConfigPath();
     if (!std::filesystem::exists(path)) {
@@ -880,6 +1100,7 @@ void LoadConfig()
         input >> json;
         if (json.contains("enabled") && json["enabled"].is_boolean())
             g_enabled.store(json["enabled"].get<bool>());
+        g_performance_mode = json.value("performance_mode", false);
         g_ticker_virtual_key = json.value("ticker_virtual_key", static_cast<UINT>(kDefaultTickerVirtualKey));
         g_ticker_extended_key = json.value("ticker_extended_key", false);
         g_ticker_source_key = VirtualKeyToSourceName(g_ticker_virtual_key, g_ticker_extended_key);
@@ -898,6 +1119,13 @@ void LoadConfig()
                 record.public_state.extended_key = item.value("extended_key", false);
                 record.public_state.source_key = VirtualKeyToSourceName(
                     record.public_state.virtual_key, record.public_state.extended_key);
+                record.public_state.trigger_virtual_key = item.value("trigger_virtual_key", 0u);
+                record.public_state.trigger_extended_key = item.value("trigger_extended_key", false);
+                record.public_state.trigger_source_key = VirtualKeyToSourceName(
+                    record.public_state.trigger_virtual_key, record.public_state.trigger_extended_key);
+                record.public_state.trigger_file_name = NormalizeTriggerFileName(
+                    Utf8ToWide(item.value("trigger_file_name", std::string{})));
+                record.previous_trigger_source_key = Utf8ToWide(item.value("previous_trigger_source_key", std::string{}));
                 std::wstring parse_error;
                 ReloadRecordLocked(record, parse_error);
                 g_next_script_id = (std::max)(g_next_script_id, record.public_state.id + 1);
@@ -919,6 +1147,7 @@ void SaveConfig()
     config::EnsureDirectoriesExist();
     nlohmann::json json;
     json["enabled"] = g_enabled.load();
+    json["performance_mode"] = g_performance_mode;
     json["ticker_hz"] = kTickerHz;
     json["scripts"] = nlohmann::json::array();
     {
@@ -931,7 +1160,11 @@ void SaveConfig()
                 {"id", script.public_state.id},
                 {"path", WideToUtf8(script.public_state.path)},
                 {"virtual_key", script.public_state.virtual_key},
-                {"extended_key", script.public_state.extended_key}
+                {"extended_key", script.public_state.extended_key},
+                {"trigger_virtual_key", script.public_state.trigger_virtual_key},
+                {"trigger_extended_key", script.public_state.trigger_extended_key},
+                {"trigger_file_name", WideToUtf8(script.public_state.trigger_file_name)},
+                {"previous_trigger_source_key", WideToUtf8(script.previous_trigger_source_key)}
             });
         }
     }
@@ -1031,6 +1264,10 @@ void RemoveMountedScript(std::size_t index)
         std::lock_guard lock(g_state_mutex);
         if (index >= g_scripts.size()) return;
         const std::uint64_t id = g_scripts[index].public_state.id;
+        if (!g_scripts[index].public_state.trigger_source_key.empty())
+            g_pending_unbind_keys.push_back(g_scripts[index].public_state.trigger_source_key);
+        if (!g_scripts[index].previous_trigger_source_key.empty())
+            g_pending_unbind_keys.push_back(g_scripts[index].previous_trigger_source_key);
         g_scripts.erase(g_scripts.begin() + static_cast<std::ptrdiff_t>(index));
         g_lanes.erase(id);
         g_physical_down.erase(id);
@@ -1086,6 +1323,132 @@ bool SetScriptKey(std::size_t index, UINT virtual_key, bool extended_key, std::w
     return true;
 }
 
+bool ClearScriptKey(std::size_t index, std::wstring* error)
+{
+    {
+        std::lock_guard lock(g_state_mutex);
+        if (index >= g_scripts.size()) {
+            if (error) *error = L"脚本索引无效";
+            return false;
+        }
+        auto& script = g_scripts[index];
+        script.public_state.virtual_key = 0;
+        script.public_state.extended_key = false;
+        script.public_state.source_key.clear();
+        RefreshPublicScriptsLocked();
+    }
+    SaveConfig();
+    return true;
+}
+
+bool SetScriptTriggerKey(std::size_t index, UINT virtual_key, bool extended_key, std::wstring* error)
+{
+    const std::wstring source_name = VirtualKeyToSourceName(virtual_key, extended_key);
+    if (source_name.empty()) {
+        if (error) *error = L"该按键无法映射为 Source 按键名";
+        return false;
+    }
+    {
+        std::lock_guard lock(g_state_mutex);
+        if (source_name == g_ticker_source_key) {
+            if (error) *error = g_ticker_source_key + L" 已被 64Hz ticker 保留，请选择其他按键";
+            return false;
+        }
+        if (index >= g_scripts.size()) {
+            if (error) *error = L"脚本索引无效";
+            return false;
+        }
+        for (std::size_t i = 0; i < g_scripts.size(); ++i) {
+            if (i == index) continue;
+            if (g_scripts[i].public_state.trigger_source_key == source_name) {
+                if (error) *error = L"该按键已经被其他脚本的自定义触发键占用";
+                return false;
+            }
+        }
+        auto& script = g_scripts[index];
+        if (script.public_state.trigger_file_name.empty()) {
+            if (error) *error = L"请先填写触发文件名，再设置自定义触发键";
+            return false;
+        }
+        if (!script.public_state.trigger_source_key.empty() &&
+            script.public_state.trigger_source_key != source_name) {
+            script.previous_trigger_source_key = script.public_state.trigger_source_key;
+            g_pending_unbind_keys.push_back(script.public_state.trigger_source_key);
+        }
+        script.public_state.trigger_virtual_key = virtual_key;
+        script.public_state.trigger_extended_key = extended_key;
+        script.public_state.trigger_source_key = source_name;
+        RefreshPublicScriptsLocked();
+    }
+    SaveConfig();
+    if (g_enabled.load()) PrepareTickerFiles();
+    return true;
+}
+
+bool ClearScriptTriggerKey(std::size_t index, std::wstring* error)
+{
+    {
+        std::lock_guard lock(g_state_mutex);
+        if (index >= g_scripts.size()) {
+            if (error) *error = L"脚本索引无效";
+            return false;
+        }
+        auto& script = g_scripts[index];
+        if (!script.public_state.trigger_source_key.empty()) {
+            script.previous_trigger_source_key = script.public_state.trigger_source_key;
+            g_pending_unbind_keys.push_back(script.public_state.trigger_source_key);
+        }
+        script.public_state.trigger_virtual_key = 0;
+        script.public_state.trigger_extended_key = false;
+        script.public_state.trigger_source_key.clear();
+        script.public_state.trigger_file_name.clear();
+        RefreshPublicScriptsLocked();
+    }
+    SaveConfig();
+    if (g_enabled.load()) PrepareTickerFiles();
+    return true;
+}
+
+bool SetScriptTriggerFileName(std::size_t index, const std::wstring& file_name, std::wstring* error)
+{
+    const std::wstring normalized = NormalizeTriggerFileName(file_name);
+    if (!IsTriggerFileNameValid(normalized)) {
+        if (error) *error = L"文件名不能包含路径分隔符或 Windows 非法字符";
+        return false;
+    }
+    {
+        std::lock_guard lock(g_state_mutex);
+        if (index >= g_scripts.size()) {
+            if (error) *error = L"脚本索引无效";
+            return false;
+        }
+        for (std::size_t i = 0; i < g_scripts.size(); ++i) {
+            if (i == index || normalized.empty()) continue;
+            if (_wcsicmp(g_scripts[i].public_state.trigger_file_name.c_str(), normalized.c_str()) == 0) {
+                if (error) *error = L"该触发文件名已经被其他脚本占用";
+                return false;
+            }
+        }
+        auto& script = g_scripts[index];
+        if (normalized.empty()) {
+            if (!script.public_state.trigger_source_key.empty()) {
+                script.previous_trigger_source_key = script.public_state.trigger_source_key;
+                g_pending_unbind_keys.push_back(script.public_state.trigger_source_key);
+            }
+            script.public_state.trigger_virtual_key = 0;
+            script.public_state.trigger_extended_key = false;
+            script.public_state.trigger_source_key.clear();
+            script.public_state.trigger_file_name.clear();
+        } else {
+            script.public_state.trigger_file_name = normalized;
+        }
+        RefreshPublicScriptsLocked();
+    }
+    SaveConfig();
+    if (g_enabled.load()) PrepareTickerFiles();
+    return true;
+}
+
 bool SetTickerKey(UINT virtual_key, bool extended_key, std::wstring* error)
 {
     const std::wstring source_name = VirtualKeyToSourceName(virtual_key, extended_key);
@@ -1115,6 +1478,24 @@ bool SetTickerKey(UINT virtual_key, bool extended_key, std::wstring* error)
     }
     std::wcout << L"[CScript] 64Hz ticker 按键已修改为：" << source_name << std::endl;
     return true;
+}
+
+bool SetPerformanceMode(bool enabled)
+{
+    {
+        std::lock_guard lock(g_state_mutex);
+        g_performance_mode = enabled;
+        g_runtime_status = enabled ? L"已开启性能优化" : L"已关闭性能优化";
+    }
+    SaveConfig();
+    g_worker_cv.notify_one();
+    return true;
+}
+
+bool IsPerformanceMode()
+{
+    std::lock_guard lock(g_state_mutex);
+    return g_performance_mode;
 }
 
 std::wstring GetTickerSourceKey()
