@@ -35,6 +35,8 @@ constexpr UINT_PTR kTimer = 3021;
 constexpr UINT kPushMessage = WM_APP + 3021;
 constexpr UINT kFrameMs = 1000 / 90;
 constexpr int kAnimMs = 260;
+constexpr int kGeminiEntryMs = 400;
+constexpr int kGeminiExitMs = 250;
 constexpr int kLiquidBounceKnobAnimMs = 300;
 std::mutex s_pendingMutex;
 std::wstring s_pendingText;
@@ -59,6 +61,12 @@ float ease_bounce(float t)
     return 1.f + c3 * std::pow(t - 1.f, 3.f) + c1 * std::pow(t - 1.f, 2.f);
 }
 
+float ease_in_quint(float t)
+{
+    t = std::clamp(t, 0.f, 1.f);
+    return t * t * t * t * t;
+}
+
 BYTE alpha_byte(float alpha)
 {
     return static_cast<BYTE>(std::lround(std::clamp(alpha, 0.f, 255.f)));
@@ -76,6 +84,108 @@ void add_rounded_rect(Gdiplus::GraphicsPath& path, const Gdiplus::RectF& rect, f
     path.AddArc(rect.X + rect.Width - radius * 2.f, rect.Y + rect.Height - radius * 2.f, radius * 2.f, radius * 2.f, 0.f, 90.f);
     path.AddArc(rect.X, rect.Y + rect.Height - radius * 2.f, radius * 2.f, radius * 2.f, 90.f, 90.f);
     path.CloseFigure();
+}
+
+Gdiplus::Font& font_yahei_15_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 15.f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_14_5_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 14.5f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_13_5_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 13.5f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_13_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_10_5_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 10.5f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_10_regular()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_9_regular()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 9.f, Gdiplus::FontStyleRegular);
+    return font;
+}
+
+Gdiplus::Font& font_yahei_9_bold()
+{
+    static Gdiplus::Font font(L"Microsoft YaHei UI", 9.f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_segoe_9_5_regular()
+{
+    static Gdiplus::Font font(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
+    return font;
+}
+
+Gdiplus::SolidBrush& brush_white()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 255, 255, 255));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_liquid_sub()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 189, 189, 189));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_vape_sub()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 205, 205, 205));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_gpt_sub()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(230, 210, 220, 235));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_square_enabled()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 150, 255, 190));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_square_disabled()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 255, 150, 150));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_gemini_disabled()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(120, 200, 200, 200));
+    return brush;
+}
+
+Gdiplus::SolidBrush& brush_deepseek_sub()
+{
+    static Gdiplus::SolidBrush brush(Gdiplus::Color(255, 161, 161, 170));
+    return brush;
 }
 
 void hide()
@@ -143,6 +253,12 @@ void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& fo
     g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x, y), &brush);
 }
 
+void draw_text(Gdiplus::Graphics& g, const std::wstring& text, Gdiplus::Font& font,
+    float x, float y, Gdiplus::Brush& brush)
+{
+    g.DrawString(text.c_str(), -1, &font, Gdiplus::PointF(x, y), &brush);
+}
+
 void fill_card(Gdiplus::Graphics& g, const Gdiplus::RectF& box, const Gdiplus::Color& bg,
     float radius, const Gdiplus::Color& border = Gdiplus::Color(0, 0, 0, 0))
 {
@@ -198,8 +314,8 @@ void draw_liquidbounce(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float kn
     Gdiplus::SolidBrush knobBrush(Gdiplus::Color(255, 255, 255, 255));
     g.FillEllipse(&knobBrush, knobX, knobY, knobSize, knobSize);
 
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 15.f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
+    auto& titleFont = font_yahei_15_bold();
+    auto& subFont = font_yahei_10_regular();
     draw_text(g, s_enabledState ? L"开启" : L"关闭", titleFont, box.X + 74.f, box.Y + 11.f,
         Gdiplus::Color(255, 255, 255, 255));
     draw_text(g, s_text, subFont, box.X + 74.f, box.Y + 39.f,
@@ -213,13 +329,12 @@ void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
     fill_card(g, box, Gdiplus::Color(252, 18, 18, 18), cardRadius,
         Gdiplus::Color(255, 34, 34, 34));
 
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 14.5f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
-    draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 11.f,
-        Gdiplus::Color(255, 255, 255, 255));
+    auto& titleFont = font_yahei_14_5_bold();
+    auto& subFont = font_segoe_9_5_regular();
+    draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 11.f, brush_white());
 
     draw_text(g, s_enabledState ? L"Enable" : L"Disable", subFont,
-        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(255, 205, 205, 205));
+        box.X + 16.f, box.Y + 36.f, brush_vape_sub());
 
     const Gdiplus::RectF track(box.X, box.Y + box.Height - barHeight,
         box.Width, barHeight);
@@ -243,11 +358,11 @@ void draw_vape(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 void draw_gpt(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float progress)
 {
     fill_card(g, box, Gdiplus::Color(235, 15, 18, 25), 12.f, Gdiplus::Color(180, 90, 170, 255));
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
-    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, Gdiplus::Color(255, 255, 255, 255));
+    auto& titleFont = font_yahei_13_bold();
+    auto& subFont = font_yahei_10_regular();
+    draw_text(g, L"StrikeSense", titleFont, box.X + 16.f, box.Y + 11.f, brush_white());
     draw_text(g, s_text + (s_enabledState ? L" Enabled" : L" Disabled"), subFont,
-        box.X + 16.f, box.Y + 36.f, Gdiplus::Color(230, 210, 220, 235));
+        box.X + 16.f, box.Y + 36.f, brush_gpt_sub());
     draw_progress(g, box, progress, s_enabledState ? Gdiplus::Color(255, 74, 222, 150) : Gdiplus::Color(255, 255, 95, 95), false);
 }
 
@@ -256,11 +371,13 @@ void draw_square(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
     fill_card(g, box, Gdiplus::Color(215, 0, 0, 0), 10.f);
     Gdiplus::SolidBrush stripe(s_enabledState ? Gdiplus::Color(255, 80, 220, 120) : Gdiplus::Color(255, 230, 70, 70));
     g.FillRectangle(&stripe, Gdiplus::RectF(box.X, box.Y + 8.f, 3.f, box.Height - 16.f));
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.f, Gdiplus::FontStyleRegular);
-    draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 12.f, Gdiplus::Color(255, 255, 255, 255));
+    auto& titleFont = font_yahei_13_bold();
+    auto& subFont = font_yahei_10_regular();
+    draw_text(g, s_text, titleFont, box.X + 16.f, box.Y + 12.f, brush_white());
     draw_text(g, s_enabledState ? L"Enabled" : L"Disabled", subFont,
-        box.X + 16.f, box.Y + 38.f, s_enabledState ? Gdiplus::Color(255, 150, 255, 190) : Gdiplus::Color(255, 255, 150, 150));
+        box.X + 16.f, box.Y + 38.f, s_enabledState
+            ? static_cast<Gdiplus::Brush&>(brush_square_enabled())
+            : static_cast<Gdiplus::Brush&>(brush_square_disabled()));
 }
 
 void draw_gemini_aurora(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float seconds, float stateAlpha)
@@ -381,10 +498,9 @@ void draw_gemini(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapsedM
     draw_gemini_icon(g, iconCenter, seconds, stateAlpha);
     draw_gemini_aurora(g, box, seconds, stateAlpha);
 
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 14.5f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 10.5f, Gdiplus::FontStyleBold);
-    draw_text(g, s_text, titleFont, box.X + 82.f, box.Y + 17.f,
-        Gdiplus::Color(255, 255, 255, 255));
+    auto& titleFont = font_yahei_14_5_bold();
+    auto& subFont = font_yahei_10_5_bold();
+    draw_text(g, s_text, titleFont, box.X + 82.f, box.Y + 17.f, brush_white());
 
     const std::wstring state = s_enabledState ? L"Enabled" : L"Disabled";
     const Gdiplus::RectF statusRect(box.X + 82.f, box.Y + 46.f, 148.f, 22.f);
@@ -396,9 +512,8 @@ void draw_gemini(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapsedM
         g.DrawString(state.c_str(), -1, &subFont,
             Gdiplus::PointF(statusRect.X, statusRect.Y), &statusBrush);
     } else {
-        Gdiplus::SolidBrush disabledBrush(Gdiplus::Color(120, 200, 200, 200));
         g.DrawString(state.c_str(), -1, &subFont,
-            Gdiplus::PointF(statusRect.X, statusRect.Y), &disabledBrush);
+            Gdiplus::PointF(statusRect.X, statusRect.Y), &brush_gemini_disabled());
     }
 }
 
@@ -422,17 +537,17 @@ void draw_deepseek(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
     g.FillRectangle(&iconBrush, box.X + 31.f, box.Y + 25.f, 10.f, 18.f);
     g.FillRectangle(&iconBrush, box.X + 25.f, box.Y + 31.f, 22.f, 6.f);
 
-    Gdiplus::Font titleFont(L"Microsoft YaHei UI", 13.5f, Gdiplus::FontStyleBold);
-    Gdiplus::Font subFont(L"Microsoft YaHei UI", 9.f, Gdiplus::FontStyleRegular);
-    draw_text(g, s_text, titleFont, box.X + 68.f, box.Y + 13.f, Gdiplus::Color(255, 255, 255, 255));
-    draw_text(g, L"StrikeSense module toggle", subFont, box.X + 68.f, box.Y + 39.f, Gdiplus::Color(255, 161, 161, 170));
+    auto& titleFont = font_yahei_13_5_bold();
+    auto& subFont = font_yahei_9_regular();
+    draw_text(g, s_text, titleFont, box.X + 68.f, box.Y + 13.f, brush_white());
+    draw_text(g, L"StrikeSense module toggle", subFont, box.X + 68.f, box.Y + 39.f, brush_deepseek_sub());
 
     const std::wstring state = s_enabledState ? L"ENABLED" : L"DISABLED";
     const Gdiplus::Color pillBg = s_enabledState ? Gdiplus::Color(40, 0, 255, 170) : Gdiplus::Color(45, 255, 68, 85);
     const Gdiplus::Color pillText = s_enabledState ? Gdiplus::Color(255, 0, 255, 170) : Gdiplus::Color(255, 255, 68, 85);
     Gdiplus::RectF pill(box.X + box.Width - 116.f, box.Y + 22.f, 96.f, 25.f);
     fill_card(g, pill, pillBg, 12.f);
-    Gdiplus::Font pillFont(L"Microsoft YaHei UI", 9.f, Gdiplus::FontStyleBold);
+    auto& pillFont = font_yahei_9_bold();
     draw_text(g, state, pillFont, pill.X + 17.f, pill.Y + 5.f, pillText);
 }
 
@@ -463,17 +578,41 @@ void draw()
     const float progress = std::clamp(1.f - elapsed / durationMs, 0.f, 1.f);
     const float liquidbounceKnobProgress = ease_out(
         elapsed / static_cast<float>(kLiquidBounceKnobAnimMs));
-    const float in = (style == 3 || style == 4) ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
-    const float outStart = (std::max)(0.f, durationMs - kAnimMs);
-    const float out = elapsed > outStart ? ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)) : 0.f;
+    const float in = style == 4 ? ease_bounce(elapsed / static_cast<float>(kAnimMs)) : ease_out(elapsed / static_cast<float>(kAnimMs));
+    const float outStart = (std::max)(0.f, durationMs - (style == 3 ? static_cast<float>(kGeminiExitMs) : static_cast<float>(kAnimMs)));
+    const float out = elapsed > outStart
+        ? (style == 3
+            ? ease_in_quint((elapsed - outStart) / static_cast<float>(kGeminiExitMs))
+            : ease_out((elapsed - outStart) / static_cast<float>(kAnimMs)))
+        : 0.f;
     const int baseX = sw - width - 26;
     const int baseY = sh - height - 42;
     int x = baseX + static_cast<int>(std::lround((1.f - in + out) * 360.f));
     int y = baseY;
+    float layerAlpha = 1.f - out;
+    float geminiScale = 1.f;
     if (style == 1) {
         constexpr float vapeSlideY = 48.f;
         y = baseY - static_cast<int>(std::lround((1.f - in + out) * vapeSlideY));
-    } else if (style == 3 || style == 4) {
+    } else if (style == 3) {
+        // Gemini 入场使用“极光凝聚”：右下角浮现、逐渐显形，并在中心轻微回弹。
+        const float entryProgress = std::clamp(elapsed / static_cast<float>(kGeminiEntryMs), 0.f, 1.f);
+        const float entryCurve = ease_bounce(entryProgress);
+        const float entryRemain = 1.f - std::clamp(entryCurve, 0.f, 1.f);
+        const float exitCurve = out;
+        const float exitRemain = 1.f - exitCurve;
+        x = baseX + static_cast<int>(std::lround(entryRemain * 86.f + exitCurve * 54.f));
+        y = baseY + static_cast<int>(std::lround(entryRemain * 46.f + std::sin(entryRemain * 3.1415926535f) * 10.f));
+        layerAlpha = std::clamp(ease_out(entryProgress) * exitRemain, 0.f, 1.f);
+        if (exitCurve > 0.f) {
+            // Gemini 退场使用“星尘消散”：原位快速收缩，并向右侧轻滑淡出。
+            geminiScale = 0.85f + 0.15f * exitRemain;
+            y = baseY;
+        } else {
+            geminiScale = 0.90f + 0.10f * std::clamp(entryCurve, 0.f, 1.08f)
+                + 0.03f * std::sin(entryProgress * 3.1415926535f);
+        }
+    } else if (style == 4) {
         x = baseX + static_cast<int>(std::lround(out * 360.f));
         y = baseY - static_cast<int>(std::lround((1.f - in) * 80.f));
     }
@@ -507,7 +646,17 @@ void draw()
         if (style == 0) draw_liquidbounce(g, box, liquidbounceKnobProgress);
         else if (style == 1) draw_vape(g, box, progress);
         else if (style == 2) draw_gpt(g, box, progress);
-        else if (style == 3) draw_gemini(g, box, elapsed);
+        else if (style == 3) {
+            const Gdiplus::GraphicsState saved = g.Save();
+            const Gdiplus::PointF center(box.X + box.Width * 0.5f, box.Y + box.Height * 0.5f);
+            Gdiplus::Matrix transform;
+            transform.Translate(center.X, center.Y);
+            transform.Scale(geminiScale, geminiScale);
+            transform.Translate(-center.X, -center.Y);
+            g.MultiplyTransform(&transform);
+            draw_gemini(g, box, elapsed);
+            g.Restore(saved); // 恢复画布状态，避免中心缩放影响后续 HUD 绘制。
+        }
         else if (style == 4) draw_deepseek(g, box);
         else draw_square(g, box);
 
@@ -525,7 +674,7 @@ void draw()
     POINT src{ 0, 0 };
     BLENDFUNCTION blend{};
     blend.BlendOp = AC_SRC_OVER;
-    blend.SourceConstantAlpha = alpha_byte((1.f - out) * 255.f);
+    blend.SourceConstantAlpha = alpha_byte(layerAlpha * 255.f);
     blend.AlphaFormat = AC_SRC_ALPHA;
     UpdateLayeredWindow(s_hwnd, hdcScreen, &dst, &size, s_hdcMem, &src, 0, &blend, ULW_ALPHA);
     ReleaseDC(nullptr, hdcScreen);
