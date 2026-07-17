@@ -141,7 +141,7 @@ float g_itemHelperImgOpacity = 1.0f; //图片预览透明度
 
 // ===== 前向声明 =====
 ATOM MyRegisterClass(HINSTANCE);
-HWND InitInstance(HINSTANCE, int);
+HWND InitInstance(HINSTANCE);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ConfirmPathDlgProc(HWND, UINT, WPARAM, LPARAM);
@@ -213,7 +213,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171729" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171735" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -267,7 +267,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     MyRegisterClass(hI);
     LoadUiThemePresetBeforeWindow();
     
-    HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
+    HWND hwMain = InitInstance(hI); // 仅创建这一个唯一的有效窗口
     if (!hwMain) {
         splashscreen::Destroy(splash);
         return FALSE;
@@ -303,6 +303,8 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     }
 
     splashscreen::PlayExit(splash);
+    ShowWindow(hwMain, nSC);
+    UpdateWindow(hwMain);
 
     HACCEL hAcc = LoadAccelerators(hI, MAKEINTRESOURCE(IDC_STRIKESENSE));
     MSG m;
@@ -337,12 +339,12 @@ ATOM MyRegisterClass(HINSTANCE hI) {
     return RegisterClassExW(&wc);
 }
 
-HWND InitInstance(HINSTANCE hI, int nSC) {
+HWND InitInstance(HINSTANCE hI) {
     hInst = hI;
     HWND w = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, 820, 740, nullptr, nullptr, hI, nullptr);
     if (!w) return nullptr;
-    ShowWindow(w, nSC); UpdateWindow(w); 
+    std::cout << "[启动] 主窗口已初始化，等待启动动画结束后显示。" << std::endl;
     return w; //返回窗口句柄
 }
 

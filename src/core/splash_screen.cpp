@@ -27,7 +27,7 @@ constexpr double kIntroMs = 2000.0;
 constexpr double kLogoMs = 220.0;
 constexpr double kExitMs = 320.0;
 constexpr double kFadeMs = 80.0;
-constexpr DWORD kFrameDelayMs = 8;
+constexpr DWORD kFrameDelayMs = 4;
 constexpr int kTargetWidth = 460;
 
 std::unique_ptr<Gdiplus::Image> g_boot_image;
