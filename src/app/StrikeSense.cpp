@@ -107,9 +107,9 @@ float g_textguiRainbowSpeed = 1.0f;
 float g_textguiRainbowSpread = 18.0f;
 float g_textguiRainbowSaturation = 1.0f;
 float g_textguiRainbowBrightness = 1.0f;
-int   g_textguiR = 80;
+int   g_textguiR = 180;
 int   g_textguiG = 180;
-int   g_textguiB = 240;
+int   g_textguiB = 255;
 int   g_textguiAccessoryR = 175;
 int   g_textguiAccessoryG = 180;
 int   g_textguiAccessoryB = 188;
@@ -121,7 +121,7 @@ float g_textguiLogoDetailThickness = 1.1f;
 std::wstring g_textguiCustomSlogan;
 bool  g_notificationsEnabled = true;
 float g_notificationsDuration = 3.0f;
-int   g_notificationsStyle = 1;
+int   g_notificationsStyle = 0;
 
 bool g_itemHelperEnabled = false;   //道具助手开关
 int  g_itemHelperHotkeyMod = 0;
@@ -233,7 +233,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607172030" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607172305" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -269,7 +269,9 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
         SetEvent(initReady);
     });
 
-    splashscreen::PumpUntilReady(splash, initReady, 2000);
+    // 启动画面配置：这里的 3000ms 要和 splash_screen.cpp 里的 kIntroMs 保持一致。
+    // 如果以后想手动改进度条速度，同时改这行和 kIntroMs；关闭动画时长改 kExitMs。
+    splashscreen::PumpUntilReady(splash, initReady, 3000);
     initThread.join();
     CloseHandle(initReady);
     if (initError) {
@@ -323,6 +325,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
         }
     }
 
+    // PlayExit 会阻塞到关闭动画播放完并销毁 Splash 窗口，然后才显示主窗口。
     splashscreen::PlayExit(splash);
     ShowWindow(hwMain, nSC);
     UpdateWindow(hwMain);

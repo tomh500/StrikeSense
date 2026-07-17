@@ -23,9 +23,14 @@ namespace splashscreen {
 namespace {
 
 constexpr wchar_t kClassName[] = L"StrikeSenseSplashWindow";
-constexpr double kIntroMs = 2000.0;
+// 手动调整启动动画时长：
+// 1. kIntroMs 控制进度条从 0 到 100% 的耗时，单位毫秒。
+// 2. kExitMs 控制进度条走完后，启动窗口收束关闭动画的耗时，单位毫秒。
+// 3. 修改 kIntroMs 后，也要同步修改 wWinMain 里 PumpUntilReady 的 minimum_ms 参数，
+//    这样后台初始化很快完成时，进度条仍会完整走完才开始关闭动画。
+constexpr double kIntroMs = 3000.0;
 constexpr double kLogoMs = 220.0;
-constexpr double kExitMs = 320.0;
+constexpr double kExitMs = 600.0;
 constexpr double kFadeMs = 80.0;
 constexpr DWORD kFrameDelayMs = 4;
 constexpr int kTargetWidth = 460;
@@ -257,11 +262,7 @@ void render(State& state, float alpha, float scale)
     g.FillPath(&fill_brush, &track);
     g.SetClip(&old_clip);
 
-    POINT center{};
-    RECT rc{};
-    GetWindowRect(state.hwnd, &rc);
-    center.x = (rc.left + rc.right) / 2;
-    center.y = (rc.top + rc.bottom) / 2;
+    POINT center{ state.center_x, state.center_y };
     if (center.x == 0 && center.y == 0) {
         HMONITOR monitor = MonitorFromWindow(state.hwnd, MONITOR_DEFAULTTONEAREST);
         MONITORINFO mi{ sizeof(mi) };
@@ -331,6 +332,8 @@ State Create(HINSTANCE instance)
     const int y = mi.rcWork.top + (work_h - height) / 2;
     state.base_width = width;
     state.base_height = height;
+    state.center_x = x + width / 2;
+    state.center_y = y + height / 2;
     state.hwnd = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
         kClassName,

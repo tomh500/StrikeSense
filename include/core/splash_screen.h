@@ -9,6 +9,8 @@ struct State {
     HINSTANCE instance = nullptr;
     int base_width = 0;
     int base_height = 0;
+    int center_x = 0;
+    int center_y = 0;
     double created_at = 0.0;
     double exit_started_at = 0.0;
     bool exit_mode = false;
