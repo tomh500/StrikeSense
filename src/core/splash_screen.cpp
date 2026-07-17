@@ -30,8 +30,11 @@ constexpr wchar_t kClassName[] = L"StrikeSenseSplashWindow";
 //    这样后台初始化很快完成时，进度条仍会完整走完才开始关闭动画。
 constexpr double kIntroMs = 3000.0;
 constexpr double kLogoMs = 220.0;
-constexpr double kExitMs = 500.0;
+constexpr double kExitMs = 3000.0;
 constexpr double kFadeMs = 80.0;
+constexpr double kReadyTailMs = 120.0;
+constexpr float kWaitingProgress = 0.985f;
+constexpr float kExitVerticalPortion = 0.58f;
 constexpr DWORD kFrameDelayMs = 4;
 constexpr int kTargetWidth = 460;
 
@@ -237,7 +240,7 @@ void render(State& state, float alpha, float scale)
     g.SetClip(&splash_shape);
     g.DrawImage(g_boot_image.get(), Rect(0, 0, width, height));
 
-    const float t = static_cast<float>((now_ms() - state.created_at) / kIntroMs);
+    const float t = state.intro_progress;
     const float logo_alpha = clamp01(static_cast<float>((now_ms() - state.created_at) / kLogoMs));
     const float cx = width * 0.5f;
     const float logo_y = height * 0.5f - 40.0f * local_scale;
@@ -258,7 +261,11 @@ void render(State& state, float alpha, float scale)
     const float reveal_w = std::max(bar_h, bar_w * reveal);
     Region bar_clip(RectF(cx - reveal_w * 0.5f, bar_y - 1.0f, reveal_w, bar_h + 2.0f));
     g.SetClip(&bar_clip, CombineModeIntersect);
-    SolidBrush fill_brush(Color(255, 255, 255, 255));
+    LinearGradientBrush fill_brush(
+        RectF(bar_x, bar_y, bar_w, bar_h),
+        Color(255, 255, 255, 255),
+        Color(255, 150, 83, 255),
+        LinearGradientModeHorizontal);
     g.FillPath(&fill_brush, &track);
     g.SetClip(&old_clip);
 
@@ -275,6 +282,103 @@ void render(State& state, float alpha, float scale)
     SIZE size{ width, height };
     POINT top_left{ center.x - width / 2, center.y - height / 2 };
     BLENDFUNCTION blend{ AC_SRC_OVER, 0, static_cast<BYTE>(std::clamp(alpha, 0.0f, 255.0f)), AC_SRC_ALPHA };
+    UpdateLayeredWindow(state.hwnd, screen, &top_left, &size, dc, &source, 0, &blend, ULW_ALPHA);
+
+    SelectObject(dc, old_bitmap);
+    DeleteObject(bitmap);
+    DeleteDC(dc);
+    ReleaseDC(nullptr, screen);
+}
+
+void render_exit(State& state)
+{
+    using namespace Gdiplus;
+    if (!state.hwnd || !g_boot_image) return;
+
+    SetWindowPos(state.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
+    const float t = clamp01(static_cast<float>((now_ms() - state.exit_started_at) / kExitMs));
+    const float vertical_t = clamp01(t / kExitVerticalPortion);
+    const float horizontal_t = clamp01((t - kExitVerticalPortion) / (1.0f - kExitVerticalPortion));
+    const float vertical_ease = ease_in_out_cubic(vertical_t);
+    const float horizontal_ease = ease_in_out_cubic(horizontal_t);
+
+    const float base_w = static_cast<float>(state.base_width);
+    const float base_h = static_cast<float>(state.base_height);
+    const int width = state.base_width;
+    const int height = state.base_height;
+    const float bar_w = 360.0f;
+    const float bar_h = 6.0f;
+    const float bar_x = base_w * 0.5f - bar_w * 0.5f;
+    const float bar_y = base_h * 0.5f + 15.0f;
+    const float strip_padding = 2.0f;
+    const float final_top = bar_y - strip_padding;
+    const float final_bottom = bar_y + bar_h + strip_padding;
+    const float top = final_top * vertical_ease;
+    const float bottom = base_h + (final_bottom - base_h) * vertical_ease;
+    const float center_x = base_w * 0.5f;
+    const float left = center_x * horizontal_ease;
+    const float right = base_w + (center_x - base_w) * horizontal_ease;
+    const float visible_w = std::max(1.0f, right - left);
+    const float visible_h = std::max(1.0f, bottom - top);
+    const bool bar_only = vertical_t >= 1.0f;
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biHeight = -height;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    void* bits = nullptr;
+    HDC screen = GetDC(nullptr);
+    HDC dc = CreateCompatibleDC(screen);
+    HBITMAP bitmap = CreateDIBSection(screen, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0);
+    HBITMAP old_bitmap = static_cast<HBITMAP>(SelectObject(dc, bitmap));
+
+    Graphics g(dc);
+    g.SetCompositingMode(CompositingModeSourceCopy);
+    g.Clear(Color(0, 0, 0, 0));
+    g.SetCompositingMode(CompositingModeSourceOver);
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    g.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+    g.SetPixelOffsetMode(PixelOffsetModeHighQuality);
+    g.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+
+    Region old_clip;
+    g.GetClip(&old_clip);
+    if (!bar_only) {
+        const float visible_radius = std::clamp(visible_h * 0.16f, 3.0f, 18.0f);
+        GraphicsPath visible_shape;
+        build_rounded_rect_path(visible_shape, left, top, visible_w, visible_h, visible_radius);
+        Region visible_region(&visible_shape);
+        g.SetClip(&visible_region);
+        g.DrawImage(g_boot_image.get(), Rect(0, 0, width, height));
+        draw_text_center(g, L"StrikeSense", base_w * 0.5f, base_h * 0.5f - 38.0f, 54.0f, Color(35, 0, 0, 0));
+        draw_text_center(g, L"StrikeSense", base_w * 0.5f, base_h * 0.5f - 40.0f, 54.0f, Color(255, 255, 255, 255));
+    }
+
+    const float bar_visible_w = bar_only
+        ? std::max(1.0f, bar_w * (1.0f - horizontal_ease))
+        : bar_w;
+    const float bar_draw_x = center_x - bar_visible_w * 0.5f;
+    GraphicsPath track;
+    build_rounded_rect_path(track, bar_draw_x, bar_y, bar_visible_w, bar_h, bar_h * 0.5f);
+    LinearGradientBrush fill_brush(
+        RectF(bar_draw_x, bar_y, bar_visible_w, bar_h),
+        Color(255, 255, 255, 255),
+        Color(255, 150, 83, 255),
+        LinearGradientModeHorizontal);
+    g.SetClip(&track);
+    g.FillPath(&fill_brush, &track);
+    g.SetClip(&old_clip);
+
+    POINT source{ 0, 0 };
+    SIZE size{ width, height };
+    POINT top_left{ state.center_x - width / 2, state.center_y - height / 2 };
+    BLENDFUNCTION blend{ AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
     UpdateLayeredWindow(state.hwnd, screen, &top_left, &size, dc, &source, 0, &blend, ULW_ALPHA);
 
     SelectObject(dc, old_bitmap);
@@ -368,8 +472,7 @@ void PumpOnce(State& state)
 
     if (state.exit_mode) {
         const float t = static_cast<float>((now_ms() - state.exit_started_at) / kExitMs);
-        const float fade_t = clamp01(static_cast<float>((now_ms() - state.exit_started_at - (kExitMs - kFadeMs)) / kFadeMs));
-        render(state, 255.0f * (1.0f - fade_t), exit_scale(t));
+        render_exit(state);
         if (t >= 1.0f) Destroy(state);
         return;
     }
@@ -380,9 +483,37 @@ void PumpOnce(State& state)
 void PumpUntilReady(State& state, HANDLE ready_event, DWORD minimum_ms)
 {
     const double deadline = state.created_at + static_cast<double>(minimum_ms);
+    bool waited_after_deadline = false;
+    double ready_tail_started_at = 0.0;
+    float ready_tail_from = 0.0f;
+
     while (true) {
+        const double now = now_ms();
         const bool ready = WaitForSingleObject(ready_event, 0) == WAIT_OBJECT_0;
-        if (ready && now_ms() >= deadline) break;
+
+        if (ready_tail_started_at > 0.0) {
+            const float tail_t = clamp01(static_cast<float>((now - ready_tail_started_at) / kReadyTailMs));
+            state.intro_progress = ready_tail_from + (1.0f - ready_tail_from) * ease_in_out_cubic(tail_t);
+            PumpOnce(state);
+            if (tail_t >= 1.0f) break;
+            Sleep(kFrameDelayMs);
+            continue;
+        }
+
+        const float timed_progress = clamp01(static_cast<float>((now - state.created_at) / static_cast<double>(minimum_ms)));
+        if (ready && now >= deadline) {
+            if (!waited_after_deadline) {
+                state.intro_progress = 1.0f;
+                PumpOnce(state);
+                break;
+            }
+            ready_tail_started_at = now;
+            ready_tail_from = state.intro_progress;
+            continue;
+        }
+
+        if (!ready && now >= deadline) waited_after_deadline = true;
+        state.intro_progress = ready ? timed_progress : std::min(timed_progress, kWaitingProgress);
         PumpOnce(state);
         Sleep(kFrameDelayMs);
     }

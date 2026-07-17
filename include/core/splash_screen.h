@@ -11,6 +11,7 @@ struct State {
     int base_height = 0;
     int center_x = 0;
     int center_y = 0;
+    float intro_progress = 0.0f;
     double created_at = 0.0;
     double exit_started_at = 0.0;
     bool exit_mode = false;
