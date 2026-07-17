@@ -209,11 +209,11 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     if (antistupid::CheckAndBlock()) { if (g_hMutex) CloseHandle(g_hMutex); return 1; }
     Gdiplus::GdiplusStartupInput in;
     Gdiplus::GdiplusStartup(&g_gdiToken, &in, nullptr);
-    g_Console.InitRedirection();
     auto splash = splashscreen::Create(hI);
+    g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171724" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171729" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;

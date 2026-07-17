@@ -27,7 +27,8 @@ constexpr double kIntroMs = 2000.0;
 constexpr double kLogoMs = 220.0;
 constexpr double kExitMs = 320.0;
 constexpr double kFadeMs = 80.0;
-constexpr int kTargetWidth = 920;
+constexpr DWORD kFrameDelayMs = 8;
+constexpr int kTargetWidth = 460;
 
 std::unique_ptr<Gdiplus::Image> g_boot_image;
 ULONG_PTR g_class_registered_for = 0;
@@ -192,6 +193,9 @@ void render(State& state, float alpha, float scale)
     using namespace Gdiplus;
     if (!state.hwnd || !g_boot_image) return;
 
+    SetWindowPos(state.hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
     scale = std::max(scale, 0.01f);
     const int width = std::max(1, static_cast<int>(std::round(state.base_width * scale)));
     const int height = std::max(1, static_cast<int>(std::round(state.base_height * scale)));
@@ -237,7 +241,7 @@ void render(State& state, float alpha, float scale)
     draw_text_center(g, L"StrikeSense", cx, logo_y, font_size, Color(static_cast<BYTE>(255.0f * logo_alpha), 255, 255, 255));
 
     const float bar_w = 360.0f * local_scale;
-    const float bar_h = std::max(1.0f, 3.0f * local_scale);
+    const float bar_h = std::max(2.0f, 6.0f * local_scale);
     const float bar_x = cx - bar_w * 0.5f;
     const float bar_y = logo_y + 55.0f * local_scale;
     GraphicsPath track;
@@ -377,7 +381,7 @@ void PumpUntilReady(State& state, HANDLE ready_event, DWORD minimum_ms)
         const bool ready = WaitForSingleObject(ready_event, 0) == WAIT_OBJECT_0;
         if (ready && now_ms() >= deadline) break;
         PumpOnce(state);
-        Sleep(16);
+        Sleep(kFrameDelayMs);
     }
 }
 
@@ -389,7 +393,7 @@ void PlayExit(State& state)
     state.exit_started_at = now_ms();
     while (state.active) {
         PumpOnce(state);
-        Sleep(16);
+        Sleep(kFrameDelayMs);
     }
 }
 
