@@ -1,170 +1,357 @@
-# StrikeSense CScript 说明
+# StrikeSense CScript 手册
 
-CScript 用外部程序把一个按键事件拆成多个单动作 CFG 执行片段，用于替代已经失效的多动作绑定方式。
+## 文档版本
 
-## 工作方式
+- 手册版本：`2026.07.16`
+- 适用对象：想在 StrikeSense 里编写按键脚本的普通用户
+- 脚本扩展名：`.cscript`
 
-启用超频配置中的“为多绑定的脚本提供支持”后，StrikeSense 会：
+## 这是什么
 
-1. 在 CS2 的 `cfg` 目录创建 `StrikeTicker.cfg`。
-2. 向 `autoexec.cfg` 写入以下托管块：
+CScript 用来把一个按键拆成多步 Source 命令，适合做：
 
-```cfg
-//--StrikeSense CScript Ticker--
-bind <当前 Ticker 按键> "exec StrikeTicker.cfg"
-//--StrikeSense CScript Ticker END--
-```
+- 跳投
+- 一键执行多条连续命令
+- 按下和松开执行不同动作
+- 给常用动作补上通知提示
 
-3. CS2 位于前台时，以每秒 64 次的频率模拟一次当前 Ticker 按键的按下和松开；默认按键是 `kp_9`，可在展开区域重新绑定。
-4. 捕获已绑定脚本的真实键盘按下、松开事件；`SendInput` 生成的事件不会再次进入脚本队列。
-5. 每个 15.625ms 时间片最多向 `StrikeTicker.cfg` 写入一个动作，然后模拟当前 Ticker 按键。
-6. 一个事件的最后动作执行后，下一个时间片会清空 `StrikeTicker.cfg`，防止最后动作被重复执行。
-7. 队列为空且不需要清空文件时，仍维持 64Hz ticker，但不进行无意义文件 I/O。
+如果你只想“绑定一个键，按下做什么，松开做什么”，那 CScript 就够用了。
 
-如果游戏已在运行，需要在控制台执行一次 `exec autoexec`，或重启游戏，使 Ticker 绑定生效。
+## 开始前要做什么
 
-当前 Ticker 按键是保留按键，不能同时绑定给 CScript。修改 Ticker 按键后，原按键会写入 `unbind`，新按键会写入 `bind`。
+1. 在 StrikeSense 里开启 `为多绑定的脚本提供支持`
+2. 打开 CScript 面板
+3. 挂载一个 `.cscript` 文件
+4. 给这个脚本绑定一个按键
 
-## 脚本目录
-
-默认目录：
+脚本默认目录：
 
 ```text
 %UserProfile%\StrikeSense\sourcecfg
 ```
 
-首次运行会生成 `testscript.cscript` 和 `jumpthrow.cscript`。仓库中的示例位于：
+首次使用时，程序通常会生成示例脚本，方便你直接改。
 
-```text
-sourcecfg/testscript.cscript
-sourcecfg/jumpthrow.cscript
-```
+## 最基本的写法
 
-## 语法
+一个合法的 CScript 必须同时包含：
 
-脚本扩展名必须是 `.cscript`。脚本必须同时包含一次 `@OnPressed` 和一次 `@OnReleased`。
+- `@OnPressed`
+- `@OnReleased`
+
+示例：
 
 ```cscript
-// 双斜杠可以写注释；字符串中的 // 不会被当成注释。
+// 跳投：请在界面中绑定跳投键。
 @OnPressed {
-    "+forward":0;
-    "alias a b;+jump":1;
+    "+jump":0;
+    "-attack":1;
+    "-attack2":2;
 }
 
 @OnReleased {
-    "-forward":0;
-    "-jump":1;
-    "+lookatweapon":2;
-    "-lookatweapon":3;
+    "-jump":0;
 }
 ```
 
-每条动作的格式为：
+含义：
+
+- 按下绑定键时，按顺序执行 `+jump`、`-attack`、`-attack2`
+- 松开绑定键时，执行 `-jump`
+
+## 动作格式
+
+每一条动作都必须写成：
 
 ```text
-"起源引擎命令":动作序号;
+"命令":序号;
 ```
 
-规则：
-
-- 动作序号必须从 `0` 开始并连续。
-- 文件中的动作可以不按序号排列，加载时会按序号排序。
-- 命令必须使用双引号包裹。
-- 最后一条动作允许省略结尾分号，但建议始终保留。
-- `@OnPressed` 和 `@OnReleased` 都不能为空。
-- 字符串支持 `\"`、`\\`、`\n`、`\r`、`\t` 转义。
-
-## 单动作校验
-
-一个动作字符串中最多只能出现一个普通指令。以下指令被视为可并行辅助指令，不计入普通指令数量：
-
-- `alias`
-- `bind`
-- `say`
-- `say_team`
-- `echoln`
-
-合法示例：
+例如：
 
 ```cscript
-"alias a b;alias c d;bind u test;+jump":0;
+"+jump":0;
+"-attack":1;
 ```
 
-其中 `+jump` 是唯一的普通指令。
+规则如下：
 
-非法示例：
+- 命令必须放在双引号里
+- 序号必须是数字
+- 序号从 `0` 开始
+- 同一个代码块里的序号必须连续
+- 建议每一行都写分号 `;`
+
+## 两个代码块分别做什么
+
+### `@OnPressed`
+
+按下你绑定的那个键时执行。
+
+示例：
+
+```cscript
+@OnPressed {
+    "slot3":0;
+    "+lookatweapon":1;
+}
+```
+
+### `@OnReleased`
+
+松开你绑定的那个键时执行。
+
+示例：
+
+```cscript
+@OnReleased {
+    "-lookatweapon":0;
+}
+```
+
+## 常见示例
+
+### 跳投
+
+```cscript
+@OnPressed {
+    "+jump":0;
+    "-attack":1;
+    "-attack2":2;
+}
+
+@OnReleased {
+    "-jump":0;
+}
+```
+
+### 按下显示开启通知，松开显示关闭通知
+
+```cscript
+@OnPressed {
+    "echoln /notificationE 跳投;+jump":0;
+}
+
+@OnReleased {
+    "echoln /notificationD 跳投;-jump":0;
+}
+```
+
+### 先执行辅助命令，再执行一次主要动作
+
+```cscript
+@OnPressed {
+    "alias test say hello;+jump":0;
+}
+
+@OnReleased {
+    "-jump":0;
+}
+```
+
+## 字符串怎么写
+
+外层双引号是脚本语法的一部分：
+
+```cscript
+"命令内容":0;
+```
+
+如果命令内容里面还要再出现双引号，必须转义成 `\"`。
+
+例如：
+
+```cscript
+"echoln \"/notificationE 跳投\";+jump":0;
+```
+
+如果你不转义，解析器会以为字符串提前结束，常见报错就是：
+
+```text
+命令后缺少序号分隔符 ':'
+```
+
+## 单条动作的限制
+
+一条动作里，允许有一些辅助命令，但只应该有一个主要动作命令。
+
+推荐这样写：
+
+```cscript
+"alias a b;+jump":0;
+```
+
+不推荐这样写：
 
 ```cscript
 "+forward;+jump":0;
 ```
 
-这里包含两个普通动作指令，因此加载失败。
+如果你不确定，最稳妥的做法就是：
 
-被引号包裹的分号不会被拆分。例如 alias 的命令体可以使用转义引号：
+- 一条动作只放一个主要动作
+- 多步逻辑拆成多行
+- 用序号控制顺序
+
+## 注释
+
+支持单行注释：
 
 ```cscript
-"alias test \"+forward;-forward\";+jump":0;
+// 这是注释
 ```
 
-## 执行标记
+示例：
 
-StrikeSense 会在每次写入的动作后追加 `echoln` 标记。按下 `w` 的第一个动作示例：
+```cscript
+// 这是一个简单脚本
+@OnPressed {
+    "+jump":0;
+}
 
-```cfg
-+forward;echoln "[cscript]pressed w has been executed 0"
+@OnReleased {
+    "-jump":0;
+}
 ```
 
-最后一个动作的序号后会追加 `!`：
+## 支持绑定的按键
 
-```cfg
--jump;echoln "[cscript]released w has been executed 1!"
-```
+界面目前录入的是“单按键”，不是组合键。
 
-控制台日志读取器会识别这些标记，并在 CScript 面板中显示最近一次来自 `console.log` 的执行确认。
-
-## 多按键竞争处理
-
-每个已挂载脚本都有独立事件通道：
-
-- 同一脚本内，按下序列一定先于随后到达的松开序列，不会出现松开动作插到按下动作中间。
-- 不同脚本之间使用轮转调度，每个活动脚本每轮执行一个动作。
-- 新按键事件不会覆盖已有事件，也不会丢失动作。
-
-例如 `w` 和 `a` 同时触发两个多动作脚本时，可能按以下顺序执行：
-
-```text
-w pressed 0
-a pressed 0
-w pressed 1
-a pressed 1
-清空
-...
-```
-
-实际顺序取决于两个物理事件到达钩子的先后，但每个脚本自身的动作顺序始终稳定。
-
-## 支持的单按键
-
-界面只录入单按键，不录入组合键。当前支持：
+常见支持范围：
 
 - `a` 到 `z`
 - 主键盘 `0` 到 `9`
-- `kp_0` 到 `kp_9`；其中当前 Ticker 按键不可同时绑定给脚本
+- 小键盘 `kp_0` 到 `kp_9`
 - `ctrl`、`rctrl`
 - `shift`、`rshift`
 - `alt`、`ralt`
-- `capslock`、`tab`、`space`、`enter`、`backspace`、`escape`
-- `-`、`=`
+- `capslock`
+- `tab`
+- `space`
+- `enter`
+- `backspace`
+- `escape`
+- `-`
+- `=`
+- `]`
 - `f1` 到 `f12`
-- 方向键、`home`、`end`、`pgup`、`pgdn`、`ins`、`del`
+- 方向键
+- `home`、`end`、`pgup`、`pgdn`
+- `ins`、`del`
 - `kp_plus`、`kp_minus`、`kp_multiply`、`kp_slash`、`kp_del`
 
-## 配置文件
+说明：
 
-挂载脚本、单键绑定和开关偏好保存在：
+- 用作系统保留用途的按键，不能再同时绑定给普通脚本
+- 如果你在界面里录不进去，通常说明当前版本不支持那个键
+
+## 配置文件位置
+
+CScript 的挂载、绑定和开关信息会保存在：
 
 ```text
 %UserProfile%\StrikeSense\setting\cscript_config.json
 ```
 
-CScript 面板每页固定显示三个脚本，并提供 Ticker 按键绑定、脚本挂载、脚本按键绑定、重载、卸载、上一页和下一页操作。急停参数与 CScript 子控件使用进化页相同的 `>` / `v` 折叠样式，展开后会直接撑开下方模块的位置。
+一般不需要手动改，优先在界面里操作。
+
+## 常见报错与排查
+
+### `命令后缺少序号分隔符 ':'`
+
+常见原因：
+
+- 字符串里的双引号没转义
+- 写成了 `"命令"0;`
+- 前面的引号没有闭合
+
+错误示例：
+
+```cscript
+"echoln "/notificationE 跳投;+jump":0;
+```
+
+正确示例：
+
+```cscript
+"echoln /notificationE 跳投;+jump":0;
+```
+
+或者：
+
+```cscript
+"echoln \"/notificationE 跳投\";+jump":0;
+```
+
+### `动作序号必须从 0 开始`
+
+错误示例：
+
+```cscript
+@OnPressed {
+    "+jump":1;
+}
+```
+
+正确示例：
+
+```cscript
+@OnPressed {
+    "+jump":0;
+}
+```
+
+### `序号不连续`
+
+错误示例：
+
+```cscript
+@OnPressed {
+    "+jump":0;
+    "-attack":2;
+}
+```
+
+正确示例：
+
+```cscript
+@OnPressed {
+    "+jump":0;
+    "-attack":1;
+}
+```
+
+### 脚本能挂载，但按键没反应
+
+请按顺序检查：
+
+1. 是否开启了 `为多绑定的脚本提供支持`
+2. 是否已经给脚本绑定按键
+3. 脚本是否同时有 `@OnPressed` 和 `@OnReleased`
+4. CS2 是否已经重新读取配置
+
+如果你刚开启功能，重进游戏通常最省事。
+
+## 推荐写法
+
+- 一个脚本只做一件事
+- 动作尽量短，不要一行塞太多命令
+- 复杂动作拆成多条并编号
+- 先写最小可用版本，再逐步加通知或附加命令
+- 改完就重新加载脚本测试
+
+## 一个稳妥的模板
+
+```cscript
+// 在界面中给这个脚本绑定一个键
+@OnPressed {
+    "echoln /notificationE 我的脚本":0;
+    "+jump":1;
+}
+
+@OnReleased {
+    "echoln /notificationD 我的脚本":0;
+    "-jump":1;
+}
+```

@@ -1,4 +1,5 @@
 #include "quickstop.h"
+#include "gsi_server.h"
 #include "config.h"
 #include "pages.h"
 #include "input_environment.h"
@@ -746,9 +747,13 @@ void ProcessQuickStopCommand(const std::string& cmd)
         if (pause_jiting) return;           // pause键控制的全局急停开关
         if (inputenvironment::ShouldPauseAutomation()) return;
         if (!s_qsConfig.enabled) return;    // 总开关
-        if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
-        if (IsJumpQuickStopDisabled()) return; // 跳跃后 3 秒内临时禁用急停
-        if (!is_holding_gun.load()) return; // 刀/雷 拦截
+        if(!gsi::runtime::dead_muted)
+        {
+            if (IsSilentKeyPressed()) return;   // Shift/Ctrl 拦截
+            if (IsJumpQuickStopDisabled()) return; // 跳跃后 3 秒内临时禁用急停
+            if (!is_holding_gun.load()) return; // 刀/雷 拦截
+        }
+
 
         WORD counterKey = 0;
         if (key == 'W') counterKey = 'S';

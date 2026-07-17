@@ -12,9 +12,16 @@ const __dirname = path.dirname(__filename);
 
 const workspaceRoot = __dirname;
 const externalRoot = "D:/Users/user0/Downloads/Misc/strikesense.web";
-const markdownPath = path.join(workspaceRoot, "VSCRIPT_MANUAL.md");
+const args = process.argv.slice(2);
+const markdownFileName = args[0] || "VSCRIPT_MANUAL.md";
+const outputFileName = args[1] || "scriptdocs.html";
+const pageTitle = args[2] || "StrikeSense - 脚本文档";
+const sidebarTitle = args[3] || "快速索引";
+const searchPlaceholder = args[4] || "搜索变量、函数、关键字...";
+const noteText = args[5] || "子分类默认折叠，搜索时会自动展开相关分类。";
+const markdownPath = path.join(workspaceRoot, markdownFileName);
 const indexPath = path.join(externalRoot, "index.html");
-const outputPath = path.join(externalRoot, "scriptdocs.html");
+const outputPath = path.join(externalRoot, outputFileName);
 
 function extractShell(indexHtml) {
   const header = indexHtml.match(/<header class="navbar">[\s\S]*?<\/header>/)?.[0];
@@ -98,7 +105,7 @@ function createRenderer(toc) {
 }
 
 function escapeHtml(text) {
-  return text
+  return String(text)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -151,7 +158,7 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StrikeSense - 脚本文档</title>
+    <title>${escapeHtml(pageTitle)}</title>
     <link rel="stylesheet" href="style.css">
     <style>
         .docs-shell {
@@ -317,12 +324,12 @@ function buildDocument({ header, footer, bodyHtml, sidebarHtml }) {
 ${bodyHtml}
         </article>
         <aside class="docs-sidebar">
-            <h2>快速索引</h2>
-            <input id="docsSearch" class="docs-search" type="search" placeholder="搜索变量、函数、关键字..." />
+            <h2>${escapeHtml(sidebarTitle)}</h2>
+            <input id="docsSearch" class="docs-search" type="search" placeholder="${escapeHtml(searchPlaceholder)}" />
             <nav class="docs-toc" id="docsToc">
                 ${sidebarHtml}
             </nav>
-            <p class="docs-note">子分类默认折叠，搜索时会自动展开相关分类。</p>
+            <p class="docs-note">${escapeHtml(noteText)}</p>
         </aside>
     </main>
     ${footer}
@@ -397,8 +404,10 @@ ${bodyHtml}
                 const matchedMap = new Map();
 
                 links.forEach((link) => {
-                  const matched = !isFiltering || (sectionTexts.get(link) || "").includes(keyword) || (link.textContent || "").toLowerCase().includes(keyword);
-                  matchedMap.set(link, matched);
+                    const matched = !isFiltering
+                        || (sectionTexts.get(link) || "").includes(keyword)
+                        || (link.textContent || "").toLowerCase().includes(keyword);
+                    matchedMap.set(link, matched);
                 });
 
                 links.forEach((link) => {
@@ -430,7 +439,8 @@ ${bodyHtml}
                 groups.forEach((group) => {
                     const topLink = group.querySelector(".toc-top");
                     const groupMatched = topLink ? (matchedMap.get(topLink) || false) : false;
-                    const visibleSection = Array.from(group.querySelectorAll(".toc-section")).some((section) => !section.classList.contains("docs-hidden"));
+                    const visibleSection = Array.from(group.querySelectorAll(".toc-section"))
+                        .some((section) => !section.classList.contains("docs-hidden"));
                     const visible = !isFiltering || groupMatched || visibleSection;
                     group.classList.toggle("docs-hidden", !visible);
                 });
