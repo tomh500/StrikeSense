@@ -53,6 +53,9 @@ struct notification_item {
     bool enabled = true;
     ULONGLONG startTick = 0;
     ULONGLONG exitTick = 0;
+    std::wstring replacementText;
+    bool replacementEnabled = true;
+    bool hasReplacement = false;
     float y = 0.0f;
     bool yInitialized = false;
 };
@@ -77,6 +80,36 @@ void append_list_item(notification_item item, int height, int gap, int pad)
     item.y = targetY - 22.0f;
     item.yInitialized = true;
     s_items.push_back(std::move(item));
+}
+
+void push_list_item(notification_item item, ULONGLONG now, int height, int gap, int pad)
+{
+    for (auto& active : s_items) {
+        if (active.text != item.text) continue;
+        if (active.enabled == item.enabled && active.exitTick == 0) {
+            active.startTick = now;
+            return;
+        }
+        active.replacementText = std::move(item.text);
+        active.replacementEnabled = item.enabled;
+        active.hasReplacement = true;
+        if (active.exitTick == 0) active.exitTick = now;
+        return;
+    }
+
+    for (auto& waiting : s_waitingItems) {
+        if (waiting.text == item.text) {
+            waiting.enabled = item.enabled;
+            return;
+        }
+    }
+
+    if (s_items.size() < 3) {
+        append_list_item(std::move(item), height, gap, pad);
+    } else {
+        if (s_items.front().exitTick == 0) s_items.front().exitTick = now;
+        s_waitingItems.push_back(std::move(item));
+    }
 }
 
 bool has_window()
@@ -734,10 +767,27 @@ void draw_liquidbounce_list()
         }
     }
 
-    s_items.erase(std::remove_if(s_items.begin(), s_items.end(), [now](const notification_item& item) {
-        if (item.exitTick == 0) return false;
-        return static_cast<float>(now - item.exitTick) >= static_cast<float>(kAnimMs);
-        }), s_items.end());
+    for (auto it = s_items.begin(); it != s_items.end();) {
+        if (it->exitTick == 0 || static_cast<float>(now - it->exitTick) < static_cast<float>(kAnimMs)) {
+            ++it;
+            continue;
+        }
+
+        if (it->hasReplacement) {
+            notification_item replacement;
+            replacement.text = std::move(it->replacementText);
+            replacement.enabled = it->replacementEnabled;
+            replacement.startTick = now;
+            replacement.y = it->y;
+            replacement.yInitialized = true;
+            it = s_items.erase(it);
+            it = s_items.insert(it, std::move(replacement));
+            ++it;
+            continue;
+        }
+
+        it = s_items.erase(it);
+    }
 
     while (!s_waitingItems.empty() && s_items.size() < 3) {
         notification_item item = std::move(s_waitingItems.front());
@@ -988,12 +1038,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
                 item.text = std::move(s_pendingText);
                 item.enabled = s_pendingEnabledState;
                 item.startTick = GetTickCount64();
-                if (s_items.size() < 3) {
-                    append_list_item(std::move(item), height, gap, pad);
-                } else {
-                    if (s_items.front().exitTick == 0) s_items.front().exitTick = item.startTick;
-                    s_waitingItems.push_back(std::move(item));
-                }
+                push_list_item(std::move(item), item.startTick, height, gap, pad);
                 s_text.clear();
             } else {
                 s_items.clear();
