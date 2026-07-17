@@ -37,7 +37,7 @@ struct value {
 
 struct image_window {
     HWND hwnd = nullptr;
-    std::unique_ptr<Gdiplus::Image> image;
+    std::unique_ptr<Gdiplus::Bitmap> image;
     int width = 0;
     int height = 0;
     float alpha = 1.0f;
@@ -185,7 +185,7 @@ bool KillProcessByName(const std::wstring& exe);
 LRESULT CALLBACK ImageProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 void EnsureImageClass();
 void CloseImage(int id);
-bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int height, int x, int y, float opacity);
+bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Bitmap* bitmap, int width, int height, int x, int y, float opacity);
 bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offsetY, bool alphaChannel, float opacity, int ttlMs, int id);
 bool PlaySoundCommand(const std::filesystem::path& path, float volume, int id);
 void StopSoundCommand(int id);

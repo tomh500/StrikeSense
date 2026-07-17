@@ -356,23 +356,40 @@ void CloseImage(int id)
     std::cout << "[脚本] 已关闭图片，ID=" << id << std::endl;
 }
 
-bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int height, int x, int y, float opacity)
+bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Bitmap* bitmap, int width, int height, int x, int y, float opacity)
 {
-    if (!hwnd || !image || width <= 0 || height <= 0) return false;
-
-    Gdiplus::Bitmap surface(width, height, PixelFormat32bppPARGB);
-    Gdiplus::Graphics graphics(&surface);
-    graphics.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
-    graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-    graphics.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
-    graphics.Clear(Gdiplus::Color(0, 0, 0, 0));
-    graphics.DrawImage(image, 0, 0, width, height);
+    if (!hwnd || !bitmap || width <= 0 || height <= 0) return false;
 
     Gdiplus::Rect rect(0, 0, width, height);
-    Gdiplus::BitmapData bitmapData{};
-    if (surface.LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &bitmapData) != Gdiplus::Ok) {
-        std::wcout << L"[脚本] 锁定位图像素失败，无法应用真 alpha 通道" << std::endl;
-        return false;
+    Gdiplus::BitmapData sourceData{};
+    Gdiplus::BitmapData fallbackData{};
+    std::unique_ptr<Gdiplus::Bitmap> fallbackSurface;
+    const PixelFormat sourceFormat = bitmap->GetPixelFormat();
+    const bool sourceIsPremultiplied = sourceFormat == PixelFormat32bppPARGB;
+    const bool sourceHasAlpha = sourceFormat == PixelFormat32bppARGB || sourceFormat == PixelFormat32bppPARGB;
+    bool directCopy = false;
+
+    if (sourceHasAlpha) {
+        const PixelFormat lockFormat = sourceIsPremultiplied ? PixelFormat32bppPARGB : PixelFormat32bppARGB;
+        if (bitmap->LockBits(&rect, Gdiplus::ImageLockModeRead, lockFormat, &sourceData) == Gdiplus::Ok) {
+            directCopy = true;
+            std::wcout << L"[脚本] 直接读取源图片像素，保留 alpha 通道" << std::endl;
+        }
+    }
+
+    if (!directCopy) {
+        std::wcout << L"[脚本] 源图片像素格式不适合直接读取，改用透明缓冲画布" << std::endl;
+        fallbackSurface = std::make_unique<Gdiplus::Bitmap>(width, height, PixelFormat32bppPARGB);
+        Gdiplus::Graphics graphics(fallbackSurface.get());
+        graphics.SetCompositingMode(Gdiplus::CompositingModeSourceOver);
+        graphics.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+        graphics.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+        graphics.Clear(Gdiplus::Color(0, 0, 0, 0));
+        graphics.DrawImage(bitmap, 0, 0, width, height);
+        if (fallbackSurface->LockBits(&rect, Gdiplus::ImageLockModeRead, PixelFormat32bppPARGB, &fallbackData) != Gdiplus::Ok) {
+            std::wcout << L"[脚本] 锁定位图像素失败，无法应用真 alpha 通道" << std::endl;
+            return false;
+        }
     }
 
     BITMAPINFO bmi{};
@@ -394,10 +411,24 @@ bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int he
         oldBitmap = (HBITMAP)SelectObject(memDc, dib);
         const size_t rowBytes = (size_t)width * 4;
         for (int row = 0; row < height; ++row) {
-            std::memcpy(
-                static_cast<unsigned char*>(dibPixels) + row * rowBytes,
-                static_cast<unsigned char*>(bitmapData.Scan0) + row * bitmapData.Stride,
-                rowBytes);
+            const unsigned char* srcRow = directCopy
+                ? static_cast<unsigned char*>(sourceData.Scan0) + row * sourceData.Stride
+                : static_cast<unsigned char*>(fallbackData.Scan0) + row * fallbackData.Stride;
+            unsigned char* dstRow = static_cast<unsigned char*>(dibPixels) + row * rowBytes;
+            if (directCopy && !sourceIsPremultiplied) {
+                for (int col = 0; col < width; ++col) {
+                    const unsigned char b = srcRow[col * 4 + 0];
+                    const unsigned char g = srcRow[col * 4 + 1];
+                    const unsigned char r = srcRow[col * 4 + 2];
+                    const unsigned char a = srcRow[col * 4 + 3];
+                    dstRow[col * 4 + 0] = static_cast<unsigned char>((b * a) / 255);
+                    dstRow[col * 4 + 1] = static_cast<unsigned char>((g * a) / 255);
+                    dstRow[col * 4 + 2] = static_cast<unsigned char>((r * a) / 255);
+                    dstRow[col * 4 + 3] = a;
+                }
+            } else {
+                std::memcpy(dstRow, srcRow, rowBytes);
+            }
         }
 
         POINT dstPt{ x, y };
@@ -411,7 +442,8 @@ bool ApplyPerPixelAlphaImage(HWND hwnd, Gdiplus::Image* image, int width, int he
         ok = UpdateLayeredWindow(hwnd, screenDc, &dstPt, &size, memDc, &srcPt, 0, &blend, ULW_ALPHA) == TRUE;
     }
 
-    surface.UnlockBits(&bitmapData);
+    if (directCopy) bitmap->UnlockBits(&sourceData);
+    else if (fallbackSurface) fallbackSurface->UnlockBits(&fallbackData);
     if (oldBitmap) SelectObject(memDc, oldBitmap);
     if (dib) DeleteObject(dib);
     if (memDc) DeleteDC(memDc);
@@ -433,7 +465,7 @@ bool DrawImageCommand(const std::filesystem::path& path, int offsetX, int offset
                << L"，opacity=" << opacity
                << L"，ttl_ms=" << ttlMs
                << L"，id=" << id << std::endl;
-    auto img = std::make_unique<Gdiplus::Image>(path.c_str());
+    auto img = std::make_unique<Gdiplus::Bitmap>(path.c_str());
     if (img->GetLastStatus() != Gdiplus::Ok) {
         std::wcout << L"[脚本] 图片加载失败: " << path.wstring() << std::endl;
         return false;
