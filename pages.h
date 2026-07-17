@@ -88,6 +88,8 @@ void RefreshTextguiOverlay();
 namespace ui {
     constexpr UINT_PTR kAnimationTimerId = 2002;
 
+    void BeginFrame();
+    void SetPointerState(HWND hw, int mx, int my, bool pressed);
     void DrawHeader(Gdiplus::Graphics& g, int cx, int cw, const wchar_t* title);
     void DrawToggle(Gdiplus::Graphics& g, int tx, int ty, bool state);
     void DrawSlider(Gdiplus::Graphics& g, int sx, int sy, int sw, float value);
@@ -95,6 +97,8 @@ namespace ui {
     void DrawRoundedButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
         const wchar_t* label, bool selected = false, bool compact = false);
     void DrawFoldButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect, bool expanded);
+    void DrawNavigationButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
+        const wchar_t* label, bool selected);
     bool CheckToggleClick(int mx, int my, int tx, int ty);
     bool CheckSliderClick(int mx, int my, int sx, int sy, int sw, float& outVal);
     void StartAnimationClock(HWND hw);

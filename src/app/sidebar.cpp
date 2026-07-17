@@ -19,7 +19,6 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
 {
     using namespace Gdiplus;
     const auto& theme = uitheme::get_palette();
-    SolidBrush bg(theme.sidebar_background);
     Pen ln(theme.sidebar_border, 2.0f);
     Font tF(L"Microsoft YaHei", 16, FontStyleBold);
     Font nF(L"Microsoft YaHei", 12);
@@ -32,7 +31,18 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
     SolidBrush offBr(theme.toggle_off);
     SolidBrush kBr(theme.toggle_knob);
 
-    g.FillRectangle(&bg, 0, 0, SIDEBAR_W, H);
+    const bool defaultTheme = uitheme::get_preset() == uitheme::preset_default;
+    if (defaultTheme) {
+        RectF sideRect(0.0f, 0.0f, static_cast<REAL>(SIDEBAR_W), static_cast<REAL>(H));
+        LinearGradientBrush bg(sideRect, theme.sidebar_background, theme.card_background, LinearGradientModeVertical);
+        g.FillRectangle(&bg, sideRect);
+        SolidBrush sideGlow(Color(16, theme.accent.GetR(), theme.accent.GetG(), theme.accent.GetB()));
+        g.FillEllipse(&sideGlow, -72.0f, -50.0f, 210.0f, 190.0f);
+    } else {
+        SolidBrush bg(theme.sidebar_background);
+        g.FillRectangle(&bg, 0, 0, SIDEBAR_W, H);
+    }
+
     g.DrawLine(&ln, SIDEBAR_W, 0, SIDEBAR_W, H);
     g.DrawString(L"StrikeSense", -1, &tF, PointF(4, 12), &tb);
 
@@ -48,23 +58,32 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
     };
     int idx = 0;
     for (const auto& it : g_sidebarItems) {
-        if (g_currentPage == it.page) g.FillRectangle(&naB, 8, it.y, SIDEBAR_W - 16, 24);
-        Font& f = (g_currentPage == it.page) ? nAF : nF;
-        g.DrawString(labels[idx], -1, &f, PointF(14, static_cast<REAL>(it.y + 3)),
-            g_currentPage == it.page ? &tb : &td);
+        if (defaultTheme) {
+            ui::DrawNavigationButton(g, RectF(8.0f, static_cast<REAL>(it.y), SIDEBAR_W - 16.0f, 24.0f),
+                labels[idx], g_currentPage == it.page);
+        } else {
+            if (g_currentPage == it.page) g.FillRectangle(&naB, 8, it.y, SIDEBAR_W - 16, 24);
+            Font& f = (g_currentPage == it.page) ? nAF : nF;
+            g.DrawString(labels[idx], -1, &f, PointF(14, static_cast<REAL>(it.y + 3)),
+                g_currentPage == it.page ? &tb : &td);
+        }
         ++idx;
     }
 
     const int langY = H - 40;
     const int ltx = SIDEBAR_W / 2 - 30;
-    g.DrawString(g_langCN ? L"中文" : L"EN(BETA)", -1, &sF, PointF(10, static_cast<REAL>(langY + 2)), &td);
-    GraphicsPath tp;
-    tp.AddArc(ltx, langY, 24, 24, 90, 180);
-    tp.AddArc(ltx + 26, langY, 24, 24, 270, 180);
-    tp.CloseFigure();
-    g.FillPath(g_langCN ? &onBr : &offBr, &tp);
-    const float kkx = g_langCN ? ltx + 28.f : ltx + 2.f;
-    g.FillEllipse(&kBr, kkx, static_cast<REAL>(langY + 2), 20.f, 20.f);
+    g.DrawString(g_langCN ? L"\u4e2d\u6587" : L"EN(BETA)", -1, &sF, PointF(10, static_cast<REAL>(langY + 2)), &td);
+    if (defaultTheme) {
+        ui::DrawToggle(g, ltx, langY, g_langCN);
+    } else {
+        GraphicsPath tp;
+        tp.AddArc(ltx, langY, 24, 24, 90, 180);
+        tp.AddArc(ltx + 26, langY, 24, 24, 270, 180);
+        tp.CloseFigure();
+        g.FillPath(g_langCN ? &onBr : &offBr, &tp);
+        const float kkx = g_langCN ? ltx + 28.f : ltx + 2.f;
+        g.FillEllipse(&kBr, kkx, static_cast<REAL>(langY + 2), 20.f, 20.f);
+    }
 }
 
 void CheckSidebarClick(HWND hw, int mx, int my)

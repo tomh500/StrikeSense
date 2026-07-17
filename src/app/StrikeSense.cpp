@@ -1,4 +1,4 @@
-﻿// StrikeSense.cpp — 程序入口
+// StrikeSense.cpp — 程序入口
 #include "framework.h"
 #include "StrikeSense.h"
 #include "console.h"
@@ -213,7 +213,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     g_Console.InitRedirection();
     // ===== 启动信息 =====
     std::cout << "============================================" << std::endl;
-    std::cout << "  StrikeSense 测试发布版 202607171747" << std::endl;
+    std::cout << "  StrikeSense 测试发布版 202607171803" << std::endl;
     std::cout << "  Copyright (C) 2026 无损平方集团" << std::endl;
     std::cout << "============================================" << std::endl;
     std::cout << "  本程序承诺：" << std::endl;
@@ -351,6 +351,7 @@ HWND InitInstance(HINSTANCE hI) {
 
 static void PaintAll(HWND hw, HDC hdc) {
     using namespace Gdiplus;
+    ui::BeginFrame();
     RECT rc; GetClientRect(hw, &rc);
     int W = rc.right - rc.left, H = rc.bottom - rc.top;
     HDC md = CreateCompatibleDC(hdc);
@@ -360,8 +361,19 @@ static void PaintAll(HWND hw, HDC hdc) {
     g.SetSmoothingMode(SmoothingModeAntiAlias);
     g.SetTextRenderingHint(TextRenderingHintAntiAlias);
     const auto& theme = uitheme::get_palette();
-    SolidBrush bg(theme.window_background);
-    g.FillRectangle(&bg, 0, 0, W, H);
+    if (uitheme::get_preset() == uitheme::preset_default) {
+        RectF canvas(0.0f, 0.0f, static_cast<REAL>(W), static_cast<REAL>(H));
+        LinearGradientBrush bg(canvas, theme.card_alt_background, theme.window_background, LinearGradientModeVertical);
+        g.FillRectangle(&bg, canvas);
+        SolidBrush ambient(Gdiplus::Color(18, theme.accent.GetR(), theme.accent.GetG(), theme.accent.GetB()));
+        g.FillEllipse(&ambient, -140.0f, -100.0f, static_cast<REAL>(W * 0.72f), static_cast<REAL>(H * 0.55f));
+        SolidBrush ambientBottom(Gdiplus::Color(13, theme.accent_soft.GetR(), theme.accent_soft.GetG(), theme.accent_soft.GetB()));
+        g.FillEllipse(&ambientBottom, static_cast<REAL>(W * 0.38f), static_cast<REAL>(H * 0.62f),
+            static_cast<REAL>(W * 0.78f), static_cast<REAL>(H * 0.48f));
+    } else {
+        SolidBrush bg(theme.window_background);
+        g.FillRectangle(&bg, 0, 0, W, H);
+    }
     PaintSidebar(g, W, H);
     int cx = SIDEBAR_W + 12, cw = W - cx - 12;
     switch (g_currentPage) {
@@ -498,8 +510,8 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         PaintAll(hw, hdc); EndPaint(hw, &ps); break;
     }
     case WM_LBUTTONDOWN: {
-        ui::NotifyInteraction(hw);
         int mx = LOWORD(lp), my = HIWORD(lp);
+        ui::SetPointerState(hw, mx, my, true);
         if (mx < SIDEBAR_W) { CheckSidebarClick(hw, mx, my); break; }
         switch (g_currentPage) {
         case PAGE_SOUNDS:     CheckSoundsClick(hw, mx, my); break;
@@ -511,6 +523,11 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         case PAGE_VSCRIPT: CheckVscriptClick(hw, mx, my); break;
         case PAGE_PROGRAM_SETTINGS: CheckProgramSettingsClick(hw, mx, my); break;
         }
+        break;
+    }
+    case WM_LBUTTONUP: {
+        int mx = LOWORD(lp), my = HIWORD(lp);
+        ui::SetPointerState(hw, mx, my, false);
         break;
     }
     // 【修改后】完全独立的两个 case
@@ -684,7 +701,7 @@ case WM_KEYDOWN: {
         break;
     }
     case WM_MOUSEMOVE:
-        ui::NotifyInteraction(hw);
+        ui::SetPointerState(hw, LOWORD(lp), HIWORD(lp), (wp & MK_LBUTTON) != 0);
         if (g_currentPage == PAGE_VSCRIPT) {
             InvalidateRect(hw, nullptr, FALSE);
         }
