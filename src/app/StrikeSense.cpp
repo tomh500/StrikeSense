@@ -336,6 +336,7 @@ static void PaintAll(HWND hw, HDC hdc) {
     case PAGE_Rage:  PaintRagePage(g, cx, cw, H, hw); break;
     case PAGE_ITEMHELPER: PaintItemHelperPage(g, cx, cw, H, hw); break;
     case PAGE_VSCRIPT: PaintVscriptPage(g, cx, cw, H, hw); break;
+    case PAGE_PROGRAM_SETTINGS: PaintProgramSettingsPage(g, cx, cw, H, hw); break;
     }
     BitBlt(hdc, 0, 0, W, H, md, 0, 0, SRCCOPY);
     SelectObject(md, ob); DeleteObject(mb); DeleteDC(md);
@@ -471,6 +472,7 @@ LRESULT CALLBACK WndProc(HWND hw, UINT m, WPARAM wp, LPARAM lp) {
         case PAGE_Rage:  CheckRageClick(hw, mx, my); break;
         case PAGE_ITEMHELPER: CheckItemHelperClick(hw, mx, my); break;
         case PAGE_VSCRIPT: CheckVscriptClick(hw, mx, my); break;
+        case PAGE_PROGRAM_SETTINGS: CheckProgramSettingsClick(hw, mx, my); break;
         }
         break;
     }

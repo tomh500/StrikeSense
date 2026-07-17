@@ -56,11 +56,12 @@ static std::wstring GetKeyName(int vk) {
 
 void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
     ui::DrawHeader(g, cx, cw, i18n::T("ITEM_TITLE"));
 
     Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9);
-    SolidBrush tc(Color(255, 30, 60, 100)), tb(Color(255, 20, 80, 140)), td(Color(255, 100, 130, 160));
-    SolidBrush bb(Color(255, 200, 230, 250)); Pen bp(Color(255, 150, 190, 220)), kp(Color(255, 30, 60, 100));
+    SolidBrush tc(theme.text), tb(theme.button_text), td(theme.dim);
+    Pen kp(theme.input_border);
 
     // 1. 总开关 (Y=60)
     g.DrawString(i18n::T("ITEM_ENABLE"), -1, &rF, PointF((float)(cx + 10), 60.f), &tc);
@@ -74,9 +75,8 @@ void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     wchar_t hs[128]; swprintf_s(hs, i18n::T("ITEM_HOTKEY"), keyName.c_str());
     g.DrawString(hs, -1, &rF, PointF((float)(cx + 10), 92.f), &tc);
     g_itemHelperHotkeyRect = RectF((REAL)(cx + 10), 118.f, 200.f, 20.f);
-    g.DrawRectangle(&kp, g_itemHelperHotkeyRect.X, g_itemHelperHotkeyRect.Y, g_itemHelperHotkeyRect.Width, g_itemHelperHotkeyRect.Height);
     const wchar_t* hintStr = g_isBindingItemHelperHotkey ? i18n::T("ITEM_BINDING") : i18n::T("ITEM_CLICK_MOD");
-    g.DrawString(hintStr, -1, &sF, PointF((float)(cx + 14), 118.f), &tc);
+    ui::DrawRoundedButton(g, g_itemHelperHotkeyRect, hintStr, g_isBindingItemHelperHotkey, true);
 
     // 3. 桌面自动销毁开关 - 调整为垂直排列，位于X坐标滑块上方 (Y=150)
     g.DrawString(i18n::T("ITEM_AUTOHIDE"), -1, &rF, PointF((float)(cx + 10), 150.f), &tc);
@@ -85,10 +85,7 @@ void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     // 带进化分支风格小圆圈滑块渲染 Lambda
     auto DrawSliderWithKnob = [&](int x, int y, int w, float val) {
-        ui::DrawSlider(g, x, y, w, val);
-        SolidBrush knB(Color(255, 60, 160, 230)); // 科技蓝圆点
-        float kx = x + (w * val) - 7.f;
-        g.FillEllipse(&knB, kx, y - 5.f, 14.f, 14.f);
+        ui::DrawSliderWithKnob(g, x, y, w, val);
         };
 
     // 4. 四个属性调整滑块
@@ -116,8 +113,8 @@ void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
         wchar_t buf[128]; swprintf_s(buf, i18n::T(langKey), name.c_str());
         g.DrawString(buf, -1, &sF, PointF((float)(cx + 10), (float)y), &tc);
         rect = RectF((REAL)(cx + 180), (REAL)y, 120.f, 20.f);
-        g.DrawRectangle(&kp, rect.X, rect.Y, rect.Width, rect.Height);
-        g.DrawString(isBinding ? i18n::T("ITEM_BINDING") : i18n::T("ITEM_CLICK_MOD"), -1, &sF, PointF((float)(cx + 184), (float)y), &tc);
+        ui::DrawRoundedButton(g, rect,
+            isBinding ? i18n::T("ITEM_BINDING") : i18n::T("ITEM_CLICK_MOD"), isBinding, true);
         };
 
     DrawSubKey(yKeys, g_itemHelperKeyPrev, g_isBindingItemKeyPrev, "ITEM_KEY_PREV", g_itemKeyPrevRect);
@@ -138,14 +135,7 @@ void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     auto DrawCustomButton = [&](Gdiplus::RectF& rect, int bx, const wchar_t* label) {
         rect = RectF((REAL)bx, (REAL)btnY, (REAL)BW, (REAL)BH);
-        GraphicsPath path;
-        path.AddArc((REAL)bx, (REAL)btnY, 12.f, 12.f, 180.f, 90.f);
-        path.AddArc((REAL)(bx + BW - 12), (REAL)btnY, 12.f, 12.f, 270.f, 90.f);
-        path.AddArc((REAL)(bx + BW - 12), (REAL)(btnY + BH - 12), 12.f, 12.f, 0.f, 90.f);
-        path.AddArc((REAL)bx, (REAL)(btnY + BH - 12), 12.f, 12.f, 90.f, 90.f);
-        path.CloseFigure();
-        g.FillPath(&bb, &path); g.DrawPath(&bp, &path);
-        g.DrawString(label, -1, &sF, PointF((REAL)(bx + 14), (REAL)(btnY + 5)), &tb);
+        ui::DrawRoundedButton(g, rect, label, false, true);
         };
 
     // 依次横向渲染三个功能按钮

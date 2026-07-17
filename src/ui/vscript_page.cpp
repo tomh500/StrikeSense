@@ -31,20 +31,7 @@ bool Hit(const Gdiplus::RectF& r, int x, int y)
 
 void DrawButton(Gdiplus::Graphics& g, const Gdiplus::RectF& r, const wchar_t* text)
 {
-    using namespace Gdiplus;
-    SolidBrush bg(Color(255, 180, 220, 245));
-    SolidBrush fg(Color(255, 20, 80, 140));
-    Pen border(Color(255, 130, 190, 230), 1.0f);
-    Font font(L"Microsoft YaHei", 9, FontStyleBold);
-    GraphicsPath p;
-    p.AddArc(r.X, r.Y, 16.f, 16.f, 180.f, 90.f);
-    p.AddArc(r.X + r.Width - 16.f, r.Y, 16.f, 16.f, 270.f, 90.f);
-    p.AddArc(r.X + r.Width - 16.f, r.Y + r.Height - 16.f, 16.f, 16.f, 0.f, 90.f);
-    p.AddArc(r.X, r.Y + r.Height - 16.f, 16.f, 16.f, 90.f, 90.f);
-    p.CloseFigure();
-    g.FillPath(&bg, &p);
-    g.DrawPath(&border, &p);
-    g.DrawString(text, -1, &font, PointF(r.X + 8, r.Y + 5), &fg);
+    ui::DrawRoundedButton(g, r, text);
 }
 
 std::wstring PickScript(HWND owner)
@@ -92,9 +79,10 @@ std::wstring SummaryText(const vscript::mounted_script& script)
 void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r, bool danger)
 {
     using namespace Gdiplus;
-    SolidBrush bg(danger ? Color(255, 255, 224, 224) : Color(255, 255, 244, 190));
-    SolidBrush fg(danger ? Color(255, 180, 40, 40) : Color(255, 150, 95, 25));
-    Pen border(danger ? Color(255, 220, 90, 90) : Color(255, 220, 170, 80), 1.0f);
+    const auto& theme = uitheme::get_palette();
+    SolidBrush bg(danger ? theme.danger : theme.warning);
+    SolidBrush fg(theme.button_text);
+    Pen border(danger ? theme.danger : theme.warning, 1.0f);
     Font f(L"Microsoft YaHei", 9, FontStyleBold);
     g.FillEllipse(&bg, r);
     g.DrawEllipse(&border, r);
@@ -104,11 +92,12 @@ void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r, bool danger)
 void DrawTooltip(Gdiplus::Graphics& g, const std::wstring& text, int x, int y)
 {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
     if (text.empty()) return;
     Font f(L"Microsoft YaHei", 9);
-    SolidBrush bg(Color(245, 255, 255, 255));
-    SolidBrush fg(Color(255, 35, 65, 95));
-    Pen border(Color(255, 145, 190, 220), 1.0f);
+    SolidBrush bg(theme.tooltip_background);
+    SolidBrush fg(theme.tooltip_text);
+    Pen border(theme.tooltip_border, 1.0f);
     StringFormat fmt;
     fmt.SetTrimming(StringTrimmingWord);
     fmt.SetFormatFlags(StringFormatFlagsLineLimit);
@@ -146,6 +135,7 @@ void DrawTooltip(Gdiplus::Graphics& g, const std::wstring& text, int x, int y)
 void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
 {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
     ui::DrawHeader(g, cx, cw, i18n::T("VSCRIPT_TITLE"));
 
     g_contRects.clear();
@@ -157,15 +147,15 @@ void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw)
     Font textFont(L"Microsoft YaHei", 10);
     Font smallFont(L"Microsoft YaHei", 9);
     Font boldFont(L"Microsoft YaHei", 10, FontStyleBold);
-    SolidBrush text(Color(255, 30, 60, 100));
-    SolidBrush dim(Color(255, 90, 115, 145));
-    SolidBrush meta(Color(255, 35, 125, 170));
-    SolidBrush rowBg(Color(255, 232, 244, 252));
-    SolidBrush rowDangerBg(Color(255, 255, 238, 238));
-    SolidBrush warn(Color(255, 170, 80, 50));
-    SolidBrush dangerText(Color(255, 180, 50, 50));
-    Pen rowPen(Color(255, 170, 210, 235));
-    Pen rowDangerPen(Color(255, 220, 110, 110));
+    SolidBrush text(theme.text);
+    SolidBrush dim(theme.dim);
+    SolidBrush meta(theme.accent_strong);
+    SolidBrush rowBg(theme.card_background);
+    SolidBrush rowDangerBg(theme.warning);
+    SolidBrush warn(theme.warning);
+    SolidBrush dangerText(theme.danger);
+    Pen rowPen(theme.card_border);
+    Pen rowDangerPen(theme.danger);
 
     g_mountRect = RectF((REAL)cx + 10, 56, 116, 28);
     g_openDirRect = RectF((REAL)cx + 136, 56, 116, 28);

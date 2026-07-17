@@ -16,6 +16,7 @@ enum Page {
     PAGE_Rage = 4,
     PAGE_ITEMHELPER = 5,
     PAGE_VSCRIPT = 6,
+    PAGE_PROGRAM_SETTINGS = 7,
     PAGE_COUNT
 };
 
@@ -87,6 +88,10 @@ namespace ui {
     void DrawHeader(Gdiplus::Graphics& g, int cx, int cw, const wchar_t* title);
     void DrawToggle(Gdiplus::Graphics& g, int tx, int ty, bool state);
     void DrawSlider(Gdiplus::Graphics& g, int sx, int sy, int sw, float value);
+    void DrawSliderWithKnob(Gdiplus::Graphics& g, int sx, int sy, int sw, float value);
+    void DrawRoundedButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect,
+        const wchar_t* label, bool selected = false, bool compact = false);
+    void DrawFoldButton(Gdiplus::Graphics& g, const Gdiplus::RectF& rect, bool expanded);
     bool CheckToggleClick(int mx, int my, int tx, int ty);
     bool CheckSliderClick(int mx, int my, int sx, int sy, int sw, float& outVal);
 }
@@ -100,6 +105,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintItemHelperPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 void PaintVscriptPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
+void PaintProgramSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND hw);
 
 // ===== 各页面 Click =====
 void CheckSidebarClick(HWND hw, int mx, int my);
@@ -110,6 +116,7 @@ void CheckLegalCfgClick(HWND hw, int mx, int my);
 void CheckRageClick(HWND hw, int mx, int my);
 void CheckItemHelperClick(HWND hw, int mx, int my);
 void CheckVscriptClick(HWND hw, int mx, int my);
+void CheckProgramSettingsClick(HWND hw, int mx, int my);
 bool IsRageModeEnabled();
 void EnableRageModeFromLaunch(HWND hw);
 bool IsLegalCfgManaged();

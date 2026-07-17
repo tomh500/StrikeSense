@@ -1,6 +1,8 @@
 #include "pages.h"
 #include "ui_theme.h"
 
+#include <algorithm>
+
 namespace ui {
 using namespace Gdiplus;
 
@@ -39,6 +41,43 @@ void DrawSlider(Graphics& g, int sx, int sy, int sw, float value)
     int fw = static_cast<int>(sw * value);
     if (fw > sw) fw = sw;
     g.FillRectangle(&sFill, sx, sy, fw, 10);
+}
+
+void DrawSliderWithKnob(Graphics& g, int sx, int sy, int sw, float value)
+{
+    value = (std::max)(0.0f, (std::min)(1.0f, value));
+    DrawSlider(g, sx, sy, sw, value);
+    const auto& theme = uitheme::get_palette();
+    SolidBrush knob(theme.accent_strong);
+    g.FillEllipse(&knob, sx + sw * value - 7.0f, sy - 5.0f, 14.0f, 14.0f);
+}
+
+void DrawRoundedButton(Graphics& g, const RectF& rect, const wchar_t* label, bool selected, bool compact)
+{
+    const auto& theme = uitheme::get_palette();
+    SolidBrush background(selected ? theme.card_selected_background : theme.button_background);
+    SolidBrush foreground(theme.button_text);
+    Pen border(selected ? theme.accent_strong : theme.button_border, selected ? 1.5f : 1.0f);
+    Font font(L"Microsoft YaHei", compact ? 8.0f : 9.0f, FontStyleBold);
+    StringFormat format;
+    format.SetAlignment(StringAlignmentCenter);
+    format.SetLineAlignment(StringAlignmentCenter);
+    GraphicsPath path;
+    const REAL diameter = (std::min)(16.0f, rect.Height);
+    path.AddArc(rect.X, rect.Y, diameter, diameter, 180.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y, diameter, diameter, 270.0f, 90.0f);
+    path.AddArc(rect.X + rect.Width - diameter, rect.Y + rect.Height - diameter,
+        diameter, diameter, 0.0f, 90.0f);
+    path.AddArc(rect.X, rect.Y + rect.Height - diameter, diameter, diameter, 90.0f, 90.0f);
+    path.CloseFigure();
+    g.FillPath(&background, &path);
+    g.DrawPath(&border, &path);
+    g.DrawString(label, -1, &font, rect, &format, &foreground);
+}
+
+void DrawFoldButton(Graphics& g, const RectF& rect, bool expanded)
+{
+    DrawRoundedButton(g, rect, expanded ? L"v" : L">", false, true);
 }
 
 bool CheckToggleClick(int mx, int my, int tx, int ty)

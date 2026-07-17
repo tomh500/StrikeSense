@@ -79,15 +79,14 @@ static bool PromptQuickStopValue(HWND owner, const wchar_t* label, int current, 
 
 void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int, HWND) {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::Rage_TITLE));
     Font rF(L"Microsoft YaHei", 11), sF(L"Microsoft YaHei", 9), xsF(L"Microsoft YaHei", 8);
-    SolidBrush tdCol(Color(255, 30, 60, 100));
-    SolidBrush knB(Color(255, 60, 160, 230));
-    SolidBrush warnCol(Color(255, 200, 80, 80));
-    SolidBrush valueBackground(Color(255, 252, 254, 255));
-    SolidBrush foldBackground(Color(255, 231, 244, 252));
-    Pen valueBorder(Color(255, 145, 195, 225), 1.0f);
-    Pen foldBorder(Color(255, 150, 200, 230));
+    SolidBrush tdCol(theme.text);
+    SolidBrush knB(theme.accent_strong);
+    SolidBrush warnCol(theme.warning);
+    SolidBrush valueBackground(theme.input_background);
+    Pen valueBorder(theme.input_border, 1.0f);
 
     g.DrawString(_(i18n::Keys::Rage_WARN_NOSAVE), -1, &xsF, PointF((REAL)(cx + 10), 38.f), &warnCol);
     g.DrawString(_(i18n::Keys::Rage_ENABLE_TEXT), -1, &rF, PointF((REAL)(cx + 10), 60.f), &tdCol);
@@ -103,10 +102,7 @@ void PaintRagePage(Gdiplus::Graphics& g, int cx, int cw, int, HWND) {
     ui::DrawToggle(g, cx + 220, quickStopY - 4, quickStopEnabled);
     if (quickStopEnabled) {
         g_QuickStopExpandRect = RectF((REAL)(cx + 286), (REAL)(quickStopY - 4), 24.f, 24.f);
-        g.FillRectangle(&foldBackground, g_QuickStopExpandRect);
-        g.DrawRectangle(&foldBorder, g_QuickStopExpandRect);
-        g.DrawString(g_quickStopExpanded ? L"v" : L">", -1, &sF,
-            PointF(g_QuickStopExpandRect.X + 8.f, g_QuickStopExpandRect.Y + 4.f), &tdCol);
+        ui::DrawFoldButton(g, g_QuickStopExpandRect, g_quickStopExpanded);
     } else {
         g_QuickStopExpandRect = RectF{};
         g_quickStopExpanded = false;

@@ -49,24 +49,7 @@ bool Hit(const Gdiplus::RectF& rect, int x, int y)
 
 void DrawButton(Gdiplus::Graphics& graphics, const Gdiplus::RectF& rect, const wchar_t* label)
 {
-    using namespace Gdiplus;
-    SolidBrush background(Color(255, 180, 220, 245));
-    SolidBrush foreground(Color(255, 20, 80, 140));
-    Pen border(Color(255, 130, 190, 230), 1.0f);
-    Font font(L"Microsoft YaHei", 8, FontStyleBold);
-    StringFormat format;
-    format.SetAlignment(StringAlignmentCenter);
-    format.SetLineAlignment(StringAlignmentCenter);
-    GraphicsPath path;
-    constexpr REAL diameter = 16.f;
-    path.AddArc(rect.X, rect.Y, diameter, diameter, 180.f, 90.f);
-    path.AddArc(rect.X + rect.Width - diameter, rect.Y, diameter, diameter, 270.f, 90.f);
-    path.AddArc(rect.X + rect.Width - diameter, rect.Y + rect.Height - diameter, diameter, diameter, 0.f, 90.f);
-    path.AddArc(rect.X, rect.Y + rect.Height - diameter, diameter, diameter, 90.f, 90.f);
-    path.CloseFigure();
-    graphics.FillPath(&background, &path);
-    graphics.DrawPath(&border, &path);
-    graphics.DrawString(label, -1, &font, rect, &format, &foreground);
+    ui::DrawRoundedButton(graphics, rect, label, false, true);
 }
 
 void OpenDirectoryAsync(std::wstring directory)
@@ -158,16 +141,17 @@ bool PromptTextValue(HWND owner, const wchar_t* label, const std::wstring& initi
 int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, int topY, HWND)
 {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
     Font titleFont(L"Microsoft YaHei", 11);
     Font textFont(L"Microsoft YaHei", 9);
     Font smallFont(L"Microsoft YaHei", 8);
     Font boldFont(L"Microsoft YaHei", 9, FontStyleBold);
-    SolidBrush text(Color(255, 30, 60, 100));
-    SolidBrush dim(Color(255, 90, 115, 145));
-    SolidBrush ok(Color(255, 35, 135, 95));
-    SolidBrush error(Color(255, 190, 65, 65));
-    SolidBrush rowBackground(Color(255, 235, 247, 253));
-    Pen rowBorder(Color(255, 165, 210, 235), 1.0f);
+    SolidBrush text(theme.text);
+    SolidBrush dim(theme.dim);
+    SolidBrush ok(theme.success);
+    SolidBrush error(theme.danger);
+    SolidBrush rowBackground(theme.card_background);
+    Pen rowBorder(theme.card_border, 1.0f);
 
     graphics.DrawString(i18n::T("CSCRIPT_SUPPORT"), -1, &titleFont,
         PointF(static_cast<REAL>(contentX + 10), static_cast<REAL>(topY)), &text);
@@ -175,12 +159,7 @@ int PaintSection(Gdiplus::Graphics& graphics, int contentX, int contentWidth, in
     ui::DrawToggle(graphics, contentX + 220, topY - 4, cscript::IsEnabled());
     if (cscript::IsEnabled()) {
         g_expandRect = RectF(static_cast<REAL>(contentX + 286), static_cast<REAL>(topY - 4), 24.f, 24.f);
-        SolidBrush foldBackground(Color(255, 231, 244, 252));
-        Pen foldBorder(Color(255, 150, 200, 230));
-        graphics.FillRectangle(&foldBackground, g_expandRect);
-        graphics.DrawRectangle(&foldBorder, g_expandRect);
-        graphics.DrawString(g_expanded ? L"v" : L">", -1, &smallFont,
-            PointF(g_expandRect.X + 8.f, g_expandRect.Y + 4.f), &text);
+        ui::DrawFoldButton(graphics, g_expandRect, g_expanded);
     } else {
         g_expandRect = {};
         g_expanded = false;

@@ -766,18 +766,19 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
 {
     using namespace Gdiplus;
     using namespace evolutionui;
+    const auto& theme = uitheme::get_palette();
 
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::EVO_TITLE));
     Font rF(L"Microsoft YaHei", 11);
     Font sF(L"Microsoft YaHei", 9);
-    SolidBrush text(Color(255, 30, 60, 100));
-    SolidBrush dim(Color(255, 100, 130, 160));
-    SolidBrush selectedBackground(Color(255, 175, 220, 248));
-    SolidBrush buttonBackground(Color(255, 231, 244, 252));
-    SolidBrush previewBackground(Color(255, 28, 36, 48));
-    SolidBrush knobBrush(Color(255, 60, 160, 230));
-    Pen selectedBorder(Color(255, 75, 165, 220), 1.5f);
-    Pen buttonBorder(Color(255, 150, 200, 230));
+    SolidBrush text(theme.text);
+    SolidBrush dim(theme.dim);
+    SolidBrush selectedBackground(theme.card_selected_background);
+    SolidBrush buttonBackground(theme.button_background);
+    SolidBrush previewBackground(theme.preview_background);
+    SolidBrush knobBrush(theme.accent_strong);
+    Pen selectedBorder(theme.accent_strong, 1.5f);
+    Pen buttonBorder(theme.button_border);
 
     const int sectionX = cx + 10;
     const int sectionWidth = cw - 20;
@@ -820,11 +821,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         g.DrawString(_(i18n::Keys::EVO_HOTKEY), -1, &sF,
             PointF(static_cast<REAL>(sectionX + 18), static_cast<REAL>(volumeY + 76)), &text);
         hotkeyRect = RectF(static_cast<REAL>(sectionX + 175), static_cast<REAL>(volumeY + 69), 190.f, 26.f);
-        g.FillRectangle(&buttonBackground, hotkeyRect);
-        g.DrawRectangle(&buttonBorder, hotkeyRect);
         const std::wstring hotkeyText = g_isBindingHotkey ? _(i18n::Keys::EVO_WAITING_KEY) : keyName;
-        g.DrawString(hotkeyText.c_str(), -1, &sF,
-            PointF(hotkeyRect.X + 8.f, hotkeyRect.Y + 4.f), &text);
+        ui::DrawRoundedButton(g, hotkeyRect, hotkeyText.c_str(), g_isBindingHotkey, true);
     const int nextSectionY = volumeY + 118;
 
     g.DrawString(L"宽容检测游戏窗口", -1, &rF,
@@ -872,10 +870,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     textguiFoldRect = RectF(static_cast<REAL>(sectionX + 286),
         static_cast<REAL>(textguiSectionY - 4), 24.f, 24.f);
     if (g_textguiEnabled) {
-        g.FillRectangle(&buttonBackground, textguiFoldRect);
-        g.DrawRectangle(&buttonBorder, textguiFoldRect);
-        g.DrawString(textguiCollapsed ? L">" : L"v", -1, &sF,
-            PointF(textguiFoldRect.X + 8.f, textguiFoldRect.Y + 4.f), &text);
+        ui::DrawFoldButton(g, textguiFoldRect, !textguiCollapsed);
     } else {
         textguiFoldRect = RectF{};
     }
@@ -1012,12 +1007,8 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
             PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 108)), &text);
         textguiSloganRect = RectF(static_cast<REAL>(sectionX + 105),
             static_cast<REAL>(colorY + 101), static_cast<REAL>((std::max)(180, sectionWidth - 120)), 25.f);
-        g.FillRectangle(&buttonBackground, textguiSloganRect);
-        g.DrawRectangle(&buttonBorder, textguiSloganRect);
         const std::wstring sloganShown = g_textguiCustomSlogan.empty() ? L"（留空）" : g_textguiCustomSlogan;
-        g.DrawString(sloganShown.c_str(), -1, &sF,
-            PointF(textguiSloganRect.X + 7.f, textguiSloganRect.Y + 3.f),
-            g_textguiCustomSlogan.empty() ? &dim : &text);
+        ui::DrawRoundedButton(g, textguiSloganRect, sloganShown.c_str(), false, true);
 
         g.DrawString(L"阶梯遮罩", -1, &sF,
             PointF(static_cast<REAL>(sectionX + 14), static_cast<REAL>(colorY + 144)), &text);
@@ -1066,10 +1057,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     notificationsFoldRect = RectF(static_cast<REAL>(sectionX + 286),
         static_cast<REAL>(notificationsSectionY - 4), 24.f, 24.f);
     if (g_notificationsEnabled) {
-        g.FillRectangle(&buttonBackground, notificationsFoldRect);
-        g.DrawRectangle(&buttonBorder, notificationsFoldRect);
-        g.DrawString(notificationsCollapsed ? L">" : L"v", -1, &sF,
-            PointF(notificationsFoldRect.X + 8.f, notificationsFoldRect.Y + 4.f), &text);
+        ui::DrawFoldButton(g, notificationsFoldRect, !notificationsCollapsed);
     } else {
         notificationsFoldRect = RectF{};
     }
@@ -1106,10 +1094,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         for (int i = 0; i < kNotificationsStyleCount; ++i) {
             notificationsStyleRects[i] = RectF(static_cast<REAL>(sectionX + 14 + (i % 3) * 126),
                 static_cast<REAL>(notifyBodyY + 32 + (i / 3) * 31), 112.f, 25.f);
-            g.FillRectangle(i == g_notificationsStyle ? &selectedBackground : &buttonBackground, notificationsStyleRects[i]);
-            g.DrawRectangle(i == g_notificationsStyle ? &selectedBorder : &buttonBorder, notificationsStyleRects[i]);
-            g.DrawString(styleNames[i], -1, &sF,
-                PointF(notificationsStyleRects[i].X + 8.f, notificationsStyleRects[i].Y + 3.f), &text);
+            ui::DrawRoundedButton(g, notificationsStyleRects[i], styleNames[i], i == g_notificationsStyle, true);
         }
         crosshairY = notifyBodyY + 107;
     }
@@ -1123,10 +1108,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     crosshairFoldRect = RectF(static_cast<REAL>(sectionX + 286),
         static_cast<REAL>(crosshairY - 4), 24.f, 24.f);
     if (g_crosshairEnabled) {
-        g.FillRectangle(&buttonBackground, crosshairFoldRect);
-        g.DrawRectangle(&buttonBorder, crosshairFoldRect);
-        g.DrawString(crosshairCollapsed ? L">" : L"v", -1, &sF,
-            PointF(crosshairFoldRect.X + 8.f, crosshairFoldRect.Y + 4.f), &text);
+        ui::DrawFoldButton(g, crosshairFoldRect, !crosshairCollapsed);
     } else {
         crosshairFoldRect = RectF{};
     }
@@ -1154,10 +1136,7 @@ void PaintEvolutionPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
         const int row = i / 3;
         styleRects[i] = RectF(static_cast<REAL>(sectionX + 60 + column * 96),
             static_cast<REAL>(bodyY + 8 + row * 31), 88.f, 25.f);
-        g.FillRectangle(i == g_crosshairStyle ? &selectedBackground : &buttonBackground, styleRects[i]);
-        g.DrawRectangle(i == g_crosshairStyle ? &selectedBorder : &buttonBorder, styleRects[i]);
-        g.DrawString(styleNames[i], -1, &sF,
-            PointF(styleRects[i].X + 8.f, styleRects[i].Y + 3.f), &text);
+        ui::DrawRoundedButton(g, styleRects[i], styleNames[i], i == g_crosshairStyle, true);
     }
 
     RectF preview(static_cast<REAL>(sectionX + sectionWidth - 142),

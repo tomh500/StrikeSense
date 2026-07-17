@@ -305,12 +305,13 @@ void ClearEditingFocus();
 // ===== UI 绘制层 =====
 void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     using namespace Gdiplus;
+    const auto& theme = uitheme::get_palette();
 
     ui::DrawHeader(g, cx, cw, _(i18n::Keys::LEGAL_TITLE));
     Font sf(L"Microsoft YaHei", 9);
-    SolidBrush tc(Color(255, 30, 60, 100)), tb(Color(255, 20, 80, 140)), td(Color(255, 100, 130, 160));
-    SolidBrush bb(Color(255, 200, 230, 250)); Pen bp(Color(255, 150, 190, 220));
-    SolidBrush db(Color(255, 220, 240, 255)), dh(Color(255, 180, 220, 245));
+    SolidBrush tc(theme.text), tb(theme.accent_strong), td(theme.dim);
+    SolidBrush bb(theme.button_background); Pen bp(theme.button_border);
+    SolidBrush db(theme.card_background), dh(theme.card_selected_background);
 
     g.DrawString(g_autoexecPath.c_str(), -1, &sf, PointF((REAL)(cx + 10), 50.f), &td);
 
@@ -319,7 +320,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     int av = H - 85; int eh = av / 4; if (eh < 120) eh = 120;
     g_er = RectF((REAL)(cx + 10), (REAL)85, (REAL)(cw - 20), (REAL)eh);
-    SolidBrush ebg(Color(255, 250, 250, 255)); Pen ep(Color(255, 180, 200, 220));
+    SolidBrush ebg(theme.input_background); Pen ep(theme.input_border);
     g.FillRectangle(&ebg, g_er); g.DrawRectangle(&ep, g_er);
     g_visibleLines = (eh - 4) / LH;
     const std::wstring& disp = g_editing ? g_editBuffer : g_autoexecContent;
@@ -337,10 +338,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     const int BW = 100, BH = 26;
     auto B = [&](RectF& r, int x, int y, const wchar_t* t) {
         r = RectF((REAL)x, (REAL)y, (REAL)BW, (REAL)BH);
-        GraphicsPath p; p.AddArc((REAL)x, (REAL)y, 16.f, 16.f, 180.f, 90.f); p.AddArc((REAL)(x + BW - 16), (REAL)y, 16.f, 16.f, 270.f, 90.f);
-        p.AddArc((REAL)(x + BW - 16), (REAL)(y + BH - 16), 16.f, 16.f, 0.f, 90.f); p.AddArc((REAL)x, (REAL)(y + BH - 16), 16.f, 16.f, 90.f, 90.f); p.CloseFigure();
-        g.FillPath(&bb, &p); g.DrawPath(&bp, &p);
-        g.DrawString(t, -1, &sf, PointF((REAL)(x + 6), (REAL)(y + 6)), &tb);
+        ui::DrawRoundedButton(g, r, t, false, true);
         };
 
     int by = 85 + eh + 10;
@@ -361,7 +359,7 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
     B(g_rmsw, cx + 10 + BW + 10, fy3, _(i18n::Keys::LEGAL_REMOVE_MS));
 
     int ix = cx + 10 + BW + 10 + BW + 20, iw = 60;
-    SolidBrush ib(Color(255, 250, 250, 255)); Pen ip(Color(255, 180, 200, 220));
+    SolidBrush ib(theme.input_background); Pen ip(theme.input_border);
 
     std::wstring normalLabel = std::wstring(_(i18n::Keys::LEGAL_NORMAL)) + L":";
     g.DrawString(normalLabel.c_str(), -1, &sf, PointF((REAL)ix, (REAL)(fy3 + 4)), &tc);
@@ -385,10 +383,10 @@ void PaintLegalCfgPage(Gdiplus::Graphics& g, int cx, int cw, int H, HWND) {
 
     int dx = cx + 10 + BW + 10 + BW + 20, dw = 90;
     g_chSWDropRect = RectF((REAL)dx, (REAL)fy4, (REAL)dw, (REAL)BH);
-    SolidBrush db2(Color(255, 200, 230, 250)); Pen dp(Color(255, 150, 190, 220));
+    SolidBrush db2(theme.button_background); Pen dp(theme.button_border);
     g.FillRectangle(&db2, g_chSWDropRect); g.DrawRectangle(&dp, g_chSWDropRect);
     g.DrawString(CHSW_MODES[g_chSWMode], -1, &sf, PointF((REAL)(dx + 4), (REAL)(fy4 + 4)), &tc);
-    SolidBrush ar(Color(255, 30, 60, 100));
+    SolidBrush ar(theme.text);
     PointF apt[] = { PointF((REAL)(dx + dw - 8),(REAL)(fy4 + 6)), PointF((REAL)(dx + dw),(REAL)(fy4 + 6)), PointF((REAL)(dx + dw - 4),(REAL)(fy4 + 14)) };
     g.FillPolygon(&ar, apt, 3);
 

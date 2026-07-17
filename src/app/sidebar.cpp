@@ -12,6 +12,7 @@ const SidebarItem g_sidebarItems[] = {
     {L"超频配置", PAGE_Rage, 172},
     {L"道具助手", PAGE_ITEMHELPER, 202},
     {L"自定义脚本", PAGE_VSCRIPT, 232},
+    {L"\u7a0b\u5e8f\u8bbe\u7f6e", PAGE_PROGRAM_SETTINGS, 262},
 };
 
 void PaintSidebar(Gdiplus::Graphics& g, int, int H)
@@ -42,7 +43,8 @@ void PaintSidebar(Gdiplus::Graphics& g, int, int H)
         i18n::T(i18n::Keys::SIDEBAR_LEGAL),
         i18n::T(i18n::Keys::SIDEBAR_Rage),
         i18n::T(i18n::Keys::SIDEBAR_ITEMHELPER),
-        i18n::T("SIDEBAR_VSCRIPT")
+        i18n::T("SIDEBAR_VSCRIPT"),
+        L"\u7a0b\u5e8f\u8bbe\u7f6e"
     };
     int idx = 0;
     for (const auto& it : g_sidebarItems) {
