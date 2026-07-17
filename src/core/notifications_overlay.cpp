@@ -39,6 +39,9 @@ constexpr int kGptEntryMs = 220;
 constexpr int kGptExitMs = 190;
 constexpr int kGeminiEntryMs = 400;
 constexpr int kGeminiExitMs = 250;
+constexpr int kDeepSeekEntryMs = 240;
+constexpr int kDeepSeekExitMs = 250;
+constexpr int kDeepSeekIconPopMs = 150;
 constexpr int kLiquidBounceKnobAnimMs = 300;
 std::mutex s_pendingMutex;
 std::wstring s_pendingText;
@@ -67,6 +70,12 @@ float ease_in_quint(float t)
 {
     t = std::clamp(t, 0.f, 1.f);
     return t * t * t * t * t;
+}
+
+float ease_in_cubic(float t)
+{
+    t = std::clamp(t, 0.f, 1.f);
+    return t * t * t;
 }
 
 BYTE alpha_byte(float alpha)
@@ -145,6 +154,18 @@ Gdiplus::Font& font_yahei_9_bold()
 Gdiplus::Font& font_segoe_9_5_regular()
 {
     static Gdiplus::Font font(L"Segoe UI", 9.5f, Gdiplus::FontStyleRegular);
+    return font;
+}
+
+Gdiplus::Font& font_segoe_14_bold()
+{
+    static Gdiplus::Font font(L"Segoe UI", 14.f, Gdiplus::FontStyleBold);
+    return font;
+}
+
+Gdiplus::Font& font_segoe_11_regular()
+{
+    static Gdiplus::Font font(L"Segoe UI", 11.f, Gdiplus::FontStyleRegular);
     return font;
 }
 
@@ -578,38 +599,83 @@ void draw_gemini(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapsedM
     }
 }
 
-void draw_deepseek(Gdiplus::Graphics& g, const Gdiplus::RectF& box)
+void draw_deepseek(Gdiplus::Graphics& g, const Gdiplus::RectF& box, float elapsedMs)
 {
-    Gdiplus::RectF shadow(box.X + 3.f, box.Y + 5.f, box.Width, box.Height);
-    fill_card(g, shadow, Gdiplus::Color(65, 0, 0, 0), 12.f);
-    fill_card(g, box, Gdiplus::Color(235, 14, 14, 20), 12.f);
+    constexpr bool darkMode = true;
+    constexpr float radius = 12.f;
+    constexpr float iconSize = 32.f;
+    const Gdiplus::Color primary(255, 77, 107, 254);
+    const Gdiplus::Color cardColor = darkMode
+        ? Gdiplus::Color(221, 34, 34, 34)
+        : Gdiplus::Color(238, 255, 255, 255);
+    const Gdiplus::Color borderColor = darkMode
+        ? Gdiplus::Color(178, 77, 107, 254)
+        : Gdiplus::Color(102, 77, 107, 254);
+    const Gdiplus::Color titleColor = darkMode
+        ? Gdiplus::Color(255, 240, 240, 240)
+        : Gdiplus::Color(255, 26, 26, 26);
+    const Gdiplus::Color subtitleColor = darkMode
+        ? Gdiplus::Color(255, 170, 170, 170)
+        : Gdiplus::Color(255, 102, 102, 102);
+    const Gdiplus::Color offColor = darkMode
+        ? Gdiplus::Color(255, 85, 85, 85)
+        : Gdiplus::Color(255, 208, 208, 208);
 
-    Gdiplus::GraphicsPath path;
-    add_rounded_rect(path, box, 12.f);
-    Gdiplus::LinearGradientBrush borderBrush(
-        Gdiplus::PointF(box.X, box.Y), Gdiplus::PointF(box.X + box.Width, box.Y),
-        Gdiplus::Color(20, 0, 242, 254), Gdiplus::Color(190, 79, 172, 254));
-    Gdiplus::Pen borderPen(&borderBrush, 1.f);
-    g.DrawPath(&borderPen, &path);
+    const float seconds = elapsedMs / 1000.f;
+    const float pulse = 0.3f + 0.5f * (std::sin(seconds * 3.1415926535f) * 0.5f + 0.5f);
+    Gdiplus::RectF glowBox(box.X - 16.f, box.Y - 14.f, box.Width + 32.f, box.Height + 28.f);
+    Gdiplus::GraphicsPath glowPath;
+    add_rounded_rect(glowPath, glowBox, radius + 8.f);
+    Gdiplus::PathGradientBrush glowBrush(&glowPath);
+    glowBrush.SetCenterColor(Gdiplus::Color(alpha_byte(44.f * pulse), 77, 107, 254));
+    Gdiplus::Color glowSurround[] = { Gdiplus::Color(0, 77, 107, 254) };
+    INT glowCount = 1;
+    glowBrush.SetSurroundColors(glowSurround, &glowCount);
+    g.FillPath(&glowBrush, &glowPath);
 
-    Gdiplus::SolidBrush iconBack(Gdiplus::Color(45, 0, 242, 254));
-    Gdiplus::SolidBrush iconBrush(Gdiplus::Color(255, 0, 242, 254));
-    g.FillEllipse(&iconBack, box.X + 18.f, box.Y + 16.f, 36.f, 36.f);
-    g.FillRectangle(&iconBrush, box.X + 31.f, box.Y + 25.f, 10.f, 18.f);
-    g.FillRectangle(&iconBrush, box.X + 25.f, box.Y + 31.f, 22.f, 6.f);
+    Gdiplus::GraphicsPath cardPath;
+    add_rounded_rect(cardPath, box, radius);
+    Gdiplus::SolidBrush cardBrush(cardColor);
+    g.FillPath(&cardBrush, &cardPath);
+    Gdiplus::Pen borderPen(borderColor, 1.f);
+    g.DrawPath(&borderPen, &cardPath);
 
-    auto& titleFont = font_yahei_13_5_bold();
-    auto& subFont = font_yahei_9_regular();
-    draw_text(g, s_text, titleFont, box.X + 68.f, box.Y + 13.f, brush_white());
-    draw_text(g, L"StrikeSense module toggle", subFont, box.X + 68.f, box.Y + 39.f, brush_deepseek_sub());
+    const float iconScaleProgress = std::clamp(elapsedMs / static_cast<float>(kDeepSeekIconPopMs), 0.f, 1.f);
+    const float iconScale = 1.f + 0.2f * (1.f - ease_out(iconScaleProgress));
+    const Gdiplus::PointF iconCenter(box.X + 16.f + iconSize * 0.5f, box.Y + box.Height * 0.5f);
+    const Gdiplus::GraphicsState iconState = g.Save();
+    Gdiplus::Matrix iconMatrix;
+    iconMatrix.Translate(iconCenter.X, iconCenter.Y);
+    iconMatrix.Scale(iconScale, iconScale);
+    iconMatrix.Translate(-iconCenter.X, -iconCenter.Y);
+    g.MultiplyTransform(&iconMatrix);
 
-    const std::wstring state = s_enabledState ? L"ENABLED" : L"DISABLED";
-    const Gdiplus::Color pillBg = s_enabledState ? Gdiplus::Color(40, 0, 255, 170) : Gdiplus::Color(45, 255, 68, 85);
-    const Gdiplus::Color pillText = s_enabledState ? Gdiplus::Color(255, 0, 255, 170) : Gdiplus::Color(255, 255, 68, 85);
-    Gdiplus::RectF pill(box.X + box.Width - 116.f, box.Y + 22.f, 96.f, 25.f);
-    fill_card(g, pill, pillBg, 12.f);
-    auto& pillFont = font_yahei_9_bold();
-    draw_text(g, state, pillFont, pill.X + 17.f, pill.Y + 5.f, pillText);
+    Gdiplus::SolidBrush iconBack(s_enabledState ? primary : offColor);
+    g.FillEllipse(&iconBack, iconCenter.X - iconSize * 0.5f, iconCenter.Y - iconSize * 0.5f,
+        iconSize, iconSize);
+    Gdiplus::Pen iconPen(Gdiplus::Color(255, 255, 255, 255), 2.4f);
+    iconPen.SetStartCap(Gdiplus::LineCapRound);
+    iconPen.SetEndCap(Gdiplus::LineCapRound);
+    if (s_enabledState) {
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconCenter.X - 8.f, iconCenter.Y),
+            Gdiplus::PointF(iconCenter.X - 2.f, iconCenter.Y + 6.f));
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconCenter.X - 2.f, iconCenter.Y + 6.f),
+            Gdiplus::PointF(iconCenter.X + 9.f, iconCenter.Y - 7.f));
+    } else {
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconCenter.X - 7.f, iconCenter.Y - 7.f),
+            Gdiplus::PointF(iconCenter.X + 7.f, iconCenter.Y + 7.f));
+        g.DrawLine(&iconPen, Gdiplus::PointF(iconCenter.X + 7.f, iconCenter.Y - 7.f),
+            Gdiplus::PointF(iconCenter.X - 7.f, iconCenter.Y + 7.f));
+    }
+    g.Restore(iconState);
+
+    auto& titleFont = font_segoe_14_bold();
+    auto& subFont = font_segoe_11_regular();
+    Gdiplus::SolidBrush titleBrush(titleColor);
+    Gdiplus::SolidBrush subtitleBrush(subtitleColor);
+    draw_text(g, s_enabledState ? L"功能已开启" : L"功能已关闭", titleFont,
+        box.X + 60.f, box.Y + 15.f, titleBrush);
+    draw_text(g, s_text, subFont, box.X + 60.f, box.Y + 39.f, subtitleBrush);
 }
 
 void draw()
@@ -629,9 +695,9 @@ void draw()
     }
 
     const int style = std::clamp(g_notificationsStyle, 0, 5);
-    const int width = style == 4 ? 460 : (style == 3 ? 370 : (style == 2 ? 340 : (style == 5 ? 330 : 310)));
-    const int height = style == 3 ? 86 : (style == 2 ? 78 : (style == 4 ? 68 : 72));
-    const int pad = style == 3 ? 28 : (style == 2 ? 12 : (style == 1 ? 8 : 4));
+    const int width = style == 4 ? 350 : (style == 3 ? 370 : (style == 2 ? 340 : (style == 5 ? 330 : 310)));
+    const int height = style == 3 ? 86 : (style == 2 ? 78 : (style == 4 ? 70 : 72));
+    const int pad = style == 3 ? 28 : (style == 4 ? 24 : (style == 2 ? 12 : (style == 1 ? 8 : 4)));
     const int renderWidth = width + pad * 2;
     const int renderHeight = height + pad * 2;
     const int sw = GetSystemMetrics(SM_CXSCREEN);
@@ -643,18 +709,20 @@ void draw()
     if (style == 2) {
         in = ease_out(elapsed / static_cast<float>(kGptEntryMs));
     } else if (style == 4) {
-        in = ease_bounce(elapsed / static_cast<float>(kAnimMs));
+        in = ease_out(elapsed / static_cast<float>(kDeepSeekEntryMs));
     }
 
     float outDuration = static_cast<float>(kAnimMs);
     if (style == 2) outDuration = static_cast<float>(kGptExitMs);
     else if (style == 3) outDuration = static_cast<float>(kGeminiExitMs);
+    else if (style == 4) outDuration = static_cast<float>(kDeepSeekExitMs);
 
     const float outStart = (std::max)(0.f, durationMs - outDuration);
     float out = 0.f;
     if (elapsed > outStart) {
         const float outProgress = (elapsed - outStart) / outDuration;
-        out = style == 3 ? ease_in_quint(outProgress) : ease_out(outProgress);
+        out = style == 3 ? ease_in_quint(outProgress)
+            : (style == 4 ? ease_in_cubic(outProgress) : ease_out(outProgress));
     }
     const int baseX = sw - width - 26;
     const int baseY = sh - height - 42;
@@ -688,8 +756,9 @@ void draw()
                 + 0.03f * std::sin(entryProgress * 3.1415926535f);
         }
     } else if (style == 4) {
-        x = baseX + static_cast<int>(std::lround(out * 360.f));
-        y = baseY - static_cast<int>(std::lround((1.f - in) * 80.f));
+        x = baseX;
+        y = baseY + static_cast<int>(std::lround((1.f - in) * 20.f - out * 15.f));
+        layerAlpha = std::clamp(in * (1.f - out), 0.f, 1.f);
     }
 
     HDC hdcScreen = GetDC(nullptr);
@@ -701,7 +770,7 @@ void draw()
     const int progressBucket = style == 0
         ? static_cast<int>(std::lround(liquidbounceKnobProgress * 48.f))
         : ((style == 1 || style == 2) ? static_cast<int>(std::lround(progress * 48.f))
-            : (style == 3 ? static_cast<int>((now / kFrameMs) % 240) : 0));
+            : ((style == 3 || style == 4) ? static_cast<int>((now / kFrameMs) % 240) : 0));
     const bool needsRedraw = s_cacheDirty
         || s_cachedText != s_text
         || s_cachedEnabledState != s_enabledState
@@ -735,7 +804,7 @@ void draw()
             draw_gemini(g, box, elapsed);
             g.Restore(saved); // 恢复画布状态，避免中心缩放影响后续 HUD 绘制。
         }
-        else if (style == 4) draw_deepseek(g, box);
+        else if (style == 4) draw_deepseek(g, box, elapsed);
         else draw_square(g, box);
 
         s_cachedText = s_text;
