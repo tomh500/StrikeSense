@@ -4,6 +4,7 @@
 #include "i18n.h"
 #include "textgui_overlay.h"
 #include "ui_theme.h"
+#include "vscript.h"
 
 #include <algorithm>
 
@@ -13,13 +14,18 @@ bool g_toggleStates[7] = { false, true, false, false, false, false, false };
 Gdiplus::RectF g_themePresetRects[uitheme::preset_count];
 Gdiplus::RectF g_basicThemeFoldRect;
 Gdiplus::RectF g_advancedThemeFoldRect;
-bool g_basicThemeExpanded = true;
-bool g_advancedThemeExpanded = true;
+bool g_basicThemeExpanded = false;
+bool g_advancedThemeExpanded = false;
 
 bool hit(const Gdiplus::RectF& rect, int x, int y)
 {
     return x >= rect.X && x <= rect.X + rect.Width
         && y >= rect.Y && y <= rect.Y + rect.Height;
+}
+
+bool can_use_advanced_theme()
+{
+    return vscript::GetBuildCode() == vscript::buildcode::eng;
 }
 
 void draw_theme_group(Gdiplus::Graphics& g, int cx, const wchar_t* title,
@@ -152,6 +158,8 @@ void PaintProgramSettingsPage(Gdiplus::Graphics& g, int cx, int cw, int, HWND)
     SolidBrush text(theme.text);
     SolidBrush dim(theme.dim);
 
+    if (!can_use_advanced_theme()) g_advancedThemeExpanded = false;
+
     for (auto& rect : g_themePresetRects) rect = RectF{};
 
     int y = 58;
@@ -175,6 +183,11 @@ void CheckProgramSettingsClick(HWND hw, int mx, int my)
         return;
     }
     if (hit(g_advancedThemeFoldRect, mx, my)) {
+        if (!can_use_advanced_theme()) {
+            g_advancedThemeExpanded = false;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
         g_advancedThemeExpanded = !g_advancedThemeExpanded;
         InvalidateRect(hw, nullptr, FALSE);
         return;
@@ -182,6 +195,11 @@ void CheckProgramSettingsClick(HWND hw, int mx, int my)
 
     for (int i = 0; i < uitheme::preset_count; ++i) {
         if (!hit(g_themePresetRects[i], mx, my)) continue;
+        if (uitheme::is_advanced_preset(i) && !can_use_advanced_theme()) {
+            g_advancedThemeExpanded = false;
+            InvalidateRect(hw, nullptr, FALSE);
+            return;
+        }
         uitheme::set_preset(i);
         SaveEvolutionParams();
         RefreshTextguiOverlay();

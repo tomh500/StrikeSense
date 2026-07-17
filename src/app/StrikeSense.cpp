@@ -238,6 +238,7 @@ int APIENTRY wWinMain(HINSTANCE hI, HINSTANCE, LPWSTR, int nSC) {
     // ----------------------------------------------------
     // 【核心修复区域】仅创建一次窗口，并将唯一句柄交给热键注册
     MyRegisterClass(hI);
+    LoadUiThemePresetBeforeWindow();
     
     HWND hwMain = InitInstance(hI, nSC); // 仅创建这一个唯一的有效窗口
     if (!hwMain) return FALSE;

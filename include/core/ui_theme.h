@@ -53,6 +53,9 @@ struct palette {
     Gdiplus::Color success;
     Gdiplus::Color warning;
     Gdiplus::Color danger;
+    Gdiplus::Color notice_background;
+    Gdiplus::Color notice_text;
+    Gdiplus::Color notice_border;
 };
 
 const palette& get_palette();

@@ -80,9 +80,9 @@ void DrawNoticeIcon(Gdiplus::Graphics& g, const Gdiplus::RectF& r, bool danger)
 {
     using namespace Gdiplus;
     const auto& theme = uitheme::get_palette();
-    SolidBrush bg(danger ? theme.danger : theme.warning);
-    SolidBrush fg(theme.button_text);
-    Pen border(danger ? theme.danger : theme.warning, 1.0f);
+    SolidBrush bg(theme.notice_background);
+    SolidBrush fg(danger ? theme.danger : theme.notice_text);
+    Pen border(danger ? theme.danger : theme.notice_border, 1.25f);
     Font f(L"Microsoft YaHei", 9, FontStyleBold);
     g.FillEllipse(&bg, r);
     g.DrawEllipse(&border, r);

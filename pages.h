@@ -76,6 +76,7 @@ extern int   g_notificationsStyle;
 // ===== 进化参数持久化 =====
 void SaveEvolutionParams();
 void LoadEvolutionParams();
+void LoadUiThemePresetBeforeWindow();
 void ApplyCrosshairEnabled(bool enabled);
 void ApplyCrosshairVisual(int r, int g, int b, int style, int thickness, float scale,
     int gap, int length, bool centerDot);

@@ -19,8 +19,27 @@
 #include "input_environment.h"
 #include "resource.h"
 #include "ui_theme.h"
+#include "vscript.h"
 
 namespace fs = std::filesystem;
+
+namespace {
+
+bool can_use_advanced_theme()
+{
+    return vscript::GetBuildCode() == vscript::buildcode::eng;
+}
+
+int visible_theme_preset()
+{
+    if (!can_use_advanced_theme() && uitheme::is_advanced_preset(g_uiThemePreset)) {
+        std::cout << "[界面主题] 当前权限不允许使用高级视觉组，已回退到 Default。" << std::endl;
+        return uitheme::preset_default;
+    }
+    return g_uiThemePreset;
+}
+
+} // namespace
 
 // 假设这些是来自全局或其他头文件的外部声明，保持你原有的逻辑不变
 extern HWND g_hwnd;
@@ -267,7 +286,7 @@ void SaveEvolutionParams() {
     j["notifications_enabled"] = g_notificationsEnabled;
     j["notifications_duration"] = g_notificationsDuration;
     j["notifications_style"] = g_notificationsStyle;
-    j["ui_theme_preset"] = g_uiThemePreset;
+    j["ui_theme_preset"] = visible_theme_preset();
     
     j["item_helper_enabled"] = g_itemHelperEnabled;
     j["item_helper_hotkey_mod"] = g_itemHelperHotkeyMod;
@@ -289,6 +308,40 @@ void SaveEvolutionParams() {
 
     std::ofstream out(GetEvolutionConfigPath());
     if (out.is_open()) { out << j.dump(2); out.close(); }
+}
+
+void LoadUiThemePresetBeforeWindow() {
+    fs::path p(GetEvolutionConfigPath());
+    if (!fs::exists(p)) {
+        g_uiThemePreset = uitheme::preset_default;
+        return;
+    }
+
+    try {
+        std::ifstream in(p);
+        if (!in.is_open()) {
+            g_uiThemePreset = uitheme::preset_default;
+            return;
+        }
+
+        nlohmann::json j;
+        in >> j;
+        if (j.contains("ui_theme_preset") && j["ui_theme_preset"].is_number_integer()) {
+            g_uiThemePreset = j["ui_theme_preset"].get<int>();
+        } else {
+            g_uiThemePreset = uitheme::preset_default;
+        }
+
+        g_uiThemePreset = std::clamp(g_uiThemePreset, 0, uitheme::preset_count - 1);
+        if (!can_use_advanced_theme() && uitheme::is_advanced_preset(g_uiThemePreset)) {
+            g_uiThemePreset = uitheme::preset_default;
+            std::cout << "[界面主题] 窗口创建前检测到非 eng 权限高级主题配置，已回退到 Default。" << std::endl;
+        }
+    }
+    catch (...) {
+        g_uiThemePreset = uitheme::preset_default;
+        std::cout << "[界面主题] 窗口创建前读取主题配置失败，已使用 Default。" << std::endl;
+    }
 }
 
 void LoadEvolutionParams() {
@@ -348,6 +401,10 @@ void LoadEvolutionParams() {
         gv("ui_theme_preset", g_uiThemePreset);
         g_notificationsStyle = std::clamp(g_notificationsStyle, 0, evolutionui::kNotificationsStyleCount - 1);
         g_uiThemePreset = std::clamp(g_uiThemePreset, 0, uitheme::preset_count - 1);
+        if (!can_use_advanced_theme() && uitheme::is_advanced_preset(g_uiThemePreset)) {
+            g_uiThemePreset = uitheme::preset_default;
+            std::cout << "[界面主题] 非 eng 权限启动，已禁用高级视觉主题并回退到 Default。" << std::endl;
+        }
 
         gb("item_helper_enabled", g_itemHelperEnabled);
 
