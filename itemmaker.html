@@ -9,17 +9,21 @@
 </head>
 <body>
     <!-- 导航栏 -->
-    <nav class="navbar">
+        <header class="navbar">
         <div class="container nav-container">
-            <a href="#" class="logo">StrikeSense</a>
-            <div class="nav-links">
-                <a href="index.html">返回首页</a>
-                <a href="rescenter.html">资源下载中心</a>
-                <a href="oemkeygen.html">OEM申请</a>
+            <a href="index.html" class="logo">StrikeSense</a>
+            <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <nav class="nav-links" id="navLinks">
+                <a href="index.html">首页</a>
+                <a href="itemmaker.html" class="active-link">道具制图</a>
+                <a href="rescenter.html">资源中心</a>
+                <a href="oemkeygen.html">OEM 申请</a>
                 <a href="scriptdocs.html">脚本文档</a>
-            </div>
+            </nav>
         </div>
-    </nav>
+    </header>
 
     <!-- 主内容区：上下结构，彻底解放空间 -->
     <main class="container itemmaker-main">
