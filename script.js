@@ -1,11 +1,140 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // ====== 💎 1. 手机端侧边汉堡菜单抽屉交互 ======
+    const body = document.body;
     const menuToggle = document.getElementById('menuToggle');
     const navLinks = document.getElementById('navLinks');
     const links = navLinks ? navLinks.querySelectorAll('a') : [];
 
-    // 点击按钮切换菜单
+    const createSiteLoader = () => {
+        if (!body) return null;
+        const loader = document.createElement('div');
+        loader.className = 'site-loader';
+        loader.innerHTML = `
+            <div class="site-loader__panel">
+                <span class="site-loader__badge">StrikeSense</span>
+                <strong>正在载入工作台站点</strong>
+                <div class="site-loader__bar"><span></span></div>
+            </div>
+        `;
+        body.appendChild(loader);
+        return loader;
+    };
+
+    const revealTargets = () => {
+        const selectors = [
+            '.hero-publish__copy > *',
+            '.hero-publish__visual > *',
+            'body > section',
+            'main > *',
+            '.section-header',
+            '.publish-summary-card',
+            '.about-text--publish',
+            '.preview-shell',
+            '.preview-flow-card',
+            '.capability-card',
+            '.faq-item',
+            '.docs-entry-card',
+            '.docs-hub-guide',
+            '.markdown-body',
+            '.tool-panel',
+            '.docs-shell',
+            '.redirect-card',
+            '.res-hero',
+            '.res-main-section',
+            '.itemmaker-main',
+            '.studio-shell'
+        ];
+        const seen = new Set();
+        const elements = [];
+
+        selectors.forEach((selector) => {
+            document.querySelectorAll(selector).forEach((element) => {
+                if (seen.has(element)) return;
+                seen.add(element);
+                element.classList.add('reveal-up');
+                elements.push(element);
+            });
+        });
+
+        if (elements.length === 0) return;
+
+        const observer = new IntersectionObserver((entries, currentObserver) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) return;
+                entry.target.classList.add('is-visible');
+                currentObserver.unobserve(entry.target);
+            });
+        }, {
+            threshold: 0.12,
+            rootMargin: '0px 0px -8% 0px'
+        });
+
+        elements.forEach((element, index) => {
+            element.style.setProperty('--reveal-delay', `${Math.min(index % 6, 5) * 55}ms`);
+            if (element.getBoundingClientRect().top < window.innerHeight * 0.82) {
+                window.setTimeout(() => {
+                    element.classList.add('is-visible');
+                }, Math.min(index, 6) * 60 + 80);
+                return;
+            }
+            observer.observe(element);
+        });
+    };
+
+    const initPageMotion = () => {
+        if (!body) return;
+
+        body.classList.add('page-motion');
+        const loader = createSiteLoader();
+
+        const finishEnter = () => {
+            body.classList.add('page-motion--ready');
+            if (loader) {
+                loader.classList.add('site-loader--done');
+                window.setTimeout(() => loader.remove(), 620);
+            }
+        };
+
+        requestAnimationFrame(() => {
+            body.classList.add('page-motion--enter');
+        });
+
+        if (document.readyState === 'complete') {
+            window.setTimeout(finishEnter, 120);
+        } else {
+            window.addEventListener('load', () => {
+                window.setTimeout(finishEnter, 150);
+            }, { once: true });
+            window.setTimeout(finishEnter, 1400);
+        }
+
+        document.querySelectorAll('a[href]').forEach((anchor) => {
+            anchor.addEventListener('click', (event) => {
+                if (event.defaultPrevented) return;
+                if (event.button !== 0) return;
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                if (anchor.target && anchor.target !== '_self') return;
+                if (anchor.hasAttribute('download')) return;
+
+                const rawHref = anchor.getAttribute('href');
+                if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+
+                const targetUrl = new URL(anchor.href, window.location.href);
+                if (targetUrl.origin !== window.location.origin) return;
+                if (!/\.html?$/i.test(targetUrl.pathname)) return;
+                if (targetUrl.pathname === window.location.pathname && targetUrl.hash) return;
+
+                event.preventDefault();
+                body.classList.add('page-leaving');
+                window.setTimeout(() => {
+                    window.location.href = targetUrl.href;
+                }, 220);
+            });
+        });
+    };
+
+    initPageMotion();
+    revealTargets();
+
     if (menuToggle && navLinks) {
         menuToggle.addEventListener('click', () => {
             menuToggle.classList.toggle('open');
@@ -13,73 +142,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 点击菜单内任意跳转链接后，自动关闭抽屉
-    links.forEach(link => {
+    links.forEach((link) => {
         link.addEventListener('click', () => {
+            if (!menuToggle || !navLinks) return;
             menuToggle.classList.remove('open');
             navLinks.classList.remove('open');
         });
     });
 
-// ====== 💎 2. 常见问题 Q&A 手风琴折叠效果 ======
-    const faqItems = document.querySelectorAll('.faq-item');
-
-    faqItems.forEach(item => {
-        const question = item.querySelector('.faq-question');
-        const answer = item.querySelector('.faq-answer');
+    const faqItems = Array.from(document.querySelectorAll('.faq-item'));
+    faqItems.forEach((item, index) => {
+        const question = item.querySelector(':scope > .faq-question');
+        const answer = item.querySelector(':scope > .faq-answer');
         if (!question || !answer) return;
-        
-        question.addEventListener('click', (e) => {
-            // 防止点击事件冒泡到内部的其他卡片元素
-            e.stopPropagation(); 
-            
-            // 检查当前点击的这一项是不是已经打开了
-            const isActive = item.classList.contains('active');
-            
-            // 1. 【核心修复】只关闭“其他”选项，互不干扰
-            faqItems.forEach(i => {
-                if (i !== item) {
-                    i.classList.remove('active');
-                }
-            });
-            
-            // 2. 切换当前项的状态：如果原来是开的就关掉，原来是关的就打开
-            if (isActive) {
-                item.classList.remove('active');
-            } else {
-                item.classList.add('active');
-            }
+
+        item.classList.toggle('active', index === 0);
+
+        question.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const willOpen = !item.classList.contains('active');
+            faqItems.forEach((faqItem) => faqItem.classList.remove('active'));
+            if (willOpen) item.classList.add('active');
         });
     });
 
-    // 默认保持展开第1个“为什么选择我们（对比同行）的核心优势声明”，一打开网页就形成冲击力
-    if (faqItems.length >= 1) {
-        faqItems[0].classList.add('active');
-    }
-
-    // ====== 💎 3. 滚动动态半透明毛玻璃导航栏效果 ======
     const navbar = document.querySelector('.navbar');
     if (navbar) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 40) {
-                navbar.style.boxShadow = '0 8px 25px rgba(9, 114, 122, 0.08)';
-                navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.95)';
-            } else {
-                navbar.style.boxShadow = 'none';
-                navbar.style.backgroundColor = 'rgba(243, 250, 252, 0.85)';
-            }
-        });
+        const syncNavbar = () => {
+            navbar.classList.toggle('is-scrolled', window.scrollY > 40);
+        };
+        syncNavbar();
+        window.addEventListener('scroll', syncNavbar);
     }
 
-    // 下载版本选择弹窗
     const downloadModal = document.getElementById('downloadModal');
     const nightlyList = document.getElementById('nightlyList');
     const showNightlyFiles = document.getElementById('showNightlyFiles');
     const downloadButtons = document.querySelectorAll('.js-download-choice');
-
-    if (!downloadModal || !nightlyList || !showNightlyFiles || downloadButtons.length === 0) {
-        return;
-    }
 
     const formatFileSize = (bytes) => {
         if (!Number.isFinite(bytes) || bytes <= 0) return '大小未知';
@@ -91,6 +190,14 @@ document.addEventListener('DOMContentLoaded', () => {
             unitIndex += 1;
         }
         return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+    };
+
+    const extractNightlyTimestamp = (name, fallbackModified = 0) => {
+        const match = typeof name === 'string' ? name.match(/(\d{12})(?=\.exe$)/i) : null;
+        if (match) {
+            return Number.parseInt(match[1], 10);
+        }
+        return Number.isFinite(fallbackModified) ? fallbackModified : 0;
     };
 
     const openDownloadModal = () => {
@@ -105,45 +212,53 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadModal.setAttribute('aria-hidden', 'true');
     };
 
-    downloadButtons.forEach((button) => {
-        button.addEventListener('click', (event) => {
-            event.preventDefault();
-            openDownloadModal();
+    if (downloadModal && nightlyList && showNightlyFiles && downloadButtons.length > 0) {
+        downloadButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                openDownloadModal();
+            });
         });
-    });
 
-    document.querySelectorAll('[data-download-close]').forEach((button) => {
-        button.addEventListener('click', closeDownloadModal);
-    });
+        document.querySelectorAll('[data-download-close]').forEach((button) => {
+            button.addEventListener('click', closeDownloadModal);
+        });
 
-    showNightlyFiles.addEventListener('click', async () => {
-        nightlyList.hidden = false;
-        nightlyList.innerHTML = '<p class="nightly-list__status">正在检测夜间版文件...</p>';
+        showNightlyFiles.addEventListener('click', async () => {
+            nightlyList.hidden = false;
+            nightlyList.innerHTML = '<p class="nightly-list__status">正在检测夜间版文件...</p>';
 
-        try {
-            const response = await fetch('app/nightly-manifest.json', { cache: 'no-store' });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const manifest = await response.json();
-            const files = Array.isArray(manifest.files) ? manifest.files : [];
+            try {
+                const response = await fetch('app/nightly-manifest.json', { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const manifest = await response.json();
+                const files = Array.isArray(manifest.files) ? [...manifest.files] : [];
 
-            if (files.length === 0) {
-                nightlyList.innerHTML = '<p class="nightly-list__status">当前没有检测到夜间版文件。</p>';
-                return;
+                if (files.length === 0) {
+                    nightlyList.innerHTML = '<p class="nightly-list__status">当前没有检测到夜间版文件。</p>';
+                    return;
+                }
+
+                files.sort((left, right) => {
+                    const leftValue = extractNightlyTimestamp(left.name, left.modified);
+                    const rightValue = extractNightlyTimestamp(right.name, right.modified);
+                    return rightValue - leftValue;
+                });
+
+                const fileRows = files.map((file, index) => `
+                    <a class="nightly-file${index === 0 ? ' nightly-file--latest' : ''}" href="${file.path}" download>
+                        <span>
+                            <strong>${file.name}${index === 0 ? '<span class="nightly-file__badge">最新</span>' : ''}</strong>
+                            <small>${formatFileSize(file.size)}</small>
+                        </span>
+                        <span class="nightly-file__download">下载</span>
+                    </a>
+                `).join('');
+                nightlyList.innerHTML = `<div class="nightly-list__header">检测到 ${files.length} 个夜间版文件，已按日期从新到旧排序</div>${fileRows}`;
+            } catch (error) {
+                nightlyList.innerHTML = '<p class="nightly-list__status">夜间版清单读取失败，请稍后再试。</p>';
+                console.log('夜间版清单读取失败：', error);
             }
-
-            const fileRows = files.map((file) => `
-                <a class="nightly-file" href="${file.path}" download>
-                    <span>
-                        <strong>${file.name}</strong>
-                        <small>${formatFileSize(file.size)}</small>
-                    </span>
-                    <span class="nightly-file__download">下载</span>
-                </a>
-            `).join('');
-            nightlyList.innerHTML = `<div class="nightly-list__header">检测到 ${files.length} 个夜间版文件</div>${fileRows}`;
-        } catch (error) {
-            nightlyList.innerHTML = '<p class="nightly-list__status">夜间版清单读取失败，请稍后再试。</p>';
-            console.log('夜间版清单读取失败：', error);
-        }
-    });
+        });
+    }
 });
