@@ -253,6 +253,14 @@ def cover_block(text_styles: dict[str, ParagraphStyle]):
             "你可以把第三方服务器理解成私营规则环境，很多规矩本身就是 OWNER 说了算。极端情况下，对方平台或服务器就算提出很离谱的限制，也不是 StrikeSense 能控制的范围。我们的目标是理论上兼容全部服务器，但第三方规则本身不在我们保证范围内。",
             text_styles["small"],
         ),
+        Paragraph(
+            "如果你需要解锁全部功能，请优先以 <b>管理员身份运行</b>。部分写入动作、部分依赖更高权限的功能，以及某些完整能力，在普通权限下可能只能部分工作。",
+            text_styles["body"],
+        ),
+        Paragraph(
+            "如果你使用的是 <b>OEM 解锁</b>，可以去官网生成密钥，然后创建对应文件，放入 <b>%UserProfile%/StrikeSense</b> 程序数据目录即可。",
+            text_styles["body"],
+        ),
         Spacer(1, 0.2 * inch),
     ]
 
@@ -265,28 +273,66 @@ def image_block(file_name: str, height: float = 3.45 * inch):
 
 
 def troubleshooting_table(text_styles: dict[str, ParagraphStyle]) -> Table:
+    table_head = ParagraphStyle(
+        "TableHead",
+        parent=text_styles["small"],
+        fontName="STSong-Light",
+        fontSize=10.2,
+        leading=13,
+        textColor=colors.HexColor("#2f2146"),
+        spaceAfter=0,
+    )
+    table_body = ParagraphStyle(
+        "TableBody",
+        parent=text_styles["small"],
+        fontName="STSong-Light",
+        fontSize=8.9,
+        leading=12,
+        textColor=colors.HexColor("#2c2438"),
+        spaceAfter=0,
+    )
     rows = [
-        ["现象", "先看哪里", "怎么处理"],
-        ["网站下载后完全没有反应", "是否真的安装了 GSI 文件", "重新在软件里执行一次安装；仍不行就手动创建 cfg 文件"],
-        ["部分模块可开，但游戏事件不触发", "gamestate_integration_square.cfg 内容是否完整", "对照本文手动创建，重启 CS2"],
-        ["软件提示自动添加启动项失败", "Steam 是否完全关闭、是否存在 localconfig.vdf、账号是否启动过 CS2", "手动补上 -vulkan -condebug，重启 Steam"],
-        ["第三方平台启动后仍无效", "第三方平台自己的启动项、覆盖层与窗口检测设置", "先去第三方平台补同样的启动项；仍不行再尝试宽容窗口检测，但会有轻微额外 BUG"],
-        ["CScript 没触发", "autoexec.cfg / StrikeTicker.cfg / CustomTicker", "游戏内执行 exec autoexec 或重启游戏"],
+        [Paragraph("现象", table_head), Paragraph("先看哪里", table_head), Paragraph("怎么处理", table_head)],
+        [
+            Paragraph("网站下载后完全没有反应", table_body),
+            Paragraph("是否真的安装了 GSI 文件", table_body),
+            Paragraph("重新在软件里执行一次安装；仍不行就手动创建 cfg 文件。", table_body),
+        ],
+        [
+            Paragraph("部分模块可开，但游戏事件不触发", table_body),
+            Paragraph("gamestate_integration_square.cfg 内容是否完整", table_body),
+            Paragraph("对照本文手动创建，重启 CS2。", table_body),
+        ],
+        [
+            Paragraph("软件提示自动添加启动项失败", table_body),
+            Paragraph("Steam 是否完全关闭、是否存在 localconfig.vdf、账号是否启动过 CS2", table_body),
+            Paragraph("手动补上 -vulkan -condebug，重启 Steam。", table_body),
+        ],
+        [
+            Paragraph("第三方平台启动后仍无效", table_body),
+            Paragraph("第三方平台自己的启动项、覆盖层与窗口检测设置", table_body),
+            Paragraph("先去第三方平台补同样的启动项；仍不行再尝试宽容窗口检测，但会有轻微额外 BUG。", table_body),
+        ],
+        [
+            Paragraph("CScript 没触发", table_body),
+            Paragraph("autoexec.cfg / StrikeTicker.cfg / CustomTicker", table_body),
+            Paragraph("游戏内执行 exec autoexec 或重启游戏。", table_body),
+        ],
     ]
-    table = Table(rows, colWidths=[1.45 * inch, 2.1 * inch, 2.55 * inch])
+    table = Table(rows, colWidths=[1.38 * inch, 1.95 * inch, 2.27 * inch], repeatRows=1)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ece3fb")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#2f2146")),
         ("FONTNAME", (0, 0), (-1, -1), "STSong-Light"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9.2),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.9),
         ("LEADING", (0, 0), (-1, -1), 12),
         ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#d9ccff")),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#faf7ff")]),
         ("LEFTPADDING", (0, 0), (-1, -1), 7),
         ("RIGHTPADDING", (0, 0), (-1, -1), 7),
-        ("TOPPADDING", (0, 0), (-1, -1), 7),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     return table
 
@@ -420,14 +466,28 @@ def build_story(text_styles: dict[str, ParagraphStyle]):
         text_styles,
     ))
 
+    story.append(Paragraph("九、字面意思容易模糊的开关说明", text_styles["h1"]))
+    for line in [
+        "<b>低内存模式</b>：重点是降低常驻资源占用，不是说所有资源都会立刻被清空，更适合长时间挂后台。",
+        "<b>宽容窗口检测</b>：它是兼容性兜底选项，不是默认推荐项。主要给第三方平台或特殊窗口环境排错使用，代价是可能带来轻微额外 BUG。",
+        "<b>即时音量调整</b>：指按状态实时调节 CS2 的音量比例，不是直接改整个系统总音量。",
+        "<b>TextGUI</b>：指游戏内常驻的信息文字层，不是普通的一次性弹窗提示。",
+        "<b>通知</b>：指事件触发时的提示样式、位置与持续时间；如果你嫌吵或嫌挡视线，可以减弱通知但保留 TextGUI。",
+        "<b>遗产核心</b>：更偏旧工作流页面，不代表它更高级，只是保留了旧逻辑。",
+        "<b>自定脚本 / VScript</b>：更偏官方状态联动与逻辑编排。",
+        "<b>CScript</b>：更偏按键驱动和 ticker 绑定链路，而且当前仍属于 BETA。",
+        "<b>OEM 解锁</b>：不是单点按钮功能，而是生成密钥后把对应文件放入程序数据目录来解锁。",
+    ]:
+        story.append(Paragraph(f"• {line}", text_styles["bullet"]))
+
     story.append(PageBreak())
-    story.append(Paragraph("九、必要时手动创建 GSI 文件", text_styles["h1"]))
+    story.append(Paragraph("十、必要时手动创建 GSI 文件", text_styles["h1"]))
     story.append(Paragraph("如果你确认软件没把 GSI 文件写进去，或者你想自己手动补齐，那么请在 CS2 的 cfg 目录里创建文件 <b>gamestate_integration_square.cfg</b>，内容如下。文件名要完全一致，内容也不要漏字段。", text_styles["body"]))
     story.append(Preformatted(GSI_CONTENT, text_styles["code"]))
     story.append(Paragraph("创建完以后，重启 CS2；如果你刚补了启动项，最好连 Steam 一起完整重启。", text_styles["body"]))
     story.append(Paragraph("启动项部分请确认至少包含：<b>-vulkan -condebug</b>。如果自动添加失败，就手动补到 CS2 启动项里。", text_styles["body"]))
 
-    story.append(Paragraph("十、排查顺序", text_styles["h1"]))
+    story.append(Paragraph("十一、排查顺序", text_styles["h1"]))
     story.append(Paragraph("建议你按下面的顺序排查，不要一上来就乱改模块参数。", text_styles["body"]))
     story.append(troubleshooting_table(text_styles))
     story.append(Spacer(1, 0.12 * inch))
@@ -435,7 +495,7 @@ def build_story(text_styles: dict[str, ParagraphStyle]):
     story.append(Paragraph("如果你使用第三方对战平台，请把“Steam 启动项”和“第三方平台启动项”视为两套都要核查的东西。某些平台会覆盖或接管启动参数，这时要以平台侧实际生效的设置为准。", text_styles["body"]))
     story.append(Paragraph("宽容窗口检测可以作为最后一步兼容性尝试，但它不是无代价的保险开关，可能引入一些轻微体验问题。只有在第三方平台环境下确实排完常规项还不行时，再考虑打开。", text_styles["small"]))
 
-    story.append(Paragraph("十一、遇到问题时如何正确求助", text_styles["h1"]))
+    story.append(Paragraph("十二、遇到问题时如何正确求助", text_styles["h1"]))
     story.append(Paragraph("遇到问题后，请去 <b>不和谐频道</b> 提交帖子，并尽量一次性给全信息。这样别人才能真正帮你复现和定位。", text_styles["body"]))
     for line in [
         "• 先描述你做了什么操作，再描述问题是在哪一步出现的。",
