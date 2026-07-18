@@ -170,27 +170,18 @@
                 <span></span><span></span><span></span>
             </button>
             <nav class="nav-links" id="navLinks">
-                <a href="#about">产品介绍</a>
-                <a href="#showcase">软件截图</a>
-                <a href="#features">功能特性</a>
-                <!-- <a href="#rage-notice">超频说明</a> -->
-                <a href="#faq">常见问题 Q&A</a>
-                <a href="itemmaker.html" class="nav-special-link">道具图制作</a>
-                <a href="rescenter.html" class="nav-special-link">资源下载中心</a>
-                <a href="oemkeygen.html" class="nav-special-link">OEM申请</a>
+                <a href="#about">产品定位</a>
+                <a href="#showcase">界面预览</a>
+                <a href="#features">核心能力</a>
+                <a href="#faq">常见问题</a>
+                <a href="itemmaker.html" class="nav-special-link">道具制图</a>
+                <a href="rescenter.html" class="nav-special-link">资源中心</a>
+                <a href="oemkeygen.html" class="nav-special-link">OEM 申请</a>
                 <a href="scriptdocs.html" class="nav-special-link">脚本文档</a>
-                <!-- <a href="#download" class="btn btn-primary mobile-download-btn">立即下载</a> -->
             </nav>
-             <a href=""></a> 
         </div>
     </header>
     <main class="docs-shell">
-        <div class="docs-switcher docs-switcher--wide">
-            <a href="scriptdocs.html">文档导航</a>
-            <a href="vscriptdocs.html" class="is-active">VScript</a>
-            <a href="cscriptdocs.html">CScript</a>
-            <a href="practicaldocs.html">实用文档</a>
-        </div>
         <article class="markdown-body" id="docsBody">
 <h1 id="strikesense-vscript-手册">StrikeSense VScript 手册</h1><h2 id="sec-1-文档版本">文档版本</h2><ul>
 <li>API 文档版本：<code>2026.07.16</code></li>
@@ -636,6 +627,11 @@ if(Cooldown(&quot;live_popup&quot;, 3000)){
 <td>新增日志计数</td>
 </tr>
 <tr>
+<td><code>console_log_has_line</code></td>
+<td><code>bool</code></td>
+<td>是否已经收到过至少一行控制台日志</td>
+</tr>
+<tr>
 <td><code>console_log_queue_size</code></td>
 <td><code>number</code></td>
 <td>尚未被 <code>TakeConsoleLog*</code> 消费的日志数量</td>
@@ -644,6 +640,11 @@ if(Cooldown(&quot;live_popup&quot;, 3000)){
 <td><code>console_log_is_script_signal</code></td>
 <td><code>bool</code></td>
 <td>最近一行是否为 <code>/log ...</code></td>
+</tr>
+<tr>
+<td><code>console_log_command</code></td>
+<td><code>string</code></td>
+<td>最近一行若为脚本信号则为 <code>/log</code>，否则为 <code>void</code></td>
 </tr>
 <tr>
 <td><code>console_log_payload</code></td>
@@ -1874,6 +1875,12 @@ for(int i=0; i&lt;Size(accounts); i++){
 <td>移除脚本注册的文字</td>
 </tr>
 <tr>
+<td><code>DestroyTextguiText(id)</code></td>
+<td><code>string</code></td>
+<td><code>bool</code></td>
+<td><code>RemoveTextguiText</code> 的同义函数</td>
+</tr>
+<tr>
 <td><code>GetTextguiModuleIds()</code></td>
 <td>无</td>
 <td><code>list&lt;string&gt;</code></td>
@@ -1978,7 +1985,7 @@ if(GetModuleEnabled(&quot;sniper_crosshair&quot;)){
 
         </article>
         <aside class="docs-sidebar">
-            <h2>VScript 索引</h2>
+            <h2>快速索引</h2>
             <input id="docsSearch" class="docs-search" type="search" placeholder="搜索变量、函数、关键字..." />
             <nav class="docs-toc" id="docsToc">
                 <div class="toc-group">
@@ -2358,7 +2365,7 @@ if(GetModuleEnabled(&quot;sniper_crosshair&quot;)){
     </main>
     <footer id="download" class="footer">
         <div class="container footer-content">
-            <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
+            <p class="copyright">&copy; 2026 StrikeSense. All Rights Reserved.</p>
         </div>
     </footer>
     <script src="script.js"></script>

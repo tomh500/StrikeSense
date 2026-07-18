@@ -216,8 +216,10 @@ if(Cooldown("live_popup", 3000)){
 | `console_log_raw` | `string` | 原始日志行，包含时间前缀 |
 | `console_log_text` | `string` | 去掉时间前缀后的日志内容 |
 | `console_log_count` | `number` | 新增日志计数 |
+| `console_log_has_line` | `bool` | 是否已经收到过至少一行控制台日志 |
 | `console_log_queue_size` | `number` | 尚未被 `TakeConsoleLog*` 消费的日志数量 |
 | `console_log_is_script_signal` | `bool` | 最近一行是否为 `/log ...` |
+| `console_log_command` | `string` | 最近一行若为脚本信号则为 `/log`，否则为 `void` |
 | `console_log_payload` | `string` | 最近一行 `/log ...` 后面的内容 |
 | `console_log_is_chat` | `bool` | 最近一行是否被解析为玩家聊天 |
 | `console_log_channel` | `string` | 聊天频道，例如 `ALL`、`CT` |
@@ -938,6 +940,7 @@ for(int i=0; i<Size(accounts); i++){
 | `RegisterTextguiText(text, id, accessory)` | `string, string, string|null` | `bool` | 注册或更新一行文字；第三个附属参数可省略或传 `NULL` |
 | `SetTextguiText(text, id, accessory)` | `string, string, string|null` | `bool` | `RegisterTextguiText` 的同义函数 |
 | `RemoveTextguiText(id)` | `string` | `bool` | 移除脚本注册的文字 |
+| `DestroyTextguiText(id)` | `string` | `bool` | `RemoveTextguiText` 的同义函数 |
 | `GetTextguiModuleIds()` | 无 | `list<string>` | 返回程序原生模块的稳定 ID 列表 |
 | `HideTextguiModule(id)` | `string` | `bool` | 仅从 TextGUI 隐藏模块，不改变模块状态且不产生通知 |
 | `ShowTextguiModule(id)` | `string` | `bool` | 恢复模块在 TextGUI 中的显示 |

@@ -2,18 +2,19 @@
    💎 StrikeSense 官方网站 - 极简明亮水色 / 冰晶天蓝浅色系 (Light Aqua Theme) 
    ========================================================================== */
 :root {
-    --bg-main: #f0f7ff;       /* 极浅的微蓝白底色 */
-    --bg-card: #ffffff;       /* 纯白卡片底色 */
-    --bg-sub: #eef8ff;        /* 柔和的浅天蓝交替块底色 */
-    --text-main: #004a80;     /* 深水蓝 (主标题与正文文字，沉稳清晰) */
-    --text-dim: #5c85a3;      /* 灰蓝色调（辅助文字） */
-    
-    /* 💎 焕然一新的水蓝色系配色 (Sky & Water Blue) */
-    --col-td: #0077cc;        /* 核心水蓝色 (标题与主按钮文字) */
-    --col-tb: #0099ff;        /* 亮天蓝色 (点缀与高光) */
-    --col-bb: #e0f2ff;        /* 冰蓝色填充 (按钮与徽章背景) */
-    --col-bp: #aaddff;        /* 柔和水蓝色高光边框 */
-    --col-warning: #ff6666;   /* 警告淡红 (保持警示性) */
+    --bg-main: #f6f1ff;
+    --bg-card: rgba(255, 255, 255, 0.84);
+    --bg-sub: #ece3fb;
+    --text-main: #26173a;
+    --text-dim: #6f6288;
+    --col-td: #7c59ff;
+    --col-tb: #bf8cff;
+    --col-bb: #efe5ff;
+    --col-bp: #c9adff;
+    --col-warning: #ff6d8a;
+    --surface-deep: #170f24;
+    --surface-mid: #221535;
+    --surface-soft: rgba(255, 255, 255, 0.12);
 }
 
 .download-modal {
@@ -1067,3 +1068,557 @@ html {
     color: var(--col-td);
 }
 
+
+/* ==========================================================================
+   2026 Home Refresh - Purple Glass Theme
+   ========================================================================== */
+body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top left, rgba(183, 129, 255, 0.24), transparent 32%),
+        radial-gradient(circle at top right, rgba(124, 89, 255, 0.18), transparent 28%),
+        linear-gradient(180deg, #fbf7ff 0%, #f4eeff 48%, #f7f1ff 100%);
+    color: var(--text-main);
+}
+
+.navbar {
+    background: rgba(255, 250, 255, 0.72);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(124, 89, 255, 0.12);
+    box-shadow: none;
+}
+
+.navbar.is-scrolled {
+    background: rgba(255, 250, 255, 0.9);
+    box-shadow: 0 18px 40px rgba(63, 31, 108, 0.12);
+}
+
+.logo {
+    color: #32204d;
+    letter-spacing: 0.04em;
+}
+
+.nav-links a,
+.docs-switcher a {
+    color: var(--text-main);
+}
+
+.nav-links a:hover,
+.docs-switcher a:hover,
+.docs-switcher a.is-active {
+    color: var(--col-td);
+}
+
+.menu-toggle span {
+    background-color: #32204d;
+}
+
+.btn {
+    border-radius: 999px;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #8f6aff 0%, #c98fff 100%);
+    color: #fff;
+    border: 1px solid rgba(124, 89, 255, 0.28);
+    box-shadow: 0 16px 30px rgba(124, 89, 255, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #7c59ff 0%, #bd7fff 100%);
+    box-shadow: 0 20px 36px rgba(124, 89, 255, 0.28);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.68);
+    border: 1px solid rgba(124, 89, 255, 0.14);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(124, 89, 255, 0.3);
+}
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    padding: 150px 0 96px;
+    background:
+        radial-gradient(circle at 16% 18%, rgba(255, 207, 244, 0.58), transparent 20%),
+        radial-gradient(circle at 82% 10%, rgba(174, 132, 255, 0.46), transparent 22%),
+        linear-gradient(135deg, #171024 0%, #28183d 36%, #3b2460 100%);
+    color: #f9f5ff;
+}
+
+.hero::before,
+.hero::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(20px);
+}
+
+.hero::before {
+    width: 240px;
+    height: 240px;
+    right: -40px;
+    top: 50px;
+    background: rgba(218, 170, 255, 0.28);
+}
+
+.hero::after {
+    width: 180px;
+    height: 180px;
+    left: 8%;
+    bottom: -36px;
+    background: rgba(130, 102, 255, 0.2);
+}
+
+.hero-layout {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 42px;
+    align-items: center;
+}
+
+.hero-copy .badge {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #f3dcff;
+}
+
+.hero h1 {
+    color: #ffffff;
+    font-size: clamp(40px, 5.2vw, 64px);
+    line-height: 1.08;
+    margin-bottom: 22px;
+}
+
+.subtitle {
+    max-width: 680px;
+    color: rgba(244, 236, 255, 0.8);
+    font-size: 17px;
+}
+
+.hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 26px;
+}
+
+.hero-pills span,
+.theme-chips span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.08);
+    color: inherit;
+    font-size: 13px;
+}
+
+.hero-stage {
+    position: relative;
+    min-height: 520px;
+}
+
+.hero-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(18px);
+}
+
+.hero-glow--one {
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 183, 241, 0.24);
+    top: 38px;
+    left: 18px;
+}
+
+.hero-glow--two {
+    width: 260px;
+    height: 260px;
+    background: rgba(155, 115, 255, 0.22);
+    right: 12px;
+    bottom: 24px;
+}
+
+.hero-window,
+.glass-card,
+.showcase-card,
+.feature-card,
+.download-modal__panel,
+.tool-panel,
+.docs-sidebar,
+.docs-entry-card,
+.docs-hub-guide {
+    backdrop-filter: blur(18px);
+}
+
+.hero-window {
+    position: absolute;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
+    box-shadow: 0 30px 70px rgba(9, 4, 22, 0.34);
+}
+
+.hero-window--main {
+    inset: 28px 110px 72px 0;
+    padding: 28px;
+}
+
+.hero-window--main h2 {
+    font-size: 28px;
+    color: #fff;
+    margin-bottom: 14px;
+}
+
+.hero-window--main p,
+.hero-window__list {
+    color: rgba(248, 240, 255, 0.78);
+}
+
+.hero-window__eyebrow,
+.kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f2dcff;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+.hero-window__list {
+    margin-top: 18px;
+    padding-left: 18px;
+}
+
+.hero-window__list li + li {
+    margin-top: 10px;
+}
+
+.hero-window--shot {
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.hero-window--shot img,
+.showcase-card img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 20px;
+}
+
+.hero-window--shot-a {
+    width: 250px;
+    height: 170px;
+    right: 0;
+    top: 0;
+}
+
+.hero-window--shot-b {
+    width: 270px;
+    height: 185px;
+    right: 24px;
+    bottom: 0;
+}
+
+.section-header--left {
+    text-align: left;
+}
+
+.section-header h2 {
+    font-size: clamp(30px, 4vw, 44px);
+}
+
+.about-section,
+.faq-section {
+    background: transparent;
+    border: 0;
+}
+
+.about-grid,
+.showcase-grid {
+    display: grid;
+    gap: 22px;
+}
+
+.about-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 22px;
+}
+
+.glass-card,
+.showcase-card,
+.feature-card,
+.docs-sidebar,
+.docs-entry-card,
+.docs-hub-guide,
+.tool-panel,
+.download-modal__panel,
+.markdown-body,
+.compare-process-card,
+.faq-item {
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(124, 89, 255, 0.1);
+    box-shadow: 0 24px 54px rgba(70, 40, 120, 0.08);
+}
+
+.about-card,
+.theme-board {
+    padding: 26px;
+    border-radius: 28px;
+}
+
+.theme-board {
+    display: grid;
+    gap: 16px;
+}
+
+.theme-group {
+    display: grid;
+    gap: 10px;
+}
+
+.theme-group--muted {
+    padding-top: 12px;
+    border-top: 1px solid rgba(124, 89, 255, 0.12);
+}
+
+.theme-group--muted .theme-chips span {
+    opacity: 0.68;
+    background: rgba(114, 96, 144, 0.08);
+}
+
+.theme-group--muted p {
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.theme-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.showcase-section,
+.features-section {
+    background: transparent;
+}
+
+.showcase-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.showcase-card {
+    overflow: hidden;
+    border-radius: 28px;
+}
+
+.showcase-card img {
+    aspect-ratio: 1.2 / 1;
+}
+
+.showcase-card__body {
+    padding: 18px 18px 22px;
+}
+
+.module-tag {
+    background: rgba(124, 89, 255, 0.1);
+    color: #6a46f5;
+    border-radius: 999px;
+    padding: 6px 12px;
+}
+
+.warning-tag {
+    background: rgba(255, 109, 138, 0.12);
+    color: #d65076;
+}
+
+.features-grid--wide {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.feature-card {
+    border-radius: 24px;
+    padding: 30px 24px;
+}
+
+.feature-card:hover,
+.showcase-card:hover,
+.faq-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 30px 60px rgba(70, 40, 120, 0.12);
+}
+
+.icon-wrap {
+    color: #7c59ff;
+}
+
+.faq-item {
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.faq-question {
+    background: transparent;
+}
+
+.faq-question:hover {
+    background: rgba(124, 89, 255, 0.05);
+}
+
+.faq-question::after {
+    color: #8f7ab2;
+}
+
+.faq-question.font-highlight-main {
+    color: #42286d;
+    background: linear-gradient(90deg, rgba(216, 193, 255, 0.46), rgba(255, 226, 244, 0.52));
+}
+
+.faq-question.font-highlight-main:hover {
+    background: linear-gradient(90deg, rgba(216, 193, 255, 0.62), rgba(255, 226, 244, 0.62));
+}
+
+.faq-item.active .faq-answer {
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.footer {
+    background:
+        radial-gradient(circle at 50% 0%, rgba(193, 156, 255, 0.22), transparent 34%),
+        linear-gradient(180deg, #f5efff 0%, #efe6ff 100%);
+    border-top: 1px solid rgba(124, 89, 255, 0.1);
+}
+
+.docs-sidebar,
+.tool-panel,
+.docs-entry-card,
+.docs-hub-guide,
+.download-modal__panel,
+.markdown-body,
+.compare-box-wrapper,
+.compare-process-card,
+.nightly-file {
+    border-radius: 20px;
+}
+
+.markdown-body {
+    color: var(--text-main);
+    border-color: rgba(124, 89, 255, 0.1);
+    box-shadow: 0 24px 48px rgba(70, 40, 120, 0.08);
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: #2c1b44;
+}
+
+.markdown-body h1,
+.markdown-body h2 {
+    border-bottom-color: rgba(124, 89, 255, 0.16);
+}
+
+.markdown-body pre,
+.compare-process-img-box {
+    background: rgba(112, 85, 160, 0.06);
+    border-color: rgba(124, 89, 255, 0.1);
+}
+
+.docs-search,
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+    background: rgba(255, 255, 255, 0.84);
+    border-color: rgba(124, 89, 255, 0.14);
+}
+
+.docs-search:focus,
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+    box-shadow: 0 0 0 3px rgba(124, 89, 255, 0.12);
+}
+
+@media (max-width: 1200px) {
+    .showcase-grid,
+    .features-grid--wide {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    .hero-layout,
+    .about-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-stage {
+        min-height: 460px;
+    }
+
+    .hero-window--main {
+        inset: 20px 70px 90px 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-links {
+        background: rgba(248, 243, 255, 0.96);
+        border-top: 1px solid rgba(124, 89, 255, 0.1);
+    }
+
+    .hero {
+        padding: 124px 0 70px;
+    }
+
+    .hero-stage {
+        min-height: 380px;
+    }
+
+    .hero-window--main {
+        position: relative;
+        inset: auto;
+        margin-bottom: 14px;
+    }
+
+    .hero-window--shot-a,
+    .hero-window--shot-b {
+        position: relative;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        width: 100%;
+        height: 170px;
+    }
+
+    .showcase-grid,
+    .features-grid--wide {
+        grid-template-columns: 1fr;
+    }
+}
