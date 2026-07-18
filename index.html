@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StrikeSense - CS2 纯净增强与脚本工作流</title>
+    <title>StrikeSense - CS2 官方纯净增强工作台</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -26,277 +26,179 @@
         </div>
     </header>
 
-    <section class="hero">
-        <div class="container hero-layout">
-            <div class="hero-copy">
-                <span class="badge">基于 CS2 官方 GSI 与本地脚本系统</span>
-                <h1>把纯净、可控、好看的 CS2 增强面板重新做对。</h1>
-                <p class="subtitle">StrikeSense 不读写游戏内存，不绕过反作弊，不做云控盒子。它把 GSI 状态接入、音效增强、道具覆盖、VScript / CScript 工作流和主题化界面收拢成一套真正能长期使用的软件体验。</p>
+    <section class="hero hero--publish">
+        <div class="container hero-publish">
+            <div class="hero-publish__copy">
+                <span class="badge">基于 CS2 官方 GSI · 纯外部工作流</span>
+                <h1>给纯净玩家准备的 CS2 增强工作台。</h1>
+                <p class="subtitle">StrikeSense 把官方状态接入、身法输入优化、连杀音效、道具 Overlay、TextGUI 通知和 VScript / CScript 自定义能力整合成一套真正能长期使用的软件体验。</p>
                 <div class="hero-btns">
                     <a href="#download" class="btn btn-primary btn-lg js-download-choice">立即下载客户端</a>
                     <a href="scriptdocs.html" class="btn btn-secondary btn-lg">查看脚本文档</a>
                 </div>
-                <div class="hero-pills">
-                    <span>纯外部工作流</span>
-                    <span>TextGUI / 通知联动</span>
-                    <span>VScript / CScript 双脚本</span>
+                <div class="hero-publish__points">
+                    <span>不读写游戏内存</span>
+                    <span>不绕过反作弊</span>
+                    <span>支持低内存模式</span>
+                    <span>支持中英文界面</span>
                 </div>
             </div>
-            <div class="hero-stage">
-                <div class="hero-glow hero-glow--one"></div>
-                <div class="hero-glow hero-glow--two"></div>
-                <div class="hero-window hero-window--main">
-                    <div class="hero-window__eyebrow">STRIKESENSE SYSTEM</div>
-                    <h2>当前视觉已经不再是旧浅蓝。</h2>
-                    <p>新版程序在启动图和主题系统里已经转向更柔和的紫雾、花瓣粉和玻璃高光，这一版首页也同步回到现在的风格。</p>
-                    <ul class="hero-window__list">
-                        <li>6 套基础视觉组已稳定可用</li>
-                        <li>高级视觉组保留开发中状态</li>
-                        <li>首页布局围绕脚本、主题、覆盖层三条主线重组</li>
-                    </ul>
+            <div class="hero-publish__visual">
+                <div class="hero-frame">
+                    <div class="hero-frame__top">
+                        <span>StrikeSense Workspace</span>
+                        <span>Pure / Local / Fast</span>
+                    </div>
+                    <img src="img/pt2.png" alt="StrikeSense 主界面截图">
                 </div>
-                <div class="hero-window hero-window--shot hero-window--shot-a">
-                    <img src="img/pt2.png" alt="StrikeSense 主题与进化功能截图">
+                <div class="hero-mini-card hero-mini-card--top">
+                    <strong>GSI + Overlay</strong>
+                    <p>围绕官方状态与前台绘制构建</p>
                 </div>
-                <div class="hero-window hero-window--shot hero-window--shot-b">
-                    <img src="img/pt6.png" alt="StrikeSense 自定义脚本功能截图">
+                <div class="hero-mini-card hero-mini-card--bottom">
+                    <strong>VScript / CScript</strong>
+                    <p>把你的想法挂成真正可用的本地脚本</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section id="about" class="about-section">
+    <section id="about" class="about-section about-section--publish">
         <div class="container">
             <div class="section-header section-header--left">
-                <h2>它是什么</h2>
-                <p>不是“电竞盒子”，而是一套围绕官方状态、脚本和前台覆盖层的桌面软件。</p>
+                <h2>它不是“盒子”，而是一套可长期维护的桌面软件</h2>
+                <p>核心思路很简单：围绕官方接口和本地工作流，把真正常用的增强能力收进统一界面。</p>
             </div>
-            <div class="about-grid">
-                <article class="glass-card about-card">
-                    <span class="kicker">定位</span>
-                    <h3>把分散功能整成一个可维护的软件壳</h3>
-                    <p>StrikeSense 把音效、道具大图、输入增强、通知提示、TextGUI 和脚本执行都放进统一界面。你不需要再在多个散装脚本、配置文件和临时工具之间来回切。</p>
+            <div class="publish-summary-grid">
+                <article class="glass-card publish-summary-card">
+                    <span class="kicker">纯净前提</span>
+                    <h3>不靠注入，也不靠云控</h3>
+                    <p>StrikeSense 的状态来源是 Valve 官方开放的 GSI，操作层依赖标准输入映射、本地文件和前台覆盖绘制，不需要碰 CS2 进程内存。</p>
                 </article>
-                <article class="glass-card about-card">
-                    <span class="kicker">原则</span>
-                    <h3>纯净优先，体验也不能掉队</h3>
-                    <p>程序依赖 CS2 官方 GSI、标准输入映射和本地文件工作流，不注入、不云控、不强制联网。现在连视觉层也已经升级为主题体系，不再停留在老式浅蓝科技壳。</p>
+                <article class="glass-card publish-summary-card">
+                    <span class="kicker">整合体验</span>
+                    <h3>把常用增强能力整合到一个工作台</h3>
+                    <p>音效、输入增强、道具教学、脚本执行、模块通知和 TextGUI 被整合进统一界面，使用路径更直接，也更适合长期常驻。</p>
+                </article>
+                <article class="glass-card publish-summary-card">
+                    <span class="kicker">长期使用</span>
+                    <h3>更适合日常常驻使用</h3>
+                    <p>软件支持低内存模式、自定义资源目录、双语界面与脚本扩展，尽可能减少常驻使用时的性能与维护负担。</p>
                 </article>
             </div>
-            <div class="glass-card about-card about-card--full">
-                <span class="kicker">详细说明</span>
-                <h3>保留旧版完整背景介绍</h3>
-                <div class="about-text">
+            <div class="about-text about-text--publish glass-card">
                 <p>StrikeSense 通过对接反恐精英2（CS2）官方提供的 <strong>GSI (Game State Integration)</strong> 接口，以绝对安全、纯净的形式实时捕获对局事件。我们致力于在不破坏游戏公平性和内存完整性的前提下，通过物理级别的硬件逻辑优化与视觉重组，为硬核身法玩家、音效定制爱好者提供极致的竞技体验。</p>
-            </div>
-            </div>            <div class="theme-board glass-card">
-                <div>
-                    <span class="kicker">当前主题体系</span>
-                    <h3>首页已经按程序里的主题方向回正</h3>
-                </div>
-                <div class="theme-group">
-                    <strong>基础视觉组</strong>
-                    <div class="theme-chips">
-                        <span>Defult</span>
-                        <span>水色系</span>
-                        <span>暗黑红系</span>
-                        <span>金秋</span>
-                        <span>春意盎然</span>
-                        <span>紫颂果</span>
-                    </div>
-                </div>
-                <div class="theme-group theme-group--muted">
-                    <strong>高级视觉组</strong>
-                    <div class="theme-chips">
-                        <span>Vape</span>
-                        <span>LiquidBounce</span>
-                        <span>Gemini</span>
-                        <span>GPT</span>
-                        <span>DeepSeek</span>
-                    </div>
-                    <p>这些主题在程序内仍是开发中状态，因此首页只保留预告感，不伪装成已经完成。</p>
-                </div>
             </div>
         </div>
     </section>
 
-    <section id="showcase" class="showcase-section">
+    <section id="showcase" class="showcase-section showcase-section--publish">
         <div class="container">
             <div class="section-header">
                 <h2>界面预览</h2>
-                <p>从主界面、进化面板到脚本页，网站内容现在按程序现状重新排序。</p>
+                <p>通过一张核心展示图和三条体验重点，快速了解 StrikeSense 在实战中的整体观感。</p>
             </div>
-            <div class="showcase-grid">
-                <article class="showcase-card">
-                    <img src="img/pt1.png" alt="主界面基础功能截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag">模块一</span>
-                        <h3>基础功能与全局配置</h3>
-                        <p>主程序承接 GSI、音效与常规增强配置，作为整套体验的稳定底座。</p>
-                    </div>
-                </article>
-                <article class="showcase-card">
-                    <img src="img/pt2.png" alt="进化功能截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag">模块二</span>
-                        <h3>进化分支与高级增强</h3>
-                        <p>通知、TextGUI、主题与扩展能力都在这里汇总，不再是零散堆叠。</p>
-                    </div>
-                </article>
-                <article class="showcase-card">
-                    <img src="img/pt3.png" alt="合法配置截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag">模块三</span>
-                        <h3>Autoexec 与合法配置工作流</h3>
-                        <p>把真正常用的落地配置整理进软件界面，降低手改文件门槛。</p>
-                    </div>
-                </article>
-                <article class="showcase-card">
-                    <img src="img/pt4.png" alt="超频配置截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag warning-tag">模块四</span>
-                        <h3>超频配置与敏感功能隔离</h3>
-                        <p>灰区能力单独收口、单独提示，和纯净部分明确分层，不再混成一团。</p>
-                    </div>
-                </article>
-                <article class="showcase-card">
-                    <img src="img/pt5.png" alt="道具助手截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag">模块五</span>
-                        <h3>实战 Overlay 与道具教学</h3>
-                        <p>游戏内大图覆盖仍是最直接的实战功能之一，保留高可视性入口。</p>
-                    </div>
-                </article>
-                <article class="showcase-card">
-                    <img src="img/pt6.png" alt="VScript 脚本截图">
-                    <div class="showcase-card__body">
-                        <span class="module-tag">模块六</span>
-                        <h3>VScript / CScript 自定义链路</h3>
-                        <p>脚本文档、示例与工作台已经成体系，是当前版本最有延展性的部分。</p>
-                    </div>
-                </article>
-            </div>
-                        <div class="section-header section-header--left showcase-detail-header">
-                <h3>详细模块说明</h3>
-                <p>下面保留旧版完整的模块级介绍文案，信息量只增不减。</p>
-            </div>
-            <div class="showcase-list">
-                <div class="showcase-item">
-                    <div class="showcase-img">
-                        <img src="img/pt1.png" alt="遗产核心功能截图">
-                    </div>
-                    <div class="showcase-info">
-                        <span class="module-tag">模块一：遗产核心</span>
-                        <h3>独立优化的基本功能底座</h3>
-                        <p>由DM客户端产品的GSI程序移植而来并经过全新优化的基本功能，剥离了共享内存信息，现在能够独立运行，且拥有精美的可视化UI设置，而无需手动编辑JSON文件。</p>
-                    </div>
+            <div class="preview-shell glass-card">
+                <div class="preview-shell__main preview-shell__main--ingame">
+                    <img src="img/preview/textgui-ingame-1920x1080.jpg" alt="StrikeSense 游戏内 TextGUI 视觉效果截图">
                 </div>
-
-                <div class="showcase-item reverse">
-                    <div class="showcase-img">
-                        <img src="img/pt2.png" alt="进化分支功能截图">
+                <div class="preview-shell__aside">
+                    <div class="preview-note">
+                        <span class="kicker kicker--dark">游戏内效果</span>
+                        <h3>游戏内 TextGUI 精致视觉呈现</h3>
+                        <p>StrikeSense 将 TextGUI、模块状态与通知提示融合进统一的游戏内视觉语言，让常驻信息既清晰醒目，又能保持整洁、克制且足够精致的实战观感。</p>
                     </div>
-                    <div class="showcase-info">
-                        <span class="module-tag">模块二：进化分支</span>
-                        <h3>独家进阶的强化体验</h3>
-                        <p>除了移植而来的基本功能，StrikeSense提供了在DM-GSI未曾提供的功能，它们能大幅提高游戏体验，开启您的进化之旅。</p>
-                    </div>
-                </div>
-
-                <div class="showcase-item">
-                    <div class="showcase-img">
-                        <img src="img/pt3.png" alt="合法配置截图">
-                    </div>
-                    <div class="showcase-info">
-                        <span class="module-tag">模块三：合法配置</span>
-                        <h3>原生 Autoexec 安全无忧直达</h3>
-                        <p>我们从DearMoments-V3客户端（代号Autumn）提取了一些重要功能，并让它直接运行到autoexec，功能虽少，但实用性超强，且不需要再担心合法性问题。</p>
-                    </div>
-                </div>
-
-                <div class="showcase-item reverse">
-                    <div class="showcase-img">
-                        <img src="img/pt4.png" alt="超频配置截图">
-                    </div>
-                    <div class="showcase-info">
-                        <span class="module-tag warning-tag">模块四：超频配置 </span>
-                        <h3>独家算法驱动的 Semi Rage</h3>
-                        <p>我们一如既往地添加了Semi Rage功能，独家研发的急停计算公式加上用户可编辑参数，或许能让您的体验更好。</p>
-                    </div>
-                </div>
-
-                <div class="showcase-item">
-                    <div class="showcase-img">
-                        <img src="img/pt5.png" alt="道具助手截图">
-                    </div>
-                    <div class="showcase-info">
-                        <span class="module-tag">模块五：道具助手</span>
-                        <h3>实战全屏教学 Overlay 遮罩</h3>
-                        <p>玩家在对局中无需切换到桌面看视频，热键一键在游戏最前端呼出全屏半透明教学。支持键盘快捷键无缝浏览各省时地图的烟、闪、火点位，按下 <code>[Enter]</code> 即可秒放高清瞄准点站位大图。现学现丢，让你瞬间具备职业级的道具覆盖率与战术威慑力！</p>
+                    <div class="preview-focus-card">
+                        <strong>视觉亮点</strong>
+                        <p>层级分明的信息排布、柔和统一的色彩过渡与细腻的提示样式，让玩家在激烈对局中也能快速读取关键状态，同时保留干净利落的画面氛围。</p>
                     </div>
                 </div>
             </div>
-               <div class="showcase-item reverse">
-                    <div class="showcase-img">
-                        <img src="img/pt6.png" alt="自定脚本功能">
-                    </div>
-                    <div class="showcase-info">
-                        <span class="module-tag">模块六：自定脚本</span>
-                        <h3>允许用户进行各种自定义组合拳</h3>
-                        <p>比起市面上的同类产品，这是我们最大的底气，我们允许挂载用户的自定义脚本，程序已为您简化逻辑，只需要学习文档，您可以轻松编写任何您想要的效果。</p>
-                    </div>
-                </div>
-
-
-          
-
-
-        
-    
+            <div class="preview-flow-grid">
+                <article class="preview-flow-card">
+                    <h3>看得见</h3>
+                    <p>主题化界面、可视化模块状态、统一通知和 TextGUI，让常用功能一眼可见。</p>
+                </article>
+                <article class="preview-flow-card">
+                    <h3>调得动</h3>
+                    <p>从基础行为到进阶附属参数，都能直接在软件内调整，不需要来回切换桌面和文本配置。</p>
+                </article>
+                <article class="preview-flow-card">
+                    <h3>扩得开</h3>
+                    <p>脚本文档、示例和编辑工作台已经成体系，适合继续往你自己的玩法方向延展。</p>
+                </article>
+            </div>
         </div>
     </section>
 
-    <section id="features" class="features-section">
-
+    <section id="features" class="features-section features-section--publish">
         <div class="container">
             <div class="section-header">
                 <h2>核心能力</h2>
-                <p>新版首页把“纯净性、脚本性、视觉统一”三件事摆到台面上。</p>
+                <p>从官方状态接入到脚本扩展，这些能力共同构成了 StrikeSense 的完整使用体验。</p>
             </div>
-            <div class="features-grid features-grid--wide">
-                <article class="feature-card">
+            <div class="capability-grid">
+                <article class="feature-card capability-card capability-card--wide">
                     <div class="icon-wrap">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 7.8-8 9-4.5-1.2-8-4-8-9V7l8-4z"></path><path d="M9 12l2 2 4-4"></path></svg>
                     </div>
-                    <h3>官方状态接入</h3>
-                    <p>围绕 GSI 展开，不用碰游戏内存，也不依赖不透明的云端控制。</p>
+                    <h3>官方 GSI 驱动的纯净运行逻辑</h3>
+                    <p>对局状态、玩家信息、回合事件和武器数据来自 Valve 官方 GSI。软件不注入、不读写 CS2 内存，核心运行逻辑也不依赖联网和云端验证。</p>
                 </article>
-                <article class="feature-card">
+                <article class="feature-card capability-card">
                     <div class="icon-wrap">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16"></path><path d="M7 16l3-8 4 6 3-10"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
                     </div>
-                    <h3>统一通知与 TextGUI</h3>
-                    <p>模块开关、脚本行和控制台信号现在可以走同一套视觉提示与显示管线。</p>
+                    <h3>连杀音效与自定义音乐包</h3>
+                    <p>支持一杀到五杀、MVP、安拆包、对局胜负等事件触发自定义 WAV / OGG 音效，也支持本地资源管理与低内存保活。</p>
                 </article>
-                <article class="feature-card">
+                <article class="feature-card capability-card">
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    </div>
+                    <h3>合法身法输入优化</h3>
+                    <p>围绕 SOCD 急停、滚轮跳、跳投等高频动作做输入层优化，目标是把常见身法操作做得更稳定、更顺手。</p>
+                </article>
+                <article class="feature-card capability-card">
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                    </div>
+                    <h3>游戏内 Overlay 道具教学</h3>
+                    <p>支持前台全屏半透明教学覆盖，不必切回桌面看视频。烟、闪、火点位能直接在游戏里浏览和放大。</p>
+                </article>
+                <article class="feature-card capability-card">
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </div>
+                    <h3>护眼闪光平替与视觉覆盖</h3>
+                    <p>被闪时可用本地图片替代刺眼纯白，也能配合其他覆盖显示做更柔和、更可自定义的视觉反馈。</p>
+                </article>
+                <article class="feature-card capability-card capability-card--wide">
                     <div class="icon-wrap">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path></svg>
                     </div>
-                    <h3>脚本能力持续扩展</h3>
-                    <p>VScript 已覆盖状态变量、控制台消费、Steam 账号对象和模块控制，不再只是几个演示 API。</p>
+                    <h3>VScript / CScript 扩展链路</h3>
+                    <p>除了基础变量判断，脚本系统已经支持控制台日志消费、Steam 账号对象、模块状态读取与切换、TextGUI 行控制、音频和图片行为控制。你既可以直接挂载脚本，也可以从文档和可视化工具开始搭自己的组合拳。</p>
                 </article>
-                <article class="feature-card">
+                <article class="feature-card capability-card">
                     <div class="icon-wrap">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="4"></rect><path d="M7 15c2-3 4-4 6-3 1 .5 2 .5 4-1"></path><circle cx="9" cy="9" r="1"></circle></svg>
                     </div>
-                    <h3>视觉主题正式成体系</h3>
-                    <p>程序已有成组主题和启动图方向，网站不再继续挂着几个月前的旧浅蓝外观。</p>
+                    <h3>主题、通知与 TextGUI 统一体验</h3>
+                    <p>程序已经具备成组主题、模块通知和 TextGUI 联动，让“功能状态”本身就能被清楚地看见，而不是全靠记忆。</p>
+                </article>
+                <article class="feature-card capability-card">
+                    <div class="icon-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16"></path><path d="M7 11l3 3 7-7"></path></svg>
+                    </div>
+                    <h3>合法配置与日常维护入口</h3>
+                    <p>Autoexec、资源目录、脚本目录和常见本地文件入口都被整理进软件工作流里，减少查路径和手工维护成本。</p>
                 </article>
             </div>
         </div>
     </section>
 
-    <section id="faq" class="faq-section">
+        <section id="faq" class="faq-section">
         <div class="container">
             <div class="section-header">
                 <h2>常见问题 Q&A</h2>
@@ -305,7 +207,7 @@
             <div class="faq-list">
                 <div class="faq-item">
                     <div class="faq-question font-highlight-main">💡 为什么选择 StrikeSense？相比同类同行产品有什么优势？</div>
-<div class="faq-answer">
+                    <div class="faq-answer">
                         <p><strong>我们只做“极致纯粹”的艺术品，而绝不制造“商业垃圾”。</strong></p>
                         <p>反观市面上那些所谓的“XX电竞盒子”、“XX辅助助手”等同行产品，底层代码极度臃肿，内部塞满了强制性的<strong>云端服务器验证、隐蔽的云控后门后台、以及恶劣的开屏推广广告</strong>。这些产品不仅在后台疯狂蚕食你的 CPU 和系统内存，导致你的 CS2 游戏在实战中高频产生致命掉帧、卡顿，甚至在暗地里悄悄扫描你的本地隐私文件、带有极大的木马中毒与被控风险。</p>
                         <p>而 StrikeSense 走的是完全相反的极客路线：
@@ -316,7 +218,6 @@
 
                         <div class="compare-box-wrapper">
                             <h4 class="compare-box-title">📊 任务管理器实测内存占用对比</h4>
-                            
                             <div class="compare-flex-container">
                                 <div class="compare-process-card card-good">
                                     <div class="compare-card-header">
@@ -329,6 +230,7 @@
                                         <img src="img/process1.png" alt="StrikeSense 任务管理器截图">
                                     </div>
                                     <span class="compare-status-text text-good">极致轻量：运行内存保持在 10MB 以内，零掉帧</span>
+                                     <p class="compare-disclaimer">数据来源于工程调试版，仅供参考</p>
                                 </div>
 
                                 <div class="compare-process-card card-bad">
@@ -342,11 +244,12 @@
                                         <img src="img/process2.png" alt="某同类型助手 任务管理器截图">
                                     </div>
                                     <span class="compare-status-text text-bad">严重臃肿：强行吃掉数百MB内存，伴随高频卡顿掉帧</span>
-                                </div>
-                            </div>
-                        </div>
-
+                                                       
                     </div>
+                </div>
+            </div>
+        </div>
+                </div>
 
                 <div class="faq-item">
                     <div class="faq-question">Q1：软件会封号吗？它的底层原理是什么？</div>
@@ -354,18 +257,21 @@
                         <p><strong>绝对不会。</strong> StrikeSense 没有任何绕过 VAC 或任何反作弊系统的代码。音效和护眼闪光平替基于 Valve 官方开放的 GSI 状态服务器；身法优化和道具助手则是外部标准的键盘映射模拟和前台遮罩绘图。软件 100% 不读写、不注入 CS2 游戏内存，属于纯净的外部增强工具。</p>
                     </div>
                 </div>
+
                 <div class="faq-item">
                     <div class="faq-question">Q2：自定义音效和道具图片需要放在哪里？支持多国语言吗？</div>
                     <div class="faq-answer">
                         <p>软件具备自主保活和引导功能，首次运行或点击主界面的“打开文件夹”按钮，系统会自动为您打开您需要的文件夹。另外，软件内置完美的 <strong>中/英文一键国际化切换（i18n）</strong>，页面控件完美自适应。</p>
                     </div>
                 </div>
+
                 <div class="faq-item">
                     <div class="faq-question font-highlight">Q3：为什么要将“超频配置 (Rage)”列为灰色地带？它到底是不是外挂？</div>
                     <div class="faq-answer">
                         <p><strong>核心定义：超频配置（Rage）绝对不是外挂。</strong></p>
                         <p>首先，StrikeSense 没有且未来也绝不会包含任何“绕过、躲避、反侦测反作弊”的代码。如果它不合法，但同类型的软件或硬件通过驱动或其他手段尝试隐藏自己的行为导致反作弊抓不住它，那本质上是在欺诈反作弊。但实际情况是：<strong>目前市面上许多高端电竞硬件（如磁轴键盘的 Snap Tap 功能等）在硬件层面本身就具有完全相同的急停和脉冲响应优化。</strong>所以，因此，我们不需要隐藏自己的行为去绕过反作弊。</p>
                         <p>我们认为，明知某个行为是作弊，但是通过驱动或硬件（DMA设备访问游戏内存、USB驱动）实现绕过反作弊的行为并声称它完全合法的行为是可耻的，且在不同的比赛和服务器平台中，应当遵循不同的规则（如职业联赛和普通社区）。</p>
+                                           
                     </div>
                 </div>
             </div>
@@ -374,10 +280,10 @@
 
     <footer id="download" class="footer">
         <div class="container footer-content">
-            <h3>从纯净增强，升级到完整工作流。</h3>
-            <p>支持 Windows 10 / 11 64 位环境，围绕 CS2 官方纯净玩法与本地脚本扩展构建。</p>
+            <h3>开启你的全新 StrikeSense 竞技之旅</h3>
+            <p>环境要求：Windows 10 / 11 64位系统 | 完美支持 CS2 官方纯净环境</p>
             <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg js-download-choice">立即免费下载</a>
-            <p class="copyright">&copy; 2026 StrikeSense. All Rights Reserved.</p>
+            <p class="copyright">&copy; 2026 无损平方集团. All Rights Reserved. 保留所有权利。</p>
         </div>
     </footer>
 
