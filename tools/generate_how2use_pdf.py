@@ -245,6 +245,14 @@ def cover_block(text_styles: dict[str, ParagraphStyle]):
             "正常情况下，StrikeSense 会自动尝试写入这两项；实际代码里即便启动项补全失败，GSI 文件通常仍然可以成功写入。所以排查时请把“GSI 是否存在”和“启动项是否补齐”分开看。",
             text_styles["body"],
         ),
+        Paragraph(
+            "如果你玩的不是 Steam 原生启动，而是某些第三方平台，请额外去 <b>第三方平台自己的启动项设置</b> 里检查参数是否被覆盖。若原生设置无效、平台侧也确认过仍然有问题，可以再尝试打开 <b>宽容窗口检测</b>。但这会带来一些额外 BUG，虽然通常只是轻微影响体验，我们也 <b>不对第三方平台或第三方服务器做任何可用保证和安全保证</b>。",
+            text_styles["body"],
+        ),
+        Paragraph(
+            "你可以把第三方服务器理解成私营规则环境，很多规矩本身就是 OWNER 说了算。极端情况下，对方平台或服务器就算提出很离谱的限制，也不是 StrikeSense 能控制的范围。我们的目标是理论上兼容全部服务器，但第三方规则本身不在我们保证范围内。",
+            text_styles["small"],
+        ),
         Spacer(1, 0.2 * inch),
     ]
 
@@ -262,6 +270,7 @@ def troubleshooting_table(text_styles: dict[str, ParagraphStyle]) -> Table:
         ["网站下载后完全没有反应", "是否真的安装了 GSI 文件", "重新在软件里执行一次安装；仍不行就手动创建 cfg 文件"],
         ["部分模块可开，但游戏事件不触发", "gamestate_integration_square.cfg 内容是否完整", "对照本文手动创建，重启 CS2"],
         ["软件提示自动添加启动项失败", "Steam 是否完全关闭、是否存在 localconfig.vdf、账号是否启动过 CS2", "手动补上 -vulkan -condebug，重启 Steam"],
+        ["第三方平台启动后仍无效", "第三方平台自己的启动项、覆盖层与窗口检测设置", "先去第三方平台补同样的启动项；仍不行再尝试宽容窗口检测，但会有轻微额外 BUG"],
         ["CScript 没触发", "autoexec.cfg / StrikeTicker.cfg / CustomTicker", "游戏内执行 exec autoexec 或重启游戏"],
     ]
     table = Table(rows, colWidths=[1.45 * inch, 2.1 * inch, 2.55 * inch])
@@ -423,6 +432,8 @@ def build_story(text_styles: dict[str, ParagraphStyle]):
     story.append(troubleshooting_table(text_styles))
     story.append(Spacer(1, 0.12 * inch))
     story.append(Paragraph("尤其要记住：自动补启动项失败，不等于 GSI 文件也失败。只要 cfg 已经写进去，很多依赖 GSI 的模块依然是有机会正常工作的。", text_styles["body"]))
+    story.append(Paragraph("如果你使用第三方对战平台，请把“Steam 启动项”和“第三方平台启动项”视为两套都要核查的东西。某些平台会覆盖或接管启动参数，这时要以平台侧实际生效的设置为准。", text_styles["body"]))
+    story.append(Paragraph("宽容窗口检测可以作为最后一步兼容性尝试，但它不是无代价的保险开关，可能引入一些轻微体验问题。只有在第三方平台环境下确实排完常规项还不行时，再考虑打开。", text_styles["small"]))
 
     story.append(Paragraph("十一、遇到问题时如何正确求助", text_styles["h1"]))
     story.append(Paragraph("遇到问题后，请去 <b>不和谐频道</b> 提交帖子，并尽量一次性给全信息。这样别人才能真正帮你复现和定位。", text_styles["body"]))
