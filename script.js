@@ -64,6 +64,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
     };
 
+    const extractNightlyTimestamp = (name, fallbackModified = 0) => {
+        const match = typeof name === 'string' ? name.match(/(\d{12})(?=\.exe$)/i) : null;
+        if (match) {
+            return Number.parseInt(match[1], 10);
+        }
+        return Number.isFinite(fallbackModified) ? fallbackModified : 0;
+    };
+
     const openDownloadModal = () => {
         downloadModal.classList.add('open');
         downloadModal.setAttribute('aria-hidden', 'false');
@@ -95,23 +103,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('app/nightly-manifest.json', { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const manifest = await response.json();
-            const files = Array.isArray(manifest.files) ? manifest.files : [];
+            const files = Array.isArray(manifest.files) ? [...manifest.files] : [];
 
             if (files.length === 0) {
                 nightlyList.innerHTML = '<p class="nightly-list__status">当前没有检测到夜间版文件。</p>';
                 return;
             }
 
-            const fileRows = files.map((file) => `
-                <a class="nightly-file" href="${file.path}" download>
+            files.sort((left, right) => {
+                const leftValue = extractNightlyTimestamp(left.name, left.modified);
+                const rightValue = extractNightlyTimestamp(right.name, right.modified);
+                return rightValue - leftValue;
+            });
+
+            const fileRows = files.map((file, index) => `
+                <a class="nightly-file${index === 0 ? ' nightly-file--latest' : ''}" href="${file.path}" download>
                     <span>
-                        <strong>${file.name}</strong>
+                        <strong>${file.name}${index === 0 ? '<span class="nightly-file__badge">最新</span>' : ''}</strong>
                         <small>${formatFileSize(file.size)}</small>
                     </span>
                     <span class="nightly-file__download">下载</span>
                 </a>
             `).join('');
-            nightlyList.innerHTML = `<div class="nightly-list__header">检测到 ${files.length} 个夜间版文件</div>${fileRows}`;
+            nightlyList.innerHTML = `<div class="nightly-list__header">检测到 ${files.length} 个夜间版文件，已按日期从新到旧排序</div>${fileRows}`;
         } catch (error) {
             nightlyList.innerHTML = '<p class="nightly-list__status">夜间版清单读取失败，请稍后再试。</p>';
             console.log('夜间版清单读取失败：', error);

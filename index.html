@@ -33,7 +33,7 @@
                 <h1>给纯净玩家准备的 CS2 增强工作台。</h1>
                 <p class="subtitle">StrikeSense 把官方状态接入、身法输入优化、连杀音效、道具 Overlay、TextGUI 通知和 VScript / CScript 自定义能力整合成一套真正能长期使用的软件体验。</p>
                 <div class="hero-btns">
-                    <a href="#download" class="btn btn-primary btn-lg js-download-choice">立即下载客户端</a>
+                    <a href="#download" class="btn btn-primary btn-lg">立即下载客户端</a>
                     <a href="scriptdocs.html" class="btn btn-secondary btn-lg">查看脚本文档</a>
                 </div>
                 <div class="hero-publish__points">
@@ -198,7 +198,7 @@
         </div>
     </section>
 
-        <section id="faq" class="faq-section">
+    <section id="faq" class="faq-section">
         <div class="container">
             <div class="section-header">
                 <h2>常见问题 Q&A</h2>
@@ -244,11 +244,10 @@
                                         <img src="img/process2.png" alt="某同类型助手 任务管理器截图">
                                     </div>
                                     <span class="compare-status-text text-bad">严重臃肿：强行吃掉数百MB内存，伴随高频卡顿掉帧</span>
-                                                       
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
                 </div>
 
                 <div class="faq-item">
@@ -271,7 +270,6 @@
                         <p><strong>核心定义：超频配置（Rage）绝对不是外挂。</strong></p>
                         <p>首先，StrikeSense 没有且未来也绝不会包含任何“绕过、躲避、反侦测反作弊”的代码。如果它不合法，但同类型的软件或硬件通过驱动或其他手段尝试隐藏自己的行为导致反作弊抓不住它，那本质上是在欺诈反作弊。但实际情况是：<strong>目前市面上许多高端电竞硬件（如磁轴键盘的 Snap Tap 功能等）在硬件层面本身就具有完全相同的急停和脉冲响应优化。</strong>所以，因此，我们不需要隐藏自己的行为去绕过反作弊。</p>
                         <p>我们认为，明知某个行为是作弊，但是通过驱动或硬件（DMA设备访问游戏内存、USB驱动）实现绕过反作弊的行为并声称它完全合法的行为是可耻的，且在不同的比赛和服务器平台中，应当遵循不同的规则（如职业联赛和普通社区）。</p>
-                                           
                     </div>
                 </div>
             </div>
@@ -294,8 +292,9 @@
             <h2 id="downloadModalTitle">选择下载版本</h2>
             <p class="download-modal__hint">发布版更稳定，夜间版会先检测当前可用文件。</p>
             <div class="download-modal__actions">
-                <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg" download>下载发布版</a>
-                <button class="btn btn-secondary btn-lg" type="button" id="showNightlyFiles">检测夜间版</button>
+                <a href="app/StrikeSense.exe" class="btn btn-primary btn-lg download-action download-action--release" download>下载发布版</a>
+                <button class="btn btn-lg download-action download-action--nightly" type="button" id="showNightlyFiles">下载夜间版</button>
+                <a href="app/how2use.pdf" class="btn btn-lg download-action download-action--guide" download>下载教程</a>
             </div>
             <div class="nightly-list" id="nightlyList" hidden></div>
         </div>
